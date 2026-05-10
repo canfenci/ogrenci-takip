@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#007BFF">
+    <title>LGS Fen Deneme Koçu | Tam Çalışan Sürüm</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Açık mod temel */
+        body:not(.dark) { background-color: #F8F9FA !important; color: #111111 !important; }
+        body:not(.dark) .bg-white, body:not(.dark) .bg-gray-50 { background-color: #FFFFFF !important; color: #111111 !important; }
+        body:not(.dark) .text-gray-800 { color: #111111 !important; }
+        body:not(.dark) button.bg-gray-200 { background-color: #E5E7EB !important; color: #111111 !important; }
+        body:not(.dark) .stat-badge { background-color: #E9ECEF !important; color: #111111 !important; }
+        body:not(.dark) #batchModal .sticky-footer { background-color: #F3F4F6 !important; color: #111111 !important; }
+        body:not(.dark) .motivation-card { background-color: #FEF3C7 !important; color: #78350F !important; border-color: #FDE68A !important; }
+        body:not(.dark) .weak-card { background-color: #FEE2E2 !important; border-color: #FECACA !important; }
+        body:not(.dark) .weak-card h4, body:not(.dark) .weak-card p { color: #7F1D1D !important; }
+        body:not(.dark) .strong-card { background-color: #D1FAE5 !important; border-color: #A7F3D0 !important; }
+        body:not(.dark) .strong-card h4, body:not(.dark) .strong-card p { color: #064E3B !important; }
+        body:not(.dark) .btn-batch { background-color: #0F766E !important; color: white !important; }
+        body:not(.dark) .btn-batch:hover { background-color: #0D5C54 !important; }
+        .student-form-input, .modal-input {
+            background-color: #FFFFFF !important;
+            border: 1px solid #D1D5DB !important;
+            padding: 0.5rem !important;
+            border-radius: 0.5rem !important;
+            width: 100% !important;
+            color: #111111 !important;
+            pointer-events: auto !important;
+        }
+        body.dark .student-form-input, body.dark .modal-input {
+            background-color: #374151 !important;
+            border-color: #4B5563 !important;
+            color: #F8F9FA !important;
+        }
+        /* Koyu mod */
+        body.dark { background-color: #121212 !important; color: #F8F9FA !important; }
+        body.dark .bg-white, body.dark .bg-gray-50 { background-color: #1E1E1E !important; color: #F8F9FA !important; }
+        body.dark .text-gray-800 { color: #E0E0E0 !important; }
+        .btn-sort-active { background-color: #007BFF !important; color: white !important; }
+        .btn-sort-inactive { background-color: #E9ECEF !important; color: #212529 !important; border: 1px solid #CED4DA !important; }
+        .stat-badge { padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; }
+        body.dark .btn-sort-inactive { background-color: #2C2C2C !important; color: #F8F9FA !important; }
+        body.dark .motivation-card { background-color: #78350F !important; color: #FEF3C7 !important; }
+        body.dark .weak-card { background-color: #7F1D1D !important; border-color: #991B1B !important; }
+        body.dark .weak-card h4, body.dark .weak-card p { color: #FEE2E2 !important; }
+        body.dark .strong-card { background-color: #064E3B !important; border-color: #047857 !important; }
+        body.dark .strong-card h4, body.dark .strong-card p { color: #D1FAE5 !important; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased">
+    <div id="app-root" class="max-w-5xl mx-auto px-4 py-6 md:py-8">
+        <div id="syncStatus" class="fixed bottom-4 right-4 z-50 bg-gray-800 text-white px-3 py-1 rounded-full text-xs shadow-lg hidden"></div>
+        <div id="dynamic-content"></div>
+    </div>
+
+    <script>
+        // ==================== 29 KONU ====================
+        const KONU_LISTESI = [
+            "Mevsimlerin oluşumu", "İklim ve Hava Hareketleri", "DNA ve Genetik Kod", "Kalıtım",
+            "Mutasyon ve Modifikasyon", "Adaptasyon", "Biyoteknoloji", "Katı basıncı", "Sıvı Basıncı",
+            "Gaz Basıncı", "Periyodik Cetvel", "Fiziksel ve Kimyasal Değişimler", "Kimyasal Tepkimeler",
+            "Asitler ve Bazlar", "Özısı", "Maddenin Hal Değişimi", "Kimya Endüstrisi", "Kaldıraçlar",
+            "Makaralar", "Eğik Düzlem ve Çıkrık", "Dişli Çark, Kasnak ve Bileşik Makine", "Besin Zinciri",
+            "Fotosentez", "Solunum", "Madde Döngüleri ve Çevre Sorunları", "Sürdürülebilir Kalkınma",
+            "Elektrik Yükleri ve Elektriklenme", "Elektrik Yüklü Cisimler ve Elektroskop",
+            "Elektrik Enerjisinin Dönüşümü ve Güç Santralleri"
+        ];
+
+        let currentStudentId = null, chartInstance = null, currentSortOrder = "default";
+        let darkMode = localStorage.getItem('darkMode') === 'true';
+        const STORAGE_KEY = "lgs_veri_v5";
+
+        function calculateNet(dogru, yanlis) { let net = dogru - (yanlis/3); return net>0 ? parseFloat(net.toFixed(2)) : 0; }
+        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+        function showSyncStatus(msg, isError) { const el = document.getElementById('syncStatus'); if(el){ el.textContent = msg; el.classList.remove('hidden','bg-gray-800','bg-red-600'); el.classList.add(isError?'bg-red-600':'bg-gray-800'); setTimeout(()=>el.classList.add('hidden'),3000); } }
+
+        function loadStudentsData() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if(stored) { return JSON.parse(stored); }
+            } catch(e) {}
+            return [{ id:"s1", adSoyad:"Zeynep Demir", okul:"Mehmetçik Ortaokulu", hedefLise:"İstanbul Lisesi", hedefNet:"18.5", denemeler:[] }];
+        }
+        function saveStudentsData(students) { localStorage.setItem(STORAGE_KEY, JSON.stringify(students)); showSyncStatus("✅ Kaydedildi", false); }
+
+        function getOrtalamaNet(ogrenci) { 
+            const d = ogrenci.denemeler || []; 
+            if(!d.length) return 0; 
+            const toplam = d.reduce((s,e)=>s + (e.toplamNet || 0), 0); 
+            return parseFloat((toplam/d.length).toFixed(2)); 
+        }
+        function getKonuBazliBasarilar(ogrenci) {
+            const stats={}; KONU_LISTESI.forEach(k=>stats[k]={dogru:0,toplamSoru:0});
+            if(!ogrenci.denemeler) return stats;
+            for(let den of ogrenci.denemeler) for(let k of den.konular) if(stats[k.konuAdi]) { stats[k.konuAdi].dogru += k.dogru || 0; stats[k.konuAdi].toplamSoru += k.toplamSoru || 0; }
+            const basari={}; for(let k of KONU_LISTESI) basari[k]=stats[k].toplamSoru ? (stats[k].dogru/stats[k].toplamSoru)*100 : null;
+            return basari;
+        }
+        function getTYMMFeedback(y) { if(y===null) return {etiket:"Veri Yok"}; if(y<50) return {etiket:"Destekleme Gerekli"}; if(y<=80) return {etiket:"Geliştirilebilir"}; return {etiket:"Zenginleştirme"}; }
+        function getBestWorstTopics(b) { 
+            const entries = Object.entries(b).filter(([_,v])=>v!==null); 
+            if(!entries.length) return {zayif:[], guclu:[]}; 
+            const sorted = [...entries].sort((a,b)=>a[1]-b[1]); 
+            return {zayif: sorted.slice(0,3).map(([k,v])=>({konu:k, yuzde:v.toFixed(1)})), guclu: sorted.slice(-3).reverse().map(([k,v])=>({konu:k, yuzde:v.toFixed(1)}))}; 
+        }
+        function getMotivationMessage(s) { 
+            const d=s.denemeler||[]; 
+            if(!d.length) return "📝 İlk denemeyi ekleyin"; 
+            const sonNet = d[d.length-1].toplamNet; 
+            const hedef = parseFloat(s.hedefNet); 
+            if(isNaN(hedef)) return "🎯 Hedef net belirtilmemiş"; 
+            const fark = hedef - sonNet; 
+            if(fark<=0) return "🎉 Hedefine ulaştın!"; 
+            if(fark<=2) return `🚀 Hedefine ${fark.toFixed(1)} net kaldı`; 
+            if(fark<=5) return `💪 ${fark.toFixed(1)} net kaldı`; 
+            return `📈 Hedefine ${fark.toFixed(1)} net var.`; 
+        }
+
+        // Yedekleme
+        function exportBackup() { const data=loadStudentsData(); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"})); a.download="lgs_manuel_yedek.json"; a.click(); }
+        function showImportModal() { 
+            const modal=document.createElement('div'); modal.className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"; 
+            modal.innerHTML=`<div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md shadow-xl"><h2 class="text-xl font-bold">📂 Manuel Geri Yükle</h2><input type="file" id="restoreFile" accept=".json" class="w-full border p-2 rounded my-2"><button onclick="importBackup()" class="bg-blue-600 text-white w-full py-2 rounded">Yükle</button><button onclick="this.closest('.fixed').remove()" class="mt-2 w-full border rounded py-2">İptal</button></div>`; 
+            document.body.appendChild(modal); 
+        }
+        function importBackup() { 
+            const file=document.getElementById('restoreFile').files[0]; 
+            if(!file) return; 
+            const reader=new FileReader(); 
+            reader.onload=e=>{ 
+                try{ 
+                    const data=JSON.parse(e.target.result); 
+                    if(Array.isArray(data)){ 
+                        saveStudentsData(data); 
+                        alert("Veriler yüklendi!"); 
+                        document.querySelector('.fixed')?.remove(); 
+                        renderHomeScreen(); 
+                    } 
+                } catch(err){ alert("Geçersiz dosya"); } 
+            }; 
+            reader.readAsText(file); 
+        }
+
+        // ========== TOPLU DENEME ATAMA ==========
+        let topluExamKonular = null;
+        function showBatchExamModal() { topluExamKonular = KONU_LISTESI.map(k => ({ konuAdi: k, toplamSoru: 0 })); renderBatchExamForm(); }
+        function renderBatchExamForm() {
+            let totalSoru = 0;
+            for(let k of topluExamKonular) totalSoru += k.toplamSoru;
+            let rows = '';
+            for(let i=0; i<topluExamKonular.length; i++) {
+                const k = topluExamKonular[i];
+                rows += `<div class="border rounded-xl p-2 bg-white dark:bg-gray-800"><div class="font-medium">${k.konuAdi}</div><div class="grid grid-cols-1 gap-2"><input type="number" min="0" value="${k.toplamSoru}" class="w-full border rounded p-2 modal-input batchSoru" data-idx="${i}" placeholder="Soru sayısı"></div></div>`;
+            }
+            const students = loadStudentsData();
+            const studentCheckboxes = students.map(s => `<label class="flex items-center gap-2 p-1"><input type="checkbox" value="${s.id}" class="studentCheck"> ${escapeHtml(s.adSoyad)} (${escapeHtml(s.okul)})</label>`).join('');
+            const modalHtml = `
+                <div id="batchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto p-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl" onclick="event.stopPropagation()">
+                        <div class="flex justify-between items-center mb-3"><h2 class="text-xl font-bold">📋 Toplu Deneme Ata (Soru Dağılımı)</h2><button onclick="closeBatchModal()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button></div>
+                        <div class="mb-3"><label class="font-medium">Deneme Adı</label><input id="batchExamName" class="w-full border rounded p-2 modal-input" placeholder="Örn: Mart Denemesi"></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-auto mb-3">${rows}</div>
+                        <div class="sticky-footer p-3 bg-gray-100 dark:bg-gray-700 rounded-xl flex justify-between items-center"><span class="font-medium">📊 Toplam Soru: ${totalSoru}</span><span class="text-blue-600">Sadece soru dağılımı</span></div>
+                        <div class="mt-3"><label class="font-bold">👥 Öğrencileri Seç:</label><div class="grid grid-cols-2 gap-1 max-h-40 overflow-auto border p-2 rounded bg-gray-50 dark:bg-gray-900">${studentCheckboxes}</div></div>
+                        <button onclick="saveBatchExam()" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-medium transition">📌 Seçilen Öğrencilere Ata</button>
+                    </div>
+                </div>
+            `;
+            const existing = document.getElementById('batchModal'); if(existing) existing.remove();
+            const modalDiv = document.createElement('div'); modalDiv.id = 'batchModal'; modalDiv.innerHTML = modalHtml; document.body.appendChild(modalDiv);
+            const batchSoru = document.querySelectorAll('.batchSoru');
+            const updateFooter = () => { let ts=0; for(let i=0;i<batchSoru.length;i++) ts += parseInt(batchSoru[i].value)||0; const footer = document.querySelector('#batchModal .sticky-footer'); if(footer) footer.innerHTML = `<span>📊 Toplam Soru: ${ts}</span><span class="text-blue-600">Sadece soru dağılımı</span>`; };
+            for(let i=0;i<batchSoru.length;i++) batchSoru[i].addEventListener('input', () => { topluExamKonular[i].toplamSoru = parseInt(batchSoru[i].value)||0; updateFooter(); });
+        }
+        function closeBatchModal() { document.getElementById('batchModal')?.remove(); }
+        function saveBatchExam() {
+            const examName = document.getElementById('batchExamName')?.value.trim();
+            if(!examName){ alert("Deneme adı girin"); return; }
+            const selectedStudents = Array.from(document.querySelectorAll('.studentCheck:checked')).map(cb=>cb.value);
+            if(selectedStudents.length===0){ alert("En az bir öğrenci seçin"); return; }
+            const konular = KONU_LISTESI.map(k => {
+                const girilen = topluExamKonular.find(t => t.konuAdi === k);
+                return { konuAdi: k, toplamSoru: girilen ? girilen.toplamSoru : 0, dogru: 0, yanlis: 0 };
+            });
+            let toplamSoru = 0;
+            for(let k of konular) toplamSoru += k.toplamSoru;
+            const newExam = {
+                id: "ex_"+Date.now(),
+                denemeAdi: examName,
+                tarih: new Date().toISOString().slice(0,10),
+                konular: konular,
+                toplamDogru: 0,
+                toplamYanlis: 0,
+                toplamBos: toplamSoru,
+                toplamNet: 0,
+                toplamSoru: toplamSoru
+            };
+            const students = loadStudentsData();
+            for(let sid of selectedStudents){
+                const idx = students.findIndex(s=>s.id===sid);
+                if(idx !== -1){
+                    if(!students[idx].denemeler) students[idx].denemeler = [];
+                    students[idx].denemeler.push(JSON.parse(JSON.stringify(newExam)));
+                }
+            }
+            saveStudentsData(students);
+            alert(`${selectedStudents.length} öğrenciye deneme eklendi.`);
+            closeBatchModal();
+            renderHomeScreen();
+        }
+
+        // ========== DENEME DÜZENLEME ==========
+        function editExam(studentId, examId) {
+            const students = loadStudentsData();
+            const student = students.find(s => s.id === studentId);
+            if(!student) return;
+            const exam = student.denemeler.find(e => e.id === examId);
+            if(!exam) return;
+            const aktifKonular = exam.konular.filter(k => k.toplamSoru > 0);
+            if(aktifKonular.length === 0) { alert("Bu denemede henüz soru dağılımı yok."); return; }
+            let totalSoru = 0, totalDogru = 0, totalYanlis = 0;
+            for(let k of aktifKonular) { totalSoru += k.toplamSoru; totalDogru += k.dogru; totalYanlis += k.yanlis; }
+            const totalBos = totalSoru - totalDogru - totalYanlis;
+            const net = calculateNet(totalDogru, totalYanlis);
+            let rows = '';
+            for(let i=0; i<aktifKonular.length; i++) {
+                const k = aktifKonular[i];
+                rows += `
+                    <div class="border rounded-xl p-3 bg-white dark:bg-gray-800">
+                        <div class="font-medium mb-1">${k.konuAdi}</div>
+                        <div class="text-sm text-gray-500 mb-1">📘 Toplam soru: ${k.toplamSoru}</div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs">Doğru</label><input type="number" min="0" max="${k.toplamSoru}" value="${k.dogru}" class="w-full border rounded p-1 editDogru" data-idx="${i}"></div>
+                            <div><label class="text-xs">Yanlış</label><input type="number" min="0" max="${k.toplamSoru}" value="${k.yanlis}" class="w-full border rounded p-1 editYanlis" data-idx="${i}"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            const html = `
+                <div><button onclick="renderStudentPanel('${studentId}')" class="text-blue-600 mb-2 inline-block">← Geri</button>
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5">
+                    <h2 class="text-xl font-bold mb-3">Deneme Düzenle</h2>
+                    <input id="editExamName" class="w-full border rounded p-2 mb-3 modal-input" placeholder="Deneme Adı" value="${escapeHtml(exam.denemeAdi)}">
+                    <div class="mb-2 text-sm text-gray-500">Sadece soru sayısı girilmiş konular listelenir.</div>
+                    <div class="grid md:grid-cols-2 gap-3 max-h-96 overflow-auto mb-3">${rows}</div>
+                    <div class="sticky-footer p-3 bg-gray-100 dark:bg-gray-700 rounded-xl flex justify-between font-semibold"><span>📊 Toplam: ${totalSoru} soru | D:${totalDogru} Y:${totalYanlis} B:${totalBos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span></div>
+                    <button onclick="saveExamEdit('${studentId}', '${examId}')" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-xl font-bold">Güncelle</button>
+                </div></div>
+            `;
+            document.getElementById("dynamic-content").innerHTML = html;
+            const dogruInputs = document.querySelectorAll('.editDogru');
+            const yanlisInputs = document.querySelectorAll('.editYanlis');
+            const updateEditFooter = () => {
+                let td=0, ty=0, ts=0;
+                for(let i=0; i<aktifKonular.length; i++) {
+                    let d = parseInt(dogruInputs[i]?.value) || 0;
+                    let y = parseInt(yanlisInputs[i]?.value) || 0;
+                    let s = aktifKonular[i].toplamSoru;
+                    if(d > s) { d = s; dogruInputs[i].value = s; }
+                    if(y > s-d) { y = s-d; yanlisInputs[i].value = y; }
+                    aktifKonular[i].dogru = d;
+                    aktifKonular[i].yanlis = y;
+                    td += d; ty += y; ts += s;
+                }
+                const bos = ts - td - ty;
+                const net = calculateNet(td, ty);
+                const footer = document.querySelector('.sticky-footer');
+                if(footer) footer.innerHTML = `<span>📊 Toplam: ${ts} soru | D:${td} Y:${ty} B:${bos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span>`;
+            };
+            for(let i=0; i<dogruInputs.length; i++) {
+                dogruInputs[i].addEventListener('input', updateEditFooter);
+                yanlisInputs[i].addEventListener('input', updateEditFooter);
+            }
+            window._aktifKonular = aktifKonular;
+        }
+        function saveExamEdit(studentId, examId) {
+            const examName = document.getElementById('editExamName')?.value.trim();
+            if(!examName) { alert("Deneme adı girin"); return; }
+            const aktifKonular = window._aktifKonular;
+            if(!aktifKonular || aktifKonular.length===0) { alert("Hiç konu yok"); return; }
+            const tumKonular = KONU_LISTESI.map(k => {
+                const aktif = aktifKonular.find(a => a.konuAdi === k);
+                if(aktif) return aktif;
+                else return { konuAdi: k, toplamSoru: 0, dogru: 0, yanlis: 0 };
+            });
+            let toplamDogru=0, toplamYanlis=0, toplamSoru=0;
+            for(let k of tumKonular) { toplamSoru += k.toplamSoru; toplamDogru += k.dogru; toplamYanlis += k.yanlis; }
+            const toplamBos = toplamSoru - toplamDogru - toplamYanlis;
+            const net = calculateNet(toplamDogru, toplamYanlis);
+            const newExam = {
+                id: examId,
+                denemeAdi: examName,
+                tarih: new Date().toISOString().slice(0,10),
+                konular: tumKonular,
+                toplamDogru, toplamYanlis, toplamBos, toplamNet: net, toplamSoru
+            };
+            const students = loadStudentsData();
+            const sIdx = students.findIndex(s => s.id === studentId);
+            if(sIdx === -1) { renderHomeScreen(); return; }
+            const eIdx = students[sIdx].denemeler.findIndex(e => e.id === examId);
+            if(eIdx !== -1) students[sIdx].denemeler[eIdx] = newExam;
+            saveStudentsData(students);
+            renderStudentPanel(studentId);
+        }
+        function deleteExam(studentId, examId) { 
+            if(confirm("Denemeyi sil?")) { 
+                const students = loadStudentsData(); 
+                const sIdx = students.findIndex(s => s.id === studentId); 
+                if(sIdx !== -1){ 
+                    students[sIdx].denemeler = students[sIdx].denemeler.filter(e => e.id !== examId); 
+                    saveStudentsData(students); 
+                    renderStudentPanel(studentId); 
+                } 
+            } 
+        }
+        function viewExam(studentId, examId) {
+            const students = loadStudentsData(); 
+            const s = students.find(s => s.id === studentId); 
+            if(!s) return; 
+            const ex = s.denemeler.find(e => e.id === examId); 
+            if(!ex) return;
+            let detay = ''; 
+            for(let k of ex.konular) if(k.toplamSoru>0) detay += `<div class="border-b py-1">${k.konuAdi}: ${k.toplamSoru} soru, ✅${k.dogru} ❌${k.yanlis} (Başarı: ${((k.dogru/k.toplamSoru)*100).toFixed(1)}%)</div>`;
+            const modal = document.createElement('div'); modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-5 max-w-2xl w-full max-h-[80vh] overflow-auto shadow-xl"><div class="flex justify-between"><h2 class="text-xl font-bold">Deneme Detayı</h2><button onclick="this.closest('.fixed').remove()"><i class="fas fa-times"></i></button></div><p class="font-bold">${escapeHtml(ex.denemeAdi)}</p><p>Tarih: ${ex.tarih} | Net: ${ex.toplamNet} | D:${ex.toplamDogru} Y:${ex.toplamYanlis} B:${ex.toplamBos}</p><h3>Konu bazlı</h3>${detay||'Veri yok'}<button onclick="this.closest('.fixed').remove(); editExam('${studentId}','${examId}')" class="mt-3 bg-blue-600 text-white px-4 py-1 rounded">Düzenle</button></div>`;
+            document.body.appendChild(modal);
+        }
+        function copyExamToOthers(studentId, examId) {
+            const students = loadStudentsData(); const owner = students.find(s => s.id === studentId); if(!owner) return; const exam = owner.denemeler.find(e => e.id === examId); if(!exam) return;
+            const otherStudents = students.filter(s => s.id !== studentId); if(otherStudents.length===0){ alert("Diğer öğrenci yok"); return; }
+            const modal = document.createElement('div'); modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"; 
+            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-5 max-w-lg"><h3 class="font-bold">📋 Kopyala: ${escapeHtml(exam.denemeAdi)}</h3><p>Hangi öğrencilere?</p><div id="copyList" class="max-h-60 overflow-auto border p-2 my-2">${otherStudents.map(s=>`<label><input type="checkbox" value="${s.id}" class="copyTarget"> ${escapeHtml(s.adSoyad)}</label><br>`).join('')}</div><button onclick="executeCopyExam('${studentId}','${examId}')" class="bg-blue-600 text-white px-4 py-1 rounded">Kopyala</button><button onclick="this.closest('.fixed').remove()" class="ml-2 border px-4 py-1 rounded">İptal</button></div>`;
+            document.body.appendChild(modal);
+        }
+        function executeCopyExam(sourceStudentId, examId){
+            const students = loadStudentsData(); const owner = students.find(s => s.id === sourceStudentId); if(!owner) return; const exam = owner.denemeler.find(e => e.id === examId); if(!exam) return;
+            const targets = Array.from(document.querySelectorAll('.copyTarget:checked')).map(cb=>cb.value);
+            if(targets.length===0){ alert("Seçim yapmadınız"); return; }
+            const newExamCopy = JSON.parse(JSON.stringify(exam)); newExamCopy.id = "ex_"+Date.now(); newExamCopy.tarih = new Date().toISOString().slice(0,10);
+            for(let tid of targets){ const idx = students.findIndex(s => s.id === tid); if(idx !== -1){ if(!students[idx].denemeler) students[idx].denemeler = []; students[idx].denemeler.push(JSON.parse(JSON.stringify(newExamCopy))); } }
+            saveStudentsData(students); alert(`${targets.length} öğrenciye kopyalandı.`); document.querySelector('.fixed')?.remove(); renderHomeScreen();
+        }
+
+        // Öğrenci paneli
+        async function renderStudentPanel(id) {
+            const students = loadStudentsData();
+            const student = students.find(s => s.id === id);
+            if(!student){ renderHomeScreen(); return; }
+            currentStudentId = id;
+            const denemeler = student.denemeler || [], sorted = [...denemeler].sort((a,b)=>new Date(a.tarih)-new Date(b.tarih));
+            const basari = getKonuBazliBasarilar(student);
+            const {zayif, guclu} = getBestWorstTopics(basari);
+            const ortalamaNet = getOrtalamaNet(student), hedefSayi = parseFloat(student.hedefNet), hedefGecerli = !isNaN(hedefSayi), motivasyon = getMotivationMessage(student);
+            let konuHtml = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 mt-4"><h3 class="font-bold text-lg">📊 Konu Başarı Yüzdeleri</h3><div class="max-h-96 overflow-auto">`;
+            for(let k of KONU_LISTESI){ const y = basari[k]; konuHtml += `<div class="flex justify-between border-b py-2 text-sm"><span class="w-2/5">${k}</span><span class="w-1/5 font-semibold text-blue-600 dark:text-blue-400">${y!==null?y.toFixed(1)+'%':'—'}</span><span class="text-gray-500">${getTYMMFeedback(y).etiket}</span></div>`; }
+            konuHtml += `</div></div>`;
+            let denemeHtml = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 mt-4"><h3 class="font-bold text-lg">📝 Denemeler</h3><div class="space-y-2 max-h-80 overflow-auto">`;
+            if(denemeler.length===0) denemeHtml += `<p class="text-center">Henüz deneme yok. Ana sayfadan toplu deneme atayın.</p>`;
+            else denemeler.slice().reverse().forEach(ex=>{
+                denemeHtml += `<div class="border rounded-xl p-3 flex justify-between flex-wrap"><div><span class="font-bold">${escapeHtml(ex.denemeAdi)}</span> <span class="text-xs text-gray-400">${ex.tarih}</span><br><span>Net: <strong class="text-blue-600">${ex.toplamNet}</strong> (${ex.toplamDogru}D ${ex.toplamYanlis}Y ${ex.toplamBos}B)</span></div><div class="flex gap-2"><button onclick="viewExam('${id}','${ex.id}')" class="text-blue-500"><i class="fas fa-eye"></i></button><button onclick="editExam('${id}','${ex.id}')" class="text-green-500"><i class="fas fa-edit"></i></button><button onclick="copyExamToOthers('${id}','${ex.id}')" class="text-purple-500"><i class="fas fa-copy"></i></button><button onclick="deleteExam('${id}','${ex.id}')" class="text-red-500"><i class="fas fa-trash"></i></button></div></div>`;
+            });
+            denemeHtml += `</div></div>`;
+            const html = `
+                <div class="flex flex-wrap justify-between gap-3 mb-4">
+                    <button onclick="renderHomeScreen()" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-xl"><i class="fas fa-arrow-left"></i> Ana Sayfa</button>
+                    <button onclick="generatePDF()" class="bg-blue-600 text-white px-5 py-2 rounded-xl"><i class="fas fa-file-pdf"></i> Rapor Al</button>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border"><div class="flex justify-between"><div><h2 class="text-2xl font-black">${escapeHtml(student.adSoyad)}</h2><p>🏫 ${escapeHtml(student.okul)} | 🎯 ${escapeHtml(student.hedefLise)}</p></div><div class="text-right"><span class="bg-white dark:bg-gray-700 px-3 py-1 rounded-full shadow">🎯 ${student.hedefNet}</span><br><span>📊 Ort. Net: ${ortalamaNet}</span></div></div><div class="mt-2 p-2 rounded-xl text-center font-medium border motivation-card">${motivasyon}</div></div>
+                <div class="mt-4 bg-white dark:bg-gray-800 p-3 rounded-2xl shadow"><canvas id="netChart" height="150"></canvas></div>
+                <div class="grid md:grid-cols-2 gap-4 mt-4">
+                    <div class="weak-card p-3 rounded-2xl border"><h4 class="font-bold">🔻 En Zayıf 3 Konu</h4>${zayif.map(z=>`<p class="text-sm">📘 ${z.konu} (%${z.yuzde})</p>`).join('')||'<p class="text-sm">Veri yok</p>'}</div>
+                    <div class="strong-card p-3 rounded-2xl border"><h4 class="font-bold">⭐ En Güçlü 3 Konu</h4>${guclu.map(g=>`<p class="text-sm">🏆 ${g.konu} (%${g.yuzde})</p>`).join('')||'<p class="text-sm">Veri yok</p>'}</div>
+                </div>
+                ${konuHtml}
+                ${denemeHtml}
+            `;
+            document.getElementById("dynamic-content").innerHTML = html;
+            setTimeout(()=>{
+                const ctx = document.getElementById("netChart")?.getContext("2d");
+                if(ctx && sorted.length){
+                    if(chartInstance) chartInstance.destroy();
+                    const datasets = [{label:'Net', data:sorted.map(e=>e.toplamNet), borderColor:'#007BFF', borderWidth:2, tension:0.2}];
+                    if(hedefGecerli) datasets.push({label:`Hedef (${hedefSayi})`, data:Array(sorted.length).fill(hedefSayi), borderColor:'#10B981', borderDash:[5,5], pointRadius:0});
+                    chartInstance = new Chart(ctx, {type:'line', data:{labels:sorted.map(e=>e.denemeAdi), datasets}, options:{responsive:true}});
+                }
+            },50);
+        }
+
+        // Karşılaştırma
+        function showCompareModal() {
+            const students = loadStudentsData();
+            if(students.length < 2) { alert("Karşılaştırma için en az 2 öğrenci olmalı"); return; }
+            const opts = students.map(s => `<option value="${s.id}">${escapeHtml(s.adSoyad)} (${escapeHtml(s.okul)})</option>`).join('');
+            const modalHtml = `
+                <div id="compareModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto p-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl" onclick="event.stopPropagation()">
+                        <div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">📊 Öğrenci Karşılaştırma</h2><button onclick="closeCompareModal()" class="text-gray-500"><i class="fas fa-times text-2xl"></i></button></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div><label class="font-medium">1. Öğrenci</label><select id="compareStudent1" class="w-full border rounded p-2 modal-input">${opts}</select></div>
+                            <div><label class="font-medium">2. Öğrenci</label><select id="compareStudent2" class="w-full border rounded p-2 modal-input">${opts}</select></div>
+                        </div>
+                        <button onclick="renderComparison()" class="bg-blue-600 text-white px-4 py-2 rounded">Karşılaştır</button>
+                        <div id="comparisonResult" class="mt-6"></div>
+                    </div>
+                </div>
+            `;
+            const existing = document.getElementById('compareModal'); if(existing) existing.remove();
+            const modalDiv = document.createElement('div'); modalDiv.id = 'compareModal'; modalDiv.innerHTML = modalHtml; document.body.appendChild(modalDiv);
+        }
+        function closeCompareModal() { document.getElementById('compareModal')?.remove(); }
+        function renderComparison() {
+            const sid1 = document.getElementById('compareStudent1')?.value;
+            const sid2 = document.getElementById('compareStudent2')?.value;
+            if(!sid1 || !sid2) { alert("Lütfen iki öğrenci seçin"); return; }
+            const students = loadStudentsData();
+            const s1 = students.find(s => s.id === sid1);
+            const s2 = students.find(s => s.id === sid2);
+            if(!s1 || !s2) return;
+            const b1 = getKonuBazliBasarilar(s1);
+            const b2 = getKonuBazliBasarilar(s2);
+            const z1 = getBestWorstTopics(b1).zayif;
+            const g1 = getBestWorstTopics(b1).guclu;
+            const z2 = getBestWorstTopics(b2).zayif;
+            const g2 = getBestWorstTopics(b2).guclu;
+            const d1 = s1.denemeler || [];
+            const d2 = s2.denemeler || [];
+            const sorted1 = [...d1].sort((a,b)=>new Date(a.tarih)-new Date(b.tarih));
+            const sorted2 = [...d2].sort((a,b)=>new Date(a.tarih)-new Date(b.tarih));
+            const labels = [...new Set([...sorted1.map(e=>e.denemeAdi), ...sorted2.map(e=>e.denemeAdi)])];
+            const data1 = labels.map(l=>sorted1.find(e=>e.denemeAdi===l)?.toplamNet || null);
+            const data2 = labels.map(l=>sorted2.find(e=>e.denemeAdi===l)?.toplamNet || null);
+            let konuTable = '<div class="overflow-x-auto"><table class="w-full text-sm border-collapse border border-gray-300 dark:border-gray-700"><thead class="bg-gray-100 dark:bg-gray-700"><tr><th class="border p-2">Konu</th><th class="border p-2">'+escapeHtml(s1.adSoyad)+'</th><th class="border p-2">'+escapeHtml(s2.adSoyad)+'</th></tr></thead><tbody>';
+            for(let k of KONU_LISTESI) {
+                konuTable += `<tr><td class="border p-2">${k}</td><td class="border p-2">${b1[k] !== null ? b1[k].toFixed(1)+'%' : '—'}</td><td class="border p-2">${b2[k] !== null ? b2[k].toFixed(1)+'%' : '—'}</td></tr>`;
+            }
+            konuTable += '</tbody></table></div>';
+            const resultHtml = `
+                <div class="grid md:grid-cols-2 gap-4 mt-4">
+                    <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded"><h3 class="font-bold">${escapeHtml(s1.adSoyad)}</h3><p>Ort. Net: ${getOrtalamaNet(s1)}</p><p>🔻 Zayıf: ${z1.map(z=>z.konu).join(', ')}</p><p>⭐ Güçlü: ${g1.map(g=>g.konu).join(', ')}</p></div>
+                    <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded"><h3 class="font-bold">${escapeHtml(s2.adSoyad)}</h3><p>Ort. Net: ${getOrtalamaNet(s2)}</p><p>🔻 Zayıf: ${z2.map(z=>z.konu).join(', ')}</p><p>⭐ Güçlü: ${g2.map(g=>g.konu).join(', ')}</p></div>
+                </div>
+                <div class="mt-4 bg-white dark:bg-gray-800 p-3 rounded shadow"><canvas id="compareChart" height="200"></canvas></div>
+                <div class="mt-4">${konuTable}</div>
+            `;
+            document.getElementById('comparisonResult').innerHTML = resultHtml;
+            setTimeout(()=>{
+                const ctx = document.getElementById('compareChart')?.getContext('2d');
+                if(ctx) {
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: { labels: labels, datasets: [{ label: s1.adSoyad, data: data1, borderColor: '#007BFF', borderWidth: 2 }, { label: s2.adSoyad, data: data2, borderColor: '#10B981', borderWidth: 2 }] },
+                        options: { responsive: true }
+                    });
+                }
+            }, 50);
+        }
+
+        // Ana sayfa
+        function renderHomeScreen() {
+            const students = loadStudentsData();
+            const sorted = getSortedStudents(students, currentSortOrder);
+            const sortHtml = `<div class="flex gap-2 mb-4 flex-wrap"><button onclick="setSortOrder('default')" class="px-3 py-1 rounded-full text-sm font-medium ${currentSortOrder==='default'?'btn-sort-active':'btn-sort-inactive'}">Varsayılan</button><button onclick="setSortOrder('net-desc')" class="px-3 py-1 rounded-full text-sm font-medium ${currentSortOrder==='net-desc'?'btn-sort-active':'btn-sort-inactive'}">Ort.Net (Yüksek↓)</button><button onclick="setSortOrder('net-asc')" class="px-3 py-1 rounded-full text-sm font-medium ${currentSortOrder==='net-asc'?'btn-sort-active':'btn-sort-inactive'}">Ort.Net (Düşük↑)</button></div>`;
+            const topHtml = `<div class="flex flex-wrap justify-between gap-3 mb-6"><div class="flex gap-2"><button onclick="showCompareModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition"><i class="fas fa-chart-simple"></i> Karşılaştır</button><button onclick="showBatchExamModal()" class="btn-batch bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-xl transition"><i class="fas fa-copy"></i> Toplu Deneme Ata</button><button onclick="toggleTheme()" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-xl transition"><i class="fas fa-moon"></i> ${darkMode?'Açık Mod':'Koyu Mod'}</button></div><div class="flex gap-2"><button onclick="exportBackup()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition"><i class="fas fa-download"></i> Yedek Al</button><button onclick="showImportModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl transition"><i class="fas fa-upload"></i> Geri Yükle</button></div></div>`;
+            let studentsHtml = sorted.length===0 ? '<div class="bg-white rounded-2xl shadow p-6 text-center">Öğrenci yok</div>' : sorted.map(s => { 
+                const son = s.denemeler?.length ? s.denemeler[s.denemeler.length-1].toplamNet : null; 
+                const ort = getOrtalamaNet(s); 
+                return `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 relative"><div onclick="selectStudent('${s.id}')" class="cursor-pointer"><h3 class="text-xl font-bold">${escapeHtml(s.adSoyad)}</h3><p>${escapeHtml(s.okul)}</p><p class="text-blue-600 font-semibold">🎯 ${s.hedefNet}</p><div class="flex gap-2 mt-1">${ort>0?`<span class="stat-badge">📊 Ort: ${ort}</span>`:''}${son?`<span class="stat-badge">📈 Son: ${son}</span>`:''}</div></div><div class="absolute top-2 right-2 flex gap-2"><button onclick="editStudent('${s.id}')" class="text-blue-500">✏️</button><button onclick="deleteStudent('${s.id}')" class="text-red-500">🗑️</button></div><div class="text-xs text-gray-400 mt-1">📌 ${s.denemeler?.length||0} deneme</div></div>`; 
+            }).join('');
+            const formHtml = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 mt-6"><h3 class="font-bold text-lg mb-3"><i class="fas fa-user-plus text-blue-600"></i> Yeni Öğrenci</h3><div class="grid md:grid-cols-2 gap-3"><input type="text" id="newName" placeholder="Ad Soyad" class="student-form-input" onclick="event.stopPropagation()"><input type="text" id="newSchool" placeholder="Okul" class="student-form-input" onclick="event.stopPropagation()"><input type="text" id="newTargetSchool" placeholder="Hedef Lise" class="student-form-input" onclick="event.stopPropagation()"><input type="text" id="newTargetNet" placeholder="Hedef Net" class="student-form-input" onclick="event.stopPropagation()"></div><button onclick="addStudent()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded-xl font-semibold transition">Kaydet</button></div>`;
+            document.getElementById("dynamic-content").innerHTML = `<div class="flex justify-between items-center mb-6"><h1 class="text-2xl font-extrabold"><i class="fas fa-flask text-blue-600"></i> LGS Fen Deneme Koçu</h1><span class="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs">Toplu Soru Dağılımı</span></div>${topHtml}${sortHtml}<div class="grid md:grid-cols-2 gap-5">${studentsHtml}</div>${formHtml}`;
+        }
+        function getSortedStudents(students, order) { 
+            if(order === 'default') return [...students]; 
+            const withAvg = students.map(s => ({ ...s, ortalamaNet: getOrtalamaNet(s) })); 
+            if(order === 'net-desc') return withAvg.sort((a,b) => b.ortalamaNet - a.ortalamaNet); 
+            if(order === 'net-asc') return withAvg.sort((a,b) => a.ortalamaNet - b.ortalamaNet); 
+            return students; 
+        }
+        function setSortOrder(order){ currentSortOrder = order; renderHomeScreen(); }
+        function toggleTheme(){ darkMode = !darkMode; localStorage.setItem('darkMode', darkMode); applyTheme(); renderHomeScreen(); }
+        function applyTheme(){ if(darkMode) document.body.classList.add('dark'); else document.body.classList.remove('dark'); }
+        function addStudent() { 
+            const n = document.getElementById('newName')?.value.trim(); 
+            const sc = document.getElementById('newSchool')?.value.trim(); 
+            const tl = document.getElementById('newTargetSchool')?.value.trim(); 
+            const tn = document.getElementById('newTargetNet')?.value.trim(); 
+            if(!n || !sc || !tl || !tn){ alert("Tüm alanları doldurun"); return; } 
+            const students = loadStudentsData(); 
+            students.push({ id:"std"+Date.now(), adSoyad:n, okul:sc, hedefLise:tl, hedefNet:tn, denemeler:[] }); 
+            saveStudentsData(students); 
+            renderHomeScreen(); 
+        }
+        function deleteStudent(id) { if(confirm("Öğrenciyi sil?")){ let students = loadStudentsData().filter(s => s.id !== id); saveStudentsData(students); if(currentStudentId === id) renderHomeScreen(); else renderHomeScreen(); } }
+        function editStudent(id) { 
+            const s = loadStudentsData().find(s => s.id === id); 
+            if(!s) return; 
+            const modal = document.createElement('div'); modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"; 
+            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md"><h2 class="text-xl font-bold">✏️ Düzenle</h2><input id="editName" class="w-full border p-2 rounded mb-2 student-form-input" value="${escapeHtml(s.adSoyad)}"><input id="editSchool" class="w-full border p-2 rounded mb-2 student-form-input" value="${escapeHtml(s.okul)}"><input id="editTargetSchool" class="w-full border p-2 rounded mb-2 student-form-input" value="${escapeHtml(s.hedefLise)}"><input id="editTargetNet" class="w-full border p-2 rounded mb-2 student-form-input" value="${s.hedefNet}"><button onclick="saveStudentEdit('${id}')" class="bg-blue-600 text-white w-full py-2 rounded">Kaydet</button><button onclick="this.closest('.fixed').remove()" class="mt-2 w-full border rounded py-2">İptal</button></div>`; 
+            document.body.appendChild(modal); 
+        }
+        function saveStudentEdit(id) { 
+            const name = document.getElementById('editName')?.value.trim(); 
+            const school = document.getElementById('editSchool')?.value.trim(); 
+            const target = document.getElementById('editTargetSchool')?.value.trim(); 
+            const net = document.getElementById('editTargetNet')?.value.trim(); 
+            if(!name || !school || !target || !net){ alert("Tüm alanlar doldurun"); return; } 
+            const students = loadStudentsData(); 
+            const idx = students.findIndex(s => s.id === id); 
+            if(idx !== -1){ students[idx] = { ...students[idx], adSoyad:name, okul:school, hedefLise:target, hedefNet:net }; saveStudentsData(students); } 
+            document.querySelector('.fixed')?.remove(); 
+            renderHomeScreen(); 
+        }
+        function selectStudent(id){ renderStudentPanel(id); }
+        async function generatePDF() { if(!currentStudentId) return; alert("PDF rapor özelliği bu sürümde test amaçlıdır."); }
+
+        // PWA
+        function registerPWA(){ 
+            const manifest = { name:"LGS Fen Koçu", short_name:"FenKoçu", start_url:".", display:"standalone", theme_color:"#007BFF" }; 
+            const link = document.createElement('link'); link.rel = 'manifest'; link.href = "data:application/json,"+encodeURIComponent(JSON.stringify(manifest)); 
+            document.head.appendChild(link); 
+            const swCode = `self.addEventListener('install',e=>self.skipWaiting()); self.addEventListener('fetch',e=>e.respondWith(fetch(e.request)));`; 
+            if('serviceWorker' in navigator) navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode],{type:'application/javascript'}))); 
+        }
+
+        // Global tanımlamalar
+        window.renderHomeScreen = renderHomeScreen; window.selectStudent = selectStudent; window.deleteStudent = deleteStudent;
+        window.addStudent = addStudent; window.editStudent = editStudent; window.saveStudentEdit = saveStudentEdit;
+        window.setSortOrder = setSortOrder; window.exportBackup = exportBackup; window.showImportModal = showImportModal;
+        window.importBackup = importBackup; window.showCompareModal = showCompareModal; window.closeCompareModal = closeCompareModal;
+        window.renderComparison = renderComparison; window.showBatchExamModal = showBatchExamModal; window.closeBatchModal = closeBatchModal;
+        window.saveBatchExam = saveBatchExam; window.generatePDF = generatePDF; window.toggleTheme = toggleTheme;
+        window.editExam = editExam; window.saveExamEdit = saveExamEdit; window.deleteExam = deleteExam; window.viewExam = viewExam;
+        window.copyExamToOthers = copyExamToOthers; window.executeCopyExam = executeCopyExam;
+
+        window.onload = () => { applyTheme(); registerPWA(); renderHomeScreen(); };
+    </script>
+</body>
+</html>
