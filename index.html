@@ -11,6 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
+        /* Aynı stiller (değişmedi) */
         body:not(.dark) { background-color: #F8F9FA !important; color: #111111 !important; }
         body:not(.dark) .bg-white, body:not(.dark) .bg-gray-50 { background-color: #FFFFFF !important; color: #111111 !important; }
         body:not(.dark) .text-gray-800 { color: #111111 !important; }
@@ -24,12 +25,13 @@
         body:not(.dark) .strong-card h4, body:not(.dark) .strong-card p { color: #064E3B !important; }
         body:not(.dark) .btn-batch { background-color: #0F766E !important; color: white !important; }
         body:not(.dark) .btn-batch:hover { background-color: #0D5C54 !important; }
-        /* Başlık renkleri - "Canfenci" bitişik */
-        .logo-can { color: #002D54; font-weight: 800; }
-        .logo-fenci { color: #D4AF37; font-weight: 800; }
-        .logo-deneme { color: #111111; font-weight: 600; }
-        body.dark .logo-can { color: #E2E8F0; }
-        body.dark .logo-fenci { color: #FACC15; }
+        /* Başlık */
+        .logo-canfenci { font-weight: 800; display: inline-block; }
+        .logo-canfenci .can-part { color: #002D54; }
+        .logo-canfenci .fenci-part { color: #D4AF37; }
+        body.dark .logo-canfenci .can-part { color: #E2E8F0; }
+        body.dark .logo-canfenci .fenci-part { color: #FACC15; }
+        .logo-deneme { color: #111111; font-weight: 600; display: inline-block; }
         body.dark .logo-deneme { color: #FFFFFF; }
         
         .student-form-input, .modal-input, select.modal-input {
@@ -67,6 +69,17 @@
         body.dark .soru-satiri {
             background-color: #1E293B;
         }
+        /* soru düzenleme stilleri */
+        .question-edit-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        body.dark .question-edit-row {
+            border-color: #4b5563;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased">
@@ -90,7 +103,7 @@
 
         let currentStudentId = null, chartInstance = null, currentSortOrder = "default";
         let darkMode = localStorage.getItem('darkMode') === 'true';
-        const STORAGE_KEY = "lgs_veri_v5";
+        const STORAGE_KEY = "lgs_veri_v6"; // versiyon yükseltildi
 
         function calculateNet(dogru, yanlis) { let net = dogru - (yanlis/3); return net>0 ? parseFloat(net.toFixed(2)) : 0; }
         function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
@@ -112,9 +125,26 @@
             return parseFloat((toplam/d.length).toFixed(2)); 
         }
         function getKonuBazliBasarilar(ogrenci) {
+            // Bu fonksiyon artık soru bazlı veriden konu bazlı istatistik çıkaracak
             const stats={}; KONU_LISTESI.forEach(k=>stats[k]={dogru:0,toplamSoru:0});
             if(!ogrenci.denemeler) return stats;
-            for(let den of ogrenci.denemeler) for(let k of den.konular) if(stats[k.konuAdi]) { stats[k.konuAdi].dogru += k.dogru || 0; stats[k.konuAdi].toplamSoru += k.toplamSoru || 0; }
+            for(let den of ogrenci.denemeler) {
+                if(den.soruBazliListe) { // yeni format
+                    for(let soru of den.soruBazliListe) {
+                        if(soru.konuAdi && stats[soru.konuAdi]) {
+                            stats[soru.konuAdi].toplamSoru += 1;
+                            if(soru.dogruMu === true) stats[soru.konuAdi].dogru += 1;
+                            else if(soru.dogruMu === false) { /* yanlış, doğru ekleme */ }
+                            // boş sayılmaz çünkü her soru ya doğru ya yanlış
+                        }
+                    }
+                } else if(den.konular) { // eski format uyumluluk
+                    for(let k of den.konular) if(stats[k.konuAdi]) {
+                        stats[k.konuAdi].toplamSoru += k.toplamSoru;
+                        stats[k.konuAdi].dogru += k.dogru;
+                    }
+                }
+            }
             const basari={}; for(let k of KONU_LISTESI) basari[k]=stats[k].toplamSoru ? (stats[k].dogru/stats[k].toplamSoru)*100 : null;
             return basari;
         }
@@ -138,7 +168,7 @@
             return `📈 Hedefine ${fark.toFixed(1)} net var.`; 
         }
 
-        // Yedekleme
+        // Yedekleme (aynı)
         function exportBackup() { const data=loadStudentsData(); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"})); a.download="lgs_manuel_yedek.json"; a.click(); }
         function showImportModal() { 
             const modal=document.createElement('div'); modal.className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"; 
@@ -163,7 +193,7 @@
             reader.readAsText(file); 
         }
 
-        // ========== SORU BAZLI TOPLU DENEME ATAMA ==========
+        // ========== TOPLU DENEME ATAMA (Soru Bazlı, her soru bir konu) ==========
         let soruKonuListesi = [];
         function showBatchExamModal() { 
             soruKonuListesi = [];
@@ -259,29 +289,41 @@
             const selectedStudents = Array.from(document.querySelectorAll('.studentCheck:checked')).map(cb=>cb.value);
             if(selectedStudents.length===0){ alert("En az bir öğrenci seçin"); return; }
             
-            const konuSayac = {};
-            KONU_LISTESI.forEach(k => konuSayac[k] = 0);
-            for(let item of soruKonuListesi) {
-                if(item.konuAdi) konuSayac[item.konuAdi] += 1;
+            // Soru bazlı liste oluştur
+            const soruBazliListe = [];
+            for(let i=0; i<soruKonuListesi.length; i++) {
+                const item = soruKonuListesi[i];
+                if(item.konuAdi) {
+                    soruBazliListe.push({
+                        soruNo: i+1,
+                        konuAdi: item.konuAdi,
+                        dogruMu: null  // başlangıçta kararsız, sonradan düzenleme ekranında işaretlenecek
+                    });
+                }
             }
+            if(soruBazliListe.length === 0) { alert("Hiç soru tanımlanmamış!"); return; }
+            
+            // Konu bazlı istatistikler için (eski uyumluluk) ayrıca konular dizisi oluştur
+            const konuSayac = {};
+            KONU_LISTESI.forEach(k=>konuSayac[k]=0);
+            for(let s of soruBazliListe) konuSayac[s.konuAdi]++;
             const konular = KONU_LISTESI.map(k => ({
                 konuAdi: k,
                 toplamSoru: konuSayac[k],
                 dogru: 0,
                 yanlis: 0
             }));
-            let toplamSoru = 0;
-            for(let k of konular) toplamSoru += k.toplamSoru;
-            if(toplamSoru === 0) { alert("Hiç soru tanımlanmamış!"); return; }
+            let toplamSoru = soruBazliListe.length;
             
             const newExam = {
                 id: "ex_"+Date.now(),
                 denemeAdi: examName,
                 tarih: new Date().toISOString().slice(0,10),
-                konular: konular,
+                soruBazliListe: soruBazliListe,   // yeni alan
+                konular: konular,                   // eski uyumluluk için
                 toplamDogru: 0,
                 toplamYanlis: 0,
-                toplamBos: toplamSoru,
+                toplamBos: 0,
                 toplamNet: 0,
                 toplamSoru: toplamSoru
             };
@@ -294,104 +336,158 @@
                 }
             }
             saveStudentsData(students);
-            alert(`${selectedStudents.length} öğrenciye deneme eklendi.`);
+            alert(`${selectedStudents.length} öğrenciye deneme eklendi. (Her soru için doğru/yanlış girişi yapın)`);
             closeBatchModal();
             renderHomeScreen();
         }
 
-        // ========== DENEME DÜZENLEME ==========
+        // ========== DENEME DÜZENLEME (Soru Bazlı, Doğru/Yanlış Seçimi) ==========
         function editExam(studentId, examId) {
             const students = loadStudentsData();
             const student = students.find(s => s.id === studentId);
             if(!student) return;
             const exam = student.denemeler.find(e => e.id === examId);
             if(!exam) return;
-            const aktifKonular = exam.konular.filter(k => k.toplamSoru > 0);
-            if(aktifKonular.length === 0) { alert("Bu denemede henüz soru dağılımı yok."); return; }
-            let totalSoru = 0, totalDogru = 0, totalYanlis = 0;
-            for(let k of aktifKonular) { totalSoru += k.toplamSoru; totalDogru += k.dogru; totalYanlis += k.yanlis; }
-            const totalBos = totalSoru - totalDogru - totalYanlis;
-            const net = calculateNet(totalDogru, totalYanlis);
-            let rows = '';
-            for(let i=0; i<aktifKonular.length; i++) {
-                const k = aktifKonular[i];
-                rows += `
-                    <div class="border rounded-xl p-3 bg-white dark:bg-gray-800">
-                        <div class="font-medium mb-1">${k.konuAdi}</div>
-                        <div class="text-sm text-gray-500 mb-1">📘 Toplam soru: ${k.toplamSoru}</div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div><label class="text-xs">Doğru</label><input type="number" min="0" max="${k.toplamSoru}" value="${k.dogru}" class="w-full border rounded p-1 editDogru" data-idx="${i}"></div>
-                            <div><label class="text-xs">Yanlış</label><input type="number" min="0" max="${k.toplamSoru}" value="${k.yanlis}" class="w-full border rounded p-1 editYanlis" data-idx="${i}"></div>
-                        </div>
+            // Soru bazlı liste var mı kontrol et
+            let soruList = exam.soruBazliListe;
+            if(!soruList || soruList.length === 0) {
+                // Eski format dönüşümü: konular dizisinden soru bazlı liste üret
+                soruList = [];
+                for(let k of exam.konular) {
+                    if(k.toplamSoru > 0) {
+                        for(let i=0; i<k.toplamSoru; i++) {
+                            soruList.push({
+                                soruNo: soruList.length+1,
+                                konuAdi: k.konuAdi,
+                                dogruMu: null
+                            });
+                        }
+                    }
+                }
+                if(soruList.length === 0) { alert("Bu denemede soru yok!"); return; }
+                exam.soruBazliListe = soruList;
+                // güncelle
+                const sIdx = students.findIndex(s=>s.id===studentId);
+                if(sIdx!==-1){
+                    const eIdx = students[sIdx].denemeler.findIndex(e=>e.id===examId);
+                    if(eIdx!==-1) students[sIdx].denemeler[eIdx].soruBazliListe = soruList;
+                    saveStudentsData(students);
+                }
+            }
+            
+            // Toplam doğru/yanlış hesapla
+            let toplamDogru = 0, toplamYanlis = 0;
+            for(let s of soruList) {
+                if(s.dogruMu === true) toplamDogru++;
+                else if(s.dogruMu === false) toplamYanlis++;
+            }
+            const toplamBos = soruList.length - toplamDogru - toplamYanlis;
+            const net = calculateNet(toplamDogru, toplamYanlis);
+            
+            let soruRows = '';
+            for(let i=0; i<soruList.length; i++) {
+                const s = soruList[i];
+                const dogruChecked = s.dogruMu === true ? 'checked' : '';
+                const yanlisChecked = s.dogruMu === false ? 'checked' : '';
+                soruRows += `
+                    <div class="question-edit-row flex flex-wrap items-center gap-2 p-2 border-b">
+                        <span class="w-12 font-medium">${i+1}.</span>
+                        <span class="flex-1 text-sm">${s.konuAdi}</span>
+                        <label class="flex items-center gap-1 ml-2"><input type="radio" name="q_${i}" value="dogru" ${dogruChecked} class="question-radio" data-index="${i}" data-value="dogru"> Doğru</label>
+                        <label class="flex items-center gap-1"><input type="radio" name="q_${i}" value="yanlis" ${yanlisChecked} class="question-radio" data-index="${i}" data-value="yanlis"> Yanlış</label>
+                        <label class="flex items-center gap-1"><input type="radio" name="q_${i}" value="bos" ${(!dogruChecked && !yanlisChecked) ? 'checked' : ''} class="question-radio" data-index="${i}" data-value="bos"> Boş</label>
                     </div>
                 `;
             }
             const html = `
                 <div><button onclick="renderStudentPanel('${studentId}')" class="text-blue-600 mb-2 inline-block">← Geri</button>
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5">
-                    <h2 class="text-xl font-bold mb-3">Deneme Düzenle</h2>
+                    <h2 class="text-xl font-bold mb-3">Deneme Düzenle: ${escapeHtml(exam.denemeAdi)}</h2>
                     <input id="editExamName" class="w-full border rounded p-2 mb-3 modal-input" placeholder="Deneme Adı" value="${escapeHtml(exam.denemeAdi)}">
-                    <div class="mb-2 text-sm text-gray-500">Her konu için doğru ve yanlış sayılarını girin.</div>
-                    <div class="grid md:grid-cols-2 gap-3 max-h-96 overflow-auto mb-3">${rows}</div>
-                    <div class="sticky-footer p-3 bg-gray-100 dark:bg-gray-700 rounded-xl flex justify-between font-semibold"><span>📊 Toplam: ${totalSoru} soru | D:${totalDogru} Y:${totalYanlis} B:${totalBos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span></div>
+                    <div class="mb-2 text-sm text-gray-500">Her soru için doğru/yanlış/boş seçin.</div>
+                    <div class="max-h-96 overflow-auto mb-3">${soruRows}</div>
+                    <div class="sticky-footer p-3 bg-gray-100 dark:bg-gray-700 rounded-xl flex justify-between font-semibold">
+                        <span>📊 Toplam: ${soruList.length} soru | D:${toplamDogru} Y:${toplamYanlis} B:${toplamBos}</span>
+                        <span class="text-blue-600">Net: ${net.toFixed(2)}</span>
+                    </div>
                     <button onclick="saveExamEdit('${studentId}', '${examId}')" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-xl font-bold">Güncelle</button>
                 </div></div>
             `;
             document.getElementById("dynamic-content").innerHTML = html;
-            const dogruInputs = document.querySelectorAll('.editDogru');
-            const yanlisInputs = document.querySelectorAll('.editYanlis');
-            const updateEditFooter = () => {
-                let td=0, ty=0, ts=0;
-                for(let i=0; i<aktifKonular.length; i++) {
-                    let d = parseInt(dogruInputs[i]?.value) || 0;
-                    let y = parseInt(yanlisInputs[i]?.value) || 0;
-                    let s = aktifKonular[i].toplamSoru;
-                    if(d > s) { d = s; dogruInputs[i].value = s; }
-                    if(y > s-d) { y = s-d; yanlisInputs[i].value = y; }
-                    aktifKonular[i].dogru = d;
-                    aktifKonular[i].yanlis = y;
-                    td += d; ty += y; ts += s;
+            
+            // Event listener'lar: radio değiştiğinde footer'ı güncelle
+            const radios = document.querySelectorAll('.question-radio');
+            const updateFooterFromRadios = () => {
+                let dogru=0, yanlis=0, bos=0;
+                for(let i=0; i<soruList.length; i++) {
+                    const selected = document.querySelector(`input[name="q_${i}"]:checked`);
+                    if(selected) {
+                        if(selected.value === 'dogru') { dogru++; soruList[i].dogruMu = true; }
+                        else if(selected.value === 'yanlis') { yanlis++; soruList[i].dogruMu = false; }
+                        else { bos++; soruList[i].dogruMu = null; }
+                    } else {
+                        bos++;
+                        soruList[i].dogruMu = null;
+                    }
                 }
-                const bos = ts - td - ty;
-                const net = calculateNet(td, ty);
+                const net = calculateNet(dogru, yanlis);
                 const footer = document.querySelector('.sticky-footer');
-                if(footer) footer.innerHTML = `<span>📊 Toplam: ${ts} soru | D:${td} Y:${ty} B:${bos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span>`;
+                if(footer) footer.innerHTML = `<span>📊 Toplam: ${soruList.length} soru | D:${dogru} Y:${yanlis} B:${bos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span>`;
             };
-            for(let i=0; i<dogruInputs.length; i++) {
-                dogruInputs[i].addEventListener('input', updateEditFooter);
-                yanlisInputs[i].addEventListener('input', updateEditFooter);
-            }
-            window._aktifKonular = aktifKonular;
+            radios.forEach(radio => radio.addEventListener('change', updateFooterFromRadios));
+            window._soruList = soruList;
         }
+        
         function saveExamEdit(studentId, examId) {
             const examName = document.getElementById('editExamName')?.value.trim();
             if(!examName) { alert("Deneme adı girin"); return; }
-            const aktifKonular = window._aktifKonular;
-            if(!aktifKonular || aktifKonular.length===0) { alert("Hiç konu yok"); return; }
-            const tumKonular = KONU_LISTESI.map(k => {
-                const aktif = aktifKonular.find(a => a.konuAdi === k);
-                if(aktif) return aktif;
-                else return { konuAdi: k, toplamSoru: 0, dogru: 0, yanlis: 0 };
-            });
-            let toplamDogru=0, toplamYanlis=0, toplamSoru=0;
-            for(let k of tumKonular) { toplamSoru += k.toplamSoru; toplamDogru += k.dogru; toplamYanlis += k.yanlis; }
-            const toplamBos = toplamSoru - toplamDogru - toplamYanlis;
-            const net = calculateNet(toplamDogru, toplamYanlis);
+            const soruList = window._soruList;
+            if(!soruList || soruList.length === 0) { alert("Soru listesi boş"); return; }
+            let dogru=0, yanlis=0;
+            for(let s of soruList) {
+                if(s.dogruMu === true) dogru++;
+                else if(s.dogruMu === false) yanlis++;
+            }
+            const bos = soruList.length - dogru - yanlis;
+            const net = calculateNet(dogru, yanlis);
+            // Konu bazlı istatistikleri güncelle (eski uyumluluk için)
+            const konuSayac = {};
+            KONU_LISTESI.forEach(k=>konuSayac[k]={toplamSoru:0, dogru:0});
+            for(let s of soruList) {
+                if(s.konuAdi && konuSayac[s.konuAdi]) {
+                    konuSayac[s.konuAdi].toplamSoru++;
+                    if(s.dogruMu === true) konuSayac[s.konuAdi].dogru++;
+                }
+            }
+            const konular = KONU_LISTESI.map(k => ({
+                konuAdi: k,
+                toplamSoru: konuSayac[k].toplamSoru,
+                dogru: konuSayac[k].dogru,
+                yanlis: konuSayac[k].toplamSoru - konuSayac[k].dogru
+            }));
+            
             const newExam = {
                 id: examId,
                 denemeAdi: examName,
                 tarih: new Date().toISOString().slice(0,10),
-                konular: tumKonular,
-                toplamDogru, toplamYanlis, toplamBos, toplamNet: net, toplamSoru
+                soruBazliListe: soruList,
+                konular: konular,
+                toplamDogru: dogru,
+                toplamYanlis: yanlis,
+                toplamBos: bos,
+                toplamNet: net,
+                toplamSoru: soruList.length
             };
             const students = loadStudentsData();
             const sIdx = students.findIndex(s => s.id === studentId);
-            if(sIdx === -1) { renderHomeScreen(); return; }
-            const eIdx = students[sIdx].denemeler.findIndex(e => e.id === examId);
-            if(eIdx !== -1) students[sIdx].denemeler[eIdx] = newExam;
-            saveStudentsData(students);
+            if(sIdx !== -1) {
+                const eIdx = students[sIdx].denemeler.findIndex(e => e.id === examId);
+                if(eIdx !== -1) students[sIdx].denemeler[eIdx] = newExam;
+                saveStudentsData(students);
+            }
             renderStudentPanel(studentId);
         }
+        
         function deleteExam(studentId, examId) { 
             if(confirm("Denemeyi sil?")) { 
                 const students = loadStudentsData(); 
@@ -409,29 +505,51 @@
             if(!s) return; 
             const ex = s.denemeler.find(e => e.id === examId); 
             if(!ex) return;
-            let detay = ''; 
-            for(let k of ex.konular) if(k.toplamSoru>0) detay += `<div class="border-b py-1">${k.konuAdi}: ${k.toplamSoru} soru, ✅${k.dogru} ❌${k.yanlis} (Başarı: ${((k.dogru/k.toplamSoru)*100).toFixed(1)}%)</div>`;
+            let detay = '';
+            if(ex.soruBazliListe) {
+                detay = '<div class="max-h-96 overflow-auto"><table class="w-full text-sm border"><thead><tr><th>Soru No</th><th>Kazanım</th><th>Durum</th></tr></thead><tbody>';
+                for(let soru of ex.soruBazliListe) {
+                    let durum = '❓ Boş';
+                    if(soru.dogruMu === true) durum = '✅ Doğru';
+                    else if(soru.dogruMu === false) durum = '❌ Yanlış';
+                    detay += `<tr><td class="border p-1">${soru.soruNo}</td><td class="border p-1">${soru.konuAdi}</td><td class="border p-1">${durum}</td></tr>`;
+                }
+                detay += '</tbody></table></div>';
+            } else {
+                for(let k of ex.konular) if(k.toplamSoru>0) detay += `<div class="border-b py-1">${k.konuAdi}: ${k.toplamSoru} soru, ✅${k.dogru} ❌${k.yanlis} (Başarı: ${((k.dogru/k.toplamSoru)*100).toFixed(1)}%)</div>`;
+            }
             const modal = document.createElement('div'); modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
-            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-5 max-w-2xl w-full max-h-[80vh] overflow-auto shadow-xl"><div class="flex justify-between"><h2 class="text-xl font-bold">Deneme Detayı</h2><button onclick="this.closest('.fixed').remove()"><i class="fas fa-times"></i></button></div><p class="font-bold">${escapeHtml(ex.denemeAdi)}</p><p>Tarih: ${ex.tarih} | Net: ${ex.toplamNet} | D:${ex.toplamDogru} Y:${ex.toplamYanlis} B:${ex.toplamBos}</p><h3>Konu bazlı</h3>${detay||'Veri yok'}<button onclick="this.closest('.fixed').remove(); editExam('${studentId}','${examId}')" class="mt-3 bg-blue-600 text-white px-4 py-1 rounded">Düzenle</button></div>`;
+            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-5 max-w-2xl w-full max-h-[80vh] overflow-auto shadow-xl"><div class="flex justify-between"><h2 class="text-xl font-bold">Deneme Detayı</h2><button onclick="this.closest('.fixed').remove()"><i class="fas fa-times"></i></button></div><p class="font-bold">${escapeHtml(ex.denemeAdi)}</p><p>Tarih: ${ex.tarih} | Net: ${ex.toplamNet} | D:${ex.toplamDogru} Y:${ex.toplamYanlis} B:${ex.toplamBos}</p><h3 class="mt-2 font-bold">Soru bazlı detay</h3>${detay||'Veri yok'}<button onclick="this.closest('.fixed').remove(); editExam('${studentId}','${examId}')" class="mt-3 bg-blue-600 text-white px-4 py-1 rounded">Düzenle</button></div>`;
             document.body.appendChild(modal);
         }
         function copyExamToOthers(studentId, examId) {
             const students = loadStudentsData(); const owner = students.find(s => s.id === studentId); if(!owner) return; const exam = owner.denemeler.find(e => e.id === examId); if(!exam) return;
-            const otherStudents = students.filter(s => s.id !== studentId); if(otherStudents.length===0){ alert("Diğer öğrenci yok"); return; }
+            const others = students.filter(s => s.id !== studentId); if(others.length===0){ alert("Diğer öğrenci yok"); return; }
             const modal = document.createElement('div'); modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"; 
-            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-5 max-w-lg"><h3 class="font-bold">📋 Kopyala: ${escapeHtml(exam.denemeAdi)}</h3><p>Hangi öğrencilere?</p><div id="copyList" class="max-h-60 overflow-auto border p-2 my-2">${otherStudents.map(s=>`<label><input type="checkbox" value="${s.id}" class="copyTarget"> ${escapeHtml(s.adSoyad)}</label><br>`).join('')}</div><button onclick="executeCopyExam('${studentId}','${examId}')" class="bg-blue-600 text-white px-4 py-1 rounded">Kopyala</button><button onclick="this.closest('.fixed').remove()" class="ml-2 border px-4 py-1 rounded">İptal</button></div>`;
+            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-5 max-w-lg"><h3 class="font-bold">📋 Kopyala: ${escapeHtml(exam.denemeAdi)}</h3><p>Hangi öğrencilere?</p><div id="copyList" class="max-h-60 overflow-auto border p-2 my-2">${others.map(s=>`<label><input type="checkbox" value="${s.id}" class="copyTarget"> ${escapeHtml(s.adSoyad)}</label><br>`).join('')}</div><button onclick="executeCopyExam('${studentId}','${examId}')" class="bg-blue-600 text-white px-4 py-1 rounded">Kopyala</button><button onclick="this.closest('.fixed').remove()" class="ml-2 border px-4 py-1 rounded">İptal</button></div>`;
             document.body.appendChild(modal);
         }
-        function executeCopyExam(sourceStudentId, examId){
-            const students = loadStudentsData(); const owner = students.find(s => s.id === sourceStudentId); if(!owner) return; const exam = owner.denemeler.find(e => e.id === examId); if(!exam) return;
+        function executeCopyExam(source, examId){
+            const students = loadStudentsData(); const owner = students.find(s => s.id === source); if(!owner) return; const exam = owner.denemeler.find(e => e.id === examId); if(!exam) return;
             const targets = Array.from(document.querySelectorAll('.copyTarget:checked')).map(cb=>cb.value);
             if(targets.length===0){ alert("Seçim yapmadınız"); return; }
-            const newExamCopy = JSON.parse(JSON.stringify(exam)); newExamCopy.id = "ex_"+Date.now(); newExamCopy.tarih = new Date().toISOString().slice(0,10);
-            for(let tid of targets){ const idx = students.findIndex(s => s.id === tid); if(idx !== -1){ if(!students[idx].denemeler) students[idx].denemeler = []; students[idx].denemeler.push(JSON.parse(JSON.stringify(newExamCopy))); } }
-            saveStudentsData(students); alert(`${targets.length} öğrenciye kopyalandı.`); document.querySelector('.fixed')?.remove(); renderHomeScreen();
+            const copy = JSON.parse(JSON.stringify(exam));
+            copy.id = "ex_"+Date.now();
+            copy.tarih = new Date().toISOString().slice(0,10);
+            for(let tid of targets){
+                const idx = students.findIndex(s=>s.id===tid);
+                if(idx !== -1){
+                    if(!students[idx].denemeler) students[idx].denemeler = [];
+                    students[idx].denemeler.push(JSON.parse(JSON.stringify(copy)));
+                }
+            }
+            saveStudentsData(students);
+            alert(`${targets.length} öğrenciye kopyalandı.`);
+            document.querySelector('.fixed')?.remove();
+            renderHomeScreen();
         }
-
-        // Öğrenci paneli
+        
+        // Öğrenci paneli (değişmedi)
         async function renderStudentPanel(id) {
             const students = loadStudentsData();
             const student = students.find(s => s.id === id);
@@ -475,8 +593,8 @@
                 }
             },50);
         }
-
-        // Karşılaştırma
+        
+        // Karşılaştırma (aynen)
         function showCompareModal() {
             const students = loadStudentsData();
             if(students.length < 2) { alert("Karşılaştırma için en az 2 öğrenci olmalı"); return; }
@@ -521,7 +639,7 @@
             const data2 = labels.map(l=>sorted2.find(e=>e.denemeAdi===l)?.toplamNet || null);
             let konuTable = '<div class="overflow-x-auto"><table class="w-full text-sm border-collapse border border-gray-300 dark:border-gray-700"><thead class="bg-gray-100 dark:bg-gray-700"><tr><th class="border p-2">Konu</th><th class="border p-2">'+escapeHtml(s1.adSoyad)+'</th><th class="border p-2">'+escapeHtml(s2.adSoyad)+'</th></tr></thead><tbody>';
             for(let k of KONU_LISTESI) {
-                konuTable += `<tr><td class="border p-2">${k}</td><td class="border p-2">${b1[k] !== null ? b1[k].toFixed(1)+'%' : '—'}</td><td class="border p-2">${b2[k] !== null ? b2[k].toFixed(1)+'%' : '—'}</td></tr>`;
+                konuTable += `<tr><td class="border p-2">${k}</td><td class="border p-2">${b1[k]!==null?b1[k].toFixed(1)+'%':'—'}</td><td class="border p-2">${b2[k]!==null?b2[k].toFixed(1)+'%':'—'}</td></tr>`;
             }
             konuTable += '</tbody></table></div>';
             const resultHtml = `
@@ -544,8 +662,8 @@
                 }
             }, 50);
         }
-
-        // Ana sayfa - başlık "Canfenci" bitişik
+        
+        // Ana sayfa
         function renderHomeScreen() {
             const students = loadStudentsData();
             const sorted = getSortedStudents(students, currentSortOrder);
@@ -561,7 +679,7 @@
                 <div class="flex justify-between items-center mb-6">
                     <h1 class="text-2xl font-extrabold flex items-center gap-2">
                         <img src="logo.svg" alt="Canfenci Logo" class="w-10 h-10 inline-block">
-                        <span class="logo-can">Can</span><span class="logo-fenci">fenci</span>
+                        <span class="logo-canfenci"><span class="can-part">Can</span><span class="fenci-part">fenci</span></span>
                         <span class="logo-deneme">Deneme Analizi</span>
                     </h1>
                     <span class="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs">Soru Bazlı Toplu Deneme</span>
@@ -611,8 +729,6 @@
         }
         function selectStudent(id){ renderStudentPanel(id); }
         async function generatePDF() { if(!currentStudentId) return; alert("PDF rapor özelliği bu sürümde test amaçlıdır."); }
-
-        // PWA
         function registerPWA(){ 
             const manifest = { name:"Canfenci Deneme Analizi", short_name:"Canfenci", start_url:".", display:"standalone", theme_color:"#007BFF" }; 
             const link = document.createElement('link'); link.rel = 'manifest'; link.href = "data:application/json,"+encodeURIComponent(JSON.stringify(manifest)); 
