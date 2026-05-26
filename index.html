@@ -24,11 +24,10 @@
         body:not(.dark) .strong-card h4, body:not(.dark) .strong-card p { color: #064E3B !important; }
         body:not(.dark) .btn-batch { background-color: #0F766E !important; color: white !important; }
         body:not(.dark) .btn-batch:hover { background-color: #0D5C54 !important; }
-        /* Başlık renkleri - açık mod */
+        /* Başlık renkleri - "Canfenci" bitişik */
         .logo-can { color: #002D54; font-weight: 800; }
         .logo-fenci { color: #D4AF37; font-weight: 800; }
         .logo-deneme { color: #111111; font-weight: 600; }
-        /* Koyu mod başlık renkleri */
         body.dark .logo-can { color: #E2E8F0; }
         body.dark .logo-fenci { color: #FACC15; }
         body.dark .logo-deneme { color: #FFFFFF; }
@@ -59,7 +58,6 @@
         body.dark .weak-card h4, body.dark .weak-card p { color: #FEE2E2 !important; }
         body.dark .strong-card { background-color: #064E3B !important; border-color: #047857 !important; }
         body.dark .strong-card h4, body.dark .strong-card p { color: #D1FAE5 !important; }
-        /* Toplu deneme modal soru satırları */
         .soru-satiri {
             background-color: #F9FAFB;
             padding: 0.5rem;
@@ -165,8 +163,8 @@
             reader.readAsText(file); 
         }
 
-        // ========== SORU BAZLI TOPLU DENEME ATAMA (Dropdown ile) ==========
-        let soruKonuListesi = []; // each element: { soruNo, konuAdi }
+        // ========== SORU BAZLI TOPLU DENEME ATAMA ==========
+        let soruKonuListesi = [];
         function showBatchExamModal() { 
             soruKonuListesi = [];
             renderBatchExamForm(); 
@@ -301,7 +299,7 @@
             renderHomeScreen();
         }
 
-        // ========== DENEME DÜZENLEME (Aynı) ==========
+        // ========== DENEME DÜZENLEME ==========
         function editExam(studentId, examId) {
             const students = loadStudentsData();
             const student = students.find(s => s.id === studentId);
@@ -547,7 +545,7 @@
             }, 50);
         }
 
-        // Ana sayfa - başlık güncellendi
+        // Ana sayfa - başlık "Canfenci" bitişik
         function renderHomeScreen() {
             const students = loadStudentsData();
             const sorted = getSortedStudents(students, currentSortOrder);
@@ -561,9 +559,9 @@
             const formHtml = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 mt-6"><h3 class="font-bold text-lg mb-3"><i class="fas fa-user-plus text-blue-600"></i> Yeni Öğrenci</h3><div class="grid md:grid-cols-2 gap-3"><input type="text" id="newName" placeholder="Ad Soyad" class="student-form-input" onclick="event.stopPropagation()"><input type="text" id="newSchool" placeholder="Okul" class="student-form-input" onclick="event.stopPropagation()"><input type="text" id="newTargetSchool" placeholder="Hedef Lise" class="student-form-input" onclick="event.stopPropagation()"><input type="text" id="newTargetNet" placeholder="Hedef Net" class="student-form-input" onclick="event.stopPropagation()"></div><button onclick="addStudent()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded-xl font-semibold transition">Kaydet</button></div>`;
             document.getElementById("dynamic-content").innerHTML = `
                 <div class="flex justify-between items-center mb-6">
-                    <h1 class="text-2xl font-extrabold">
-                        <i class="fas fa-flask text-blue-600"></i> 
-                        <span class="logo-can">Can</span><span class="logo-fenci">fenci</span> 
+                    <h1 class="text-2xl font-extrabold flex items-center gap-2">
+                        <img src="logo.svg" alt="Canfenci Logo" class="w-10 h-10 inline-block">
+                        <span class="logo-can">Can</span><span class="logo-fenci">fenci</span>
                         <span class="logo-deneme">Deneme Analizi</span>
                     </h1>
                     <span class="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs">Soru Bazlı Toplu Deneme</span>
