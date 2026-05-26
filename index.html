@@ -11,7 +11,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* Açık mod temel */
         body:not(.dark) { background-color: #F8F9FA !important; color: #111111 !important; }
         body:not(.dark) .bg-white, body:not(.dark) .bg-gray-50 { background-color: #FFFFFF !important; color: #111111 !important; }
         body:not(.dark) .text-gray-800 { color: #111111 !important; }
@@ -25,6 +24,15 @@
         body:not(.dark) .strong-card h4, body:not(.dark) .strong-card p { color: #064E3B !important; }
         body:not(.dark) .btn-batch { background-color: #0F766E !important; color: white !important; }
         body:not(.dark) .btn-batch:hover { background-color: #0D5C54 !important; }
+        /* Başlık renkleri - açık mod */
+        .logo-can { color: #002D54; font-weight: 800; }
+        .logo-fenci { color: #D4AF37; font-weight: 800; }
+        .logo-deneme { color: #111111; font-weight: 600; }
+        /* Koyu mod başlık renkleri */
+        body.dark .logo-can { color: #E2E8F0; }
+        body.dark .logo-fenci { color: #FACC15; }
+        body.dark .logo-deneme { color: #FFFFFF; }
+        
         .student-form-input, .modal-input, select.modal-input {
             background-color: #FFFFFF !important;
             border: 1px solid #D1D5DB !important;
@@ -51,19 +59,16 @@
         body.dark .weak-card h4, body.dark .weak-card p { color: #FEE2E2 !important; }
         body.dark .strong-card { background-color: #064E3B !important; border-color: #047857 !important; }
         body.dark .strong-card h4, body.dark .strong-card p { color: #D1FAE5 !important; }
-        /* Özel başlık stilleri */
-        .logo-can-light { color: #002D54; font-weight: 800; }
-        .logo-fenci-light { color: #D4AF37; font-weight: 800; }
-        .logo-analiz-light { color: #FFFFFF; }
-        .logo-can-dark { color: #E2E8F0; font-weight: 800; }
-        .logo-fenci-dark { color: #FACC15; font-weight: 800; }
-        .logo-analiz-dark { color: #111111; }
-        body.dark .logo-can-light, body:not(.dark) .logo-can-dark { display: none; }
-        body.dark .logo-can-dark, body:not(.dark) .logo-can-light { display: inline; }
-        body.dark .logo-fenci-light, body:not(.dark) .logo-fenci-dark { display: none; }
-        body.dark .logo-fenci-dark, body:not(.dark) .logo-fenci-light { display: inline; }
-        body.dark .logo-analiz-light, body:not(.dark) .logo-analiz-dark { display: none; }
-        body.dark .logo-analiz-dark, body:not(.dark) .logo-analiz-light { display: inline; }
+        /* Toplu deneme modal soru satırları */
+        .soru-satiri {
+            background-color: #F9FAFB;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        body.dark .soru-satiri {
+            background-color: #1E293B;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased">
@@ -160,7 +165,7 @@
             reader.readAsText(file); 
         }
 
-        // ========== SORU BAZLI TOPLU DENEME ATAMA (Kazanım Seçimi) ==========
+        // ========== SORU BAZLI TOPLU DENEME ATAMA (Dropdown ile) ==========
         let soruKonuListesi = []; // each element: { soruNo, konuAdi }
         function showBatchExamModal() { 
             soruKonuListesi = [];
@@ -172,8 +177,8 @@
             for(let i=0; i<soruKonuListesi.length; i++) {
                 const item = soruKonuListesi[i];
                 soruSelectorsHtml += `
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="w-8 text-sm font-medium">${i+1}.</span>
+                    <div class="flex items-center gap-2 mb-2 soru-satiri">
+                        <span class="w-10 text-sm font-medium text-gray-700 dark:text-gray-300">${i+1}. Soru</span>
                         <select class="w-full border rounded p-2 modal-input soruKonuSelect" data-index="${i}">
                             <option value="">-- Kazanım Seç --</option>
                             ${KONU_LISTESI.map(k => `<option value="${k}" ${item.konuAdi === k ? 'selected' : ''}>${k}</option>`).join('')}
@@ -186,11 +191,11 @@
             const modalHtml = `
                 <div id="batchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto p-4">
                     <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl" onclick="event.stopPropagation()">
-                        <div class="flex justify-between items-center mb-3"><h2 class="text-xl font-bold">📋 Toplu Deneme Ata (Kazanım Bazlı)</h2><button onclick="closeBatchModal()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button></div>
+                        <div class="flex justify-between items-center mb-3"><h2 class="text-xl font-bold">📋 Toplu Deneme Ata (Soru Bazlı)</h2><button onclick="closeBatchModal()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button></div>
                         <div class="mb-3"><label class="font-medium">Deneme Adı</label><input id="batchExamName" class="w-full border rounded p-2 modal-input" placeholder="Örn: Mart Denemesi"></div>
                         <div class="mb-3"><label class="font-medium">Toplam Soru Sayısı</label><input type="number" id="totalQuestionCount" min="0" value="${totalSoru}" class="w-full border rounded p-2 modal-input"></div>
-                        <div id="soruKonuContainer" class="max-h-60 overflow-auto border p-2 rounded mb-3 bg-gray-50 dark:bg-gray-900">${soruSelectorsHtml}</div>
-                        <button id="generateSoruSelectors" class="bg-gray-500 text-white px-3 py-1 rounded text-sm mb-3">Soru Sayısına Göre Listeyi Yenile</button>
+                        <div id="soruKonuContainer" class="max-h-80 overflow-auto border p-2 rounded mb-3 bg-gray-50 dark:bg-gray-900">${soruSelectorsHtml}</div>
+                        <button id="generateSoruSelectors" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm mb-3">Soru Sayısına Göre Listeyi Yenile</button>
                         <div class="mt-3"><label class="font-bold">👥 Öğrencileri Seç:</label><div class="grid grid-cols-2 gap-1 max-h-40 overflow-auto border p-2 rounded bg-gray-50 dark:bg-gray-900">${studentCheckboxes}</div></div>
                         <button id="saveBatchExamBtn" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-medium transition">📌 Seçilen Öğrencilere Ata</button>
                     </div>
@@ -214,8 +219,8 @@
                 for(let i=0; i<soruKonuListesi.length; i++) {
                     const item = soruKonuListesi[i];
                     html += `
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="w-8 text-sm font-medium">${i+1}.</span>
+                        <div class="flex items-center gap-2 mb-2 soru-satiri">
+                            <span class="w-10 text-sm font-medium text-gray-700 dark:text-gray-300">${i+1}. Soru</span>
                             <select class="w-full border rounded p-2 modal-input soruKonuSelect" data-index="${i}">
                                 <option value="">-- Kazanım Seç --</option>
                                 ${KONU_LISTESI.map(k => `<option value="${k}" ${item.konuAdi === k ? 'selected' : ''}>${k}</option>`).join('')}
@@ -296,7 +301,7 @@
             renderHomeScreen();
         }
 
-        // ========== DENEME DÜZENLEME ==========
+        // ========== DENEME DÜZENLEME (Aynı) ==========
         function editExam(studentId, examId) {
             const students = loadStudentsData();
             const student = students.find(s => s.id === studentId);
@@ -328,7 +333,7 @@
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5">
                     <h2 class="text-xl font-bold mb-3">Deneme Düzenle</h2>
                     <input id="editExamName" class="w-full border rounded p-2 mb-3 modal-input" placeholder="Deneme Adı" value="${escapeHtml(exam.denemeAdi)}">
-                    <div class="mb-2 text-sm text-gray-500">Sadece soru sayısı girilmiş konular listelenir.</div>
+                    <div class="mb-2 text-sm text-gray-500">Her konu için doğru ve yanlış sayılarını girin.</div>
                     <div class="grid md:grid-cols-2 gap-3 max-h-96 overflow-auto mb-3">${rows}</div>
                     <div class="sticky-footer p-3 bg-gray-100 dark:bg-gray-700 rounded-xl flex justify-between font-semibold"><span>📊 Toplam: ${totalSoru} soru | D:${totalDogru} Y:${totalYanlis} B:${totalBos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span></div>
                     <button onclick="saveExamEdit('${studentId}', '${examId}')" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-xl font-bold">Güncelle</button>
@@ -542,7 +547,7 @@
             }, 50);
         }
 
-        // Ana sayfa
+        // Ana sayfa - başlık güncellendi
         function renderHomeScreen() {
             const students = loadStudentsData();
             const sorted = getSortedStudents(students, currentSortOrder);
@@ -554,14 +559,16 @@
                 return `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 relative"><div onclick="selectStudent('${s.id}')" class="cursor-pointer"><h3 class="text-xl font-bold">${escapeHtml(s.adSoyad)}</h3><p>${escapeHtml(s.okul)}</p><p class="text-blue-600 font-semibold">🎯 ${s.hedefNet}</p><div class="flex gap-2 mt-1">${ort>0?`<span class="stat-badge">📊 Ort: ${ort}</span>`:''}${son?`<span class="stat-badge">📈 Son: ${son}</span>`:''}</div></div><div class="absolute top-2 right-2 flex gap-2"><button onclick="editStudent('${s.id}')" class="text-blue-500">✏️</button><button onclick="deleteStudent('${s.id}')" class="text-red-500">🗑️</button></div><div class="text-xs text-gray-400 mt-1">📌 ${s.denemeler?.length||0} deneme</div></div>`; 
             }).join('');
             const formHtml = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 mt-6"><h3 class="font-bold text-lg mb-3"><i class="fas fa-user-plus text-blue-600"></i> Yeni Öğrenci</h3><div class="grid md:grid-cols-2 gap-3"><input type="text" id="newName" placeholder="Ad Soyad" class="student-form-input" onclick="event.stopPropagation()"><input type="text" id="newSchool" placeholder="Okul" class="student-form-input" onclick="event.stopPropagation()"><input type="text" id="newTargetSchool" placeholder="Hedef Lise" class="student-form-input" onclick="event.stopPropagation()"><input type="text" id="newTargetNet" placeholder="Hedef Net" class="student-form-input" onclick="event.stopPropagation()"></div><button onclick="addStudent()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded-xl font-semibold transition">Kaydet</button></div>`;
-            document.getElementById("dynamic-content").innerHTML = `<div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-extrabold">
-                    <span class="logo-can-light">Can</span><span class="logo-can-dark">Can</span>
-                    <span class="logo-fenci-light">fenci</span><span class="logo-fenci-dark">fenci</span>
-                    <span class="logo-analiz-light"> Deneme Analizi</span><span class="logo-analiz-dark"> Deneme Analizi</span>
-                </h1>
-                <span class="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs">Kazanım Bazlı Toplu Deneme</span>
-            </div>${topHtml}${sortHtml}<div class="grid md:grid-cols-2 gap-5">${studentsHtml}</div>${formHtml}`;
+            document.getElementById("dynamic-content").innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl font-extrabold">
+                        <i class="fas fa-flask text-blue-600"></i> 
+                        <span class="logo-can">Can</span><span class="logo-fenci">fenci</span> 
+                        <span class="logo-deneme">Deneme Analizi</span>
+                    </h1>
+                    <span class="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs">Soru Bazlı Toplu Deneme</span>
+                </div>
+                ${topHtml}${sortHtml}<div class="grid md:grid-cols-2 gap-5">${studentsHtml}</div>${formHtml}`;
         }
         function getSortedStudents(students, order) { 
             if(order === 'default') return [...students]; 
