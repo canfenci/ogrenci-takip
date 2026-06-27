@@ -3,28 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#007BFF">
-    <title>Canfenci Deneme Analizi</title>
+    <meta name="theme-color" content="#4F46E5">
+    <title>Canfenci Öğrenci Takip Sistemi</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Canfenci">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#7C3AED'
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <style>
-        /* Aynı stiller */
         body:not(.dark) { background-color: #F8F9FA !important; color: #111111 !important; }
         body:not(.dark) .bg-white, body:not(.dark) .bg-gray-50 { background-color: #FFFFFF !important; color: #111111 !important; }
         body:not(.dark) .text-gray-800 { color: #111111 !important; }
         body:not(.dark) button.bg-gray-200 { background-color: #E5E7EB !important; color: #111111 !important; }
         body:not(.dark) .stat-badge { background-color: #E9ECEF !important; color: #111111 !important; }
         body:not(.dark) #batchModal .sticky-footer { background-color: #F3F4F6 !important; color: #111111 !important; }
-        body:not(.dark) .motivation-card { background-color: #FEF3C7 !important; color: #78350F !important; border-color: #FDE68A !important; }
+        body:not(.dark) .motivation-card { background-color: #EEF2FF !important; color: #3730A3 !important; border-color: #C7D2FE !important; }
         body:not(.dark) .weak-card { background-color: #FEE2E2 !important; border-color: #FECACA !important; }
         body:not(.dark) .weak-card h4, body:not(.dark) .weak-card p { color: #7F1D1D !important; }
         body:not(.dark) .strong-card { background-color: #D1FAE5 !important; border-color: #A7F3D0 !important; }
         body:not(.dark) .strong-card h4, body:not(.dark) .strong-card p { color: #064E3B !important; }
-        body:not(.dark) .btn-batch { background-color: #0F766E !important; color: white !important; }
-        body:not(.dark) .btn-batch:hover { background-color: #0D5C54 !important; }
+        body:not(.dark) .btn-batch { background-color: #4F46E5 !important; color: white !important; }
+        body:not(.dark) .btn-batch:hover { background-color: #4338CA !important; }
         body:not(.dark) .exam-badge { background-color: #CBD5E1 !important; color: #0F172A !important; }
         body.dark input, body.dark input[type="number"] {
             background-color: #334155 !important;
@@ -40,63 +62,167 @@
             font-size: inherit;
             display: inline-block;
         }
-        .logo-canfenci .can-part { color: #002D54; }
-        .logo-canfenci .fenci-part { color: #D4AF37; }
-        body.dark .logo-canfenci .can-part { color: #E2E8F0; }
-        body.dark .logo-canfenci .fenci-part { color: #FACC15; }
+        .logo-canfenci .can-part { color: #4F46E5; }
+        .logo-canfenci .fenci-part { color: #7C3AED; }
+        body.dark .logo-canfenci .can-part { color: #818CF8; }
+        body.dark .logo-canfenci .fenci-part { color: #A78BFA; }
         .logo-deneme { color: #111111; font-weight: 600; display: inline-block; }
         body.dark .logo-deneme { color: #FFFFFF; }
         
+        /* Input modernization: border-2 & focus blue-500 ring */
         .student-form-input, .modal-input, select.modal-input {
             background-color: #FFFFFF !important;
-            border: 1px solid #D1D5DB !important;
-            padding: 0.5rem !important;
-            border-radius: 0.5rem !important;
+            border: 2px solid #D1D5DB !important;
+            padding: 0.6rem 0.8rem !important;
+            border-radius: 0.75rem !important;
             width: 100% !important;
             color: #111111 !important;
             pointer-events: auto !important;
+            transition: all 0.2s ease-in-out !important;
+            outline: none !important;
+        }
+        .student-form-input:focus, .modal-input:focus, select.modal-input:focus {
+            border-color: #4F46E5 !important;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2) !important;
         }
         body.dark .student-form-input, body.dark .modal-input, body.dark select.modal-input {
-            background-color: #374151 !important;
-            border-color: #4B5563 !important;
+            background-color: #1f2937 !important;
+            border-color: #4b5563 !important;
             color: #F8F9FA !important;
         }
-        body.dark { background-color: #121212 !important; color: #F8F9FA !important; }
-        body.dark .bg-white, body.dark .bg-gray-50 { background-color: #1E1E1E !important; color: #F8F9FA !important; }
-        body.dark .text-gray-800 { color: #E0E0E0 !important; }
-        .btn-sort-active { background-color: #007BFF !important; color: white !important; }
+        body.dark .student-form-input:focus, body.dark .modal-input:focus, body.dark select.modal-input:focus {
+            border-color: #818CF8 !important;
+            box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.3) !important;
+        }
+        
+        body.dark { background-color: #111827 !important; color: #F8F9FA !important; }
+        body.dark .bg-white, body.dark .bg-gray-50 { background-color: #1E293B !important; color: #F8F9FA !important; }
+        body.dark .text-gray-800 { color: #E2E8F0 !important; }
+        .btn-sort-active { background-color: #4F46E5 !important; color: white !important; }
         .btn-sort-inactive { background-color: #E9ECEF !important; color: #212529 !important; border: 1px solid #CED4DA !important; }
         .stat-badge { padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; }
         body.dark .btn-sort-inactive { background-color: #2C2C2C !important; color: #F8F9FA !important; }
-        body.dark .motivation-card { background-color: #78350F !important; color: #FEF3C7 !important; }
+        body.dark .motivation-card { background-color: #312E81 !important; color: #EEF2FF !important; }
         body.dark .weak-card { background-color: #7F1D1D !important; border-color: #991B1B !important; }
         body.dark .weak-card h4, body.dark .weak-card p { color: #FEE2E2 !important; }
         body.dark .strong-card { background-color: #064E3B !important; border-color: #047857 !important; }
         body.dark .strong-card h4, body.dark .strong-card p { color: #D1FAE5 !important; }
+        
+        /* Modern Card Layout Overwrite */
+        .bg-white.rounded-2xl, .bg-gray-800.rounded-2xl {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+            border: 1px solid rgba(229, 231, 235, 0.3) !important;
+            padding: 1.25rem !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        body.dark .bg-white.rounded-2xl, body.dark .bg-gray-800.rounded-2xl {
+            border-color: rgba(55, 65, 81, 0.4) !important;
+        }
+        .bg-white.rounded-2xl.cursor-pointer:hover, .bg-gray-800.rounded-2xl.cursor-pointer:hover {
+            transform: translateY(-4px) !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+        }
+        @media (min-width: 768px) {
+            .bg-white.rounded-2xl, .bg-gray-800.rounded-2xl {
+                padding: 1.5rem !important;
+            }
+        }
+        
+        /* Sayfa Başlıkları ve Bölüm Başlıkları Tasarımı */
+        .page-heading {
+            font-size: 1.625rem !important;
+            font-weight: 800 !important;
+            border-bottom: 2px solid rgba(79, 70, 229, 0.2) !important;
+            padding-bottom: 0.5rem !important;
+            margin-bottom: 1.25rem !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+        }
+        body.dark .page-heading {
+            border-color: rgba(129, 140, 248, 0.3) !important;
+        }
+        .section-heading {
+            font-size: 1.125rem !important;
+            font-weight: 700 !important;
+            border-bottom: 2px solid rgba(79, 70, 229, 0.1) !important;
+            padding-bottom: 0.35rem !important;
+            margin-bottom: 1rem !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+        }
+        body.dark .section-heading {
+            border-color: rgba(129, 140, 248, 0.15) !important;
+        }
+
         .sidebar-icon {
             width: 2rem;
             text-align: center;
         }
+        /* Sidebar: Nature-inspired, minimalist, single color palette style */
         .sidebar-btn {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            width: 100%;
-            padding: 0.6rem 1rem;
+            gap: 0.75rem !important;
+            width: 105%;
+            padding: 0.75rem 1rem !important;
             border-radius: 0.75rem;
-            transition: all 0.2s;
-            font-weight: 500;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            font-weight: 600;
+            background: transparent !important;
+            color: #374151 !important;
+            border: none;
+            cursor: pointer;
+            min-height: 44px;
+        }
+        .sidebar-btn .sidebar-icon {
+            color: #6366F1;
+            transition: color 0.25s;
         }
         .sidebar-btn:hover {
-            background-color: rgba(0, 123, 255, 0.1);
-            transform: translateX(4px);
+            background-color: #EEF2FF !important;
+            color: #1E1B4B !important;
+            transform: translateX(4px) !important;
+        }
+        .sidebar-btn:hover .sidebar-icon {
+            color: #1E1B4B !important;
+        }
+        .sidebar-btn.active {
+            background: #4F46E5 !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 4px 10px -2px rgba(79, 70, 229, 0.3) !important;
+        }
+        .sidebar-btn.active .sidebar-icon {
+            color: #FFFFFF !important;
+        }
+        
+        body.dark .sidebar-btn {
+            background: transparent !important;
+            color: #9CA3AF !important;
+        }
+        body.dark .sidebar-btn .sidebar-icon {
+            color: #818CF8;
         }
         body.dark .sidebar-btn:hover {
-            background-color: rgba(0, 123, 255, 0.2);
+            background-color: #1E1B4B !important;
+            color: #FFFFFF !important;
         }
+        body.dark .sidebar-btn:hover .sidebar-icon {
+            color: #FFFFFF !important;
+        }
+        body.dark .sidebar-btn.active {
+            background: #4338CA !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 4px 10px -2px rgba(79, 70, 229, 0.4) !important;
+        }
+        body.dark .sidebar-btn.active .sidebar-icon {
+            color: #FFFFFF !important;
+        }
+
         .tab-active {
-            border-bottom: 2px solid #007BFF;
-            color: #007BFF;
+            border-bottom: 2px solid #4F46E5;
+            color: #4F46E5;
         }
         .tab-inactive {
             border-bottom: 2px solid transparent;
@@ -106,7 +232,7 @@
             color: #9CA3AF;
         }
         .filter-btn-active {
-            background-color: #007BFF !important;
+            background-color: #4F46E5 !important;
             color: white !important;
         }
         .filter-btn-inactive {
@@ -126,570 +252,297 @@
             background-color: #059669 !important;
             transform: translateY(-1px);
         }
+        /* Mobile bottom nav active styling */
+        .mobile-nav-btn {
+            color: #6B7280;
+            transition: color 0.2s;
+        }
+        .mobile-nav-btn.active {
+            color: #4F46E5 !important;
+        }
+        body.dark .mobile-nav-btn.active {
+            color: #818CF8 !important;
+        }
+        body.dark .mobile-nav-btn {
+            color: #9CA3AF;
+        }
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        @media (max-width: 767px) {
+            #dynamic-content {
+                padding-bottom: 120px !important;
+            }
+        }
+        
+        /* PWA Tıklama Alanı Düzenlemeleri */
+        button, a, select, [onclick], .cursor-pointer {
+            min-height: 44px;
+        }
+        
+        button[class*="bg-"] {
+            padding-top: 0.625rem !important;
+            padding-bottom: 0.625rem !important;
+        }
+        
+        .mobile-nav-btn {
+            height: 100% !important;
+            min-height: 48px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex: 1 !important;
+            padding: 4px 0 0 0 !important;
+            position: relative;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+        }
+        
+        /* Özel Tablo Düzenlemeleri (Ders Programı & Ders Kayıtları) */
+        .weekly-schedule-table td, 
+        .weekly-schedule-table th, 
+        .ders-kayitlari-table td, 
+        .ders-kayitlari-table th {
+            font-size: 1rem !important;
+            height: 60px !important;
+            vertical-align: middle !important;
+        }
+        
+        /* Global thead stilleri */
+        thead {
+            background-color: #1f2937 !important;
+            color: #ffffff !important;
+        }
+        body.dark thead {
+            background-color: #111827 !important;
+        }
+        thead th {
+            color: #ffffff !important;
+            font-size: 1rem !important;
+        }
+        
+        /* Mobile Nav Glassmorphism & Safe Area */
+        .mobile-nav-bar {
+            height: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+            background-color: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            border-top: 1px solid rgba(229, 231, 235, 0.5) !important;
+        }
+        body.dark .mobile-nav-bar {
+            background-color: rgba(30, 41, 59, 0.85) !important;
+            border-top: 1px solid rgba(55, 65, 81, 0.5) !important;
+        }
+        .mobile-nav-btn.active i {
+            transform: scale(1.1) translateY(-2px);
+            color: #4F46E5 !important;
+        }
+        body.dark .mobile-nav-btn.active i {
+            color: #818CF8 !important;
+        }
+        .mobile-nav-btn::after {
+            content: '';
+            position: absolute;
+            bottom: 0px;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: #4F46E5;
+            transition: transform 0.2s ease-in-out;
+        }
+        body.dark .mobile-nav-btn::after {
+            background-color: #818CF8;
+        }
+        .mobile-nav-btn.active::after {
+            transform: translateX(-50%) scale(1);
+        }
+        
+        /* Dynamic Bottom Offsets for Mobile Banners */
+        @media (max-width: 767px) {
+            #pwaInstallBanner {
+                bottom: calc(80px + env(safe-area-inset-bottom, 16px)) !important;
+                left: 1rem !important;
+                right: 1rem !important;
+            }
+            #pwaUpdateBanner {
+                bottom: calc(80px + env(safe-area-inset-bottom, 16px)) !important;
+                left: 1rem !important;
+                right: 1rem !important;
+            }
+            #syncStatus {
+                bottom: calc(80px + env(safe-area-inset-bottom, 16px)) !important;
+                right: 1rem !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased">
-    <div id="app-root" class="flex flex-col md:flex-row min-h-screen">
-        <div class="w-full md:w-1/4 bg-white dark:bg-gray-800 shadow-lg p-5 flex flex-col gap-6">
+    <div id="app-root" class="flex flex-col md:flex-row min-h-[100dvh]">
+        <div class="hidden md:flex w-full md:w-1/4 bg-white dark:bg-gray-800 shadow-lg p-5 flex-col gap-6">
             <div class="flex items-center gap-2 border-b pb-4 mb-2">
                 <img src="logo.svg" alt="Canfenci Logo" class="w-10 h-10" onerror="this.style.display='none'">
                 <div class="text-xl font-extrabold">
                     <span class="logo-canfenci">
                         <span class="can-part">Can</span><span class="fenci-part">fenci</span>
                     </span>
-                    <span class="logo-deneme block text-sm">Deneme Analizi</span>
+                    <span class="logo-deneme block text-sm">Öğrenci Takip Sistemi</span>
                 </div>
             </div>
             <div class="flex flex-col gap-2">
-                <button onclick="toggleTheme()" class="sidebar-btn bg-gray-600 text-white hover:bg-gray-700"><i class="fas fa-moon sidebar-icon"></i> <span id="themeBtnText">Koyu Mod</span></button>
-                <button onclick="renderSchedulePage()" class="sidebar-btn bg-indigo-600 text-white hover:bg-indigo-700"><i class="fas fa-calendar-alt sidebar-icon"></i> Ders Programı</button>
-                <button onclick="renderHomeScreen()" class="sidebar-btn bg-green-600 text-white hover:bg-green-700"><i class="fas fa-users sidebar-icon"></i> Öğrenci Listeleri</button>
-                <button onclick="renderDersKayitlari()" class="sidebar-btn bg-pink-600 text-white hover:bg-pink-700"><i class="fas fa-book-open sidebar-icon"></i> Ders Kayıtları</button>
-                <button onclick="showDenemeAtaModal()" class="sidebar-btn bg-teal-600 text-white hover:bg-teal-700"><i class="fas fa-copy sidebar-icon"></i> Deneme Ata</button>
-                <button onclick="showCompareModal()" class="sidebar-btn bg-purple-600 text-white hover:bg-purple-700"><i class="fas fa-chart-simple sidebar-icon"></i> Karşılaştır</button>
-                <button onclick="exportBackup()" class="sidebar-btn bg-blue-600 text-white hover:bg-blue-700"><i class="fas fa-download sidebar-icon"></i> Yedek Al</button>
-                <button onclick="showImportModal()" class="sidebar-btn bg-emerald-600 text-white hover:bg-emerald-700"><i class="fas fa-upload sidebar-icon"></i> Geri Yükle</button>
+                <button id="sidebar-nav-general" onclick="renderGenelIslemler()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-home sidebar-icon text-xl text-blue-500"></i> Ana Sayfa</button>
+                <button id="sidebar-nav-home" onclick="renderHomeScreen()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users sidebar-icon text-xl text-green-500"></i> Öğrenciler</button>
+                <button id="sidebar-nav-groups" onclick="renderGroupsPage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users-cog sidebar-icon text-xl text-purple-500"></i> Sınıf & Gruplar</button>
+                <button id="sidebar-nav-schedule" onclick="renderSchedulePage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-calendar-alt sidebar-icon text-xl text-indigo-500"></i> Ders Programı</button>
+                <button id="sidebar-nav-homework" onclick="renderOdevTakibi()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-tasks sidebar-icon text-xl text-orange-500"></i> Ödev Takibi</button>
+                <button id="sidebar-nav-lessons" onclick="renderDersKayitlari()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-book-open sidebar-icon text-xl text-pink-500"></i> Ders Kayıtları</button>
+                <button onclick="showDenemeAtaModal()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-copy sidebar-icon text-xl text-teal-500"></i> Deneme Ata</button>
+                <button onclick="toggleTheme()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-moon sidebar-icon text-xl text-amber-500"></i> <span id="themeBtnText">Koyu Mod</span></button>
             </div>
-            <div class="text-xs text-gray-400 dark:text-gray-500 mt-auto pt-4 text-center">
-                <i class="fas fa-flask"></i> TYMM Destekli
+            <div class="text-xs text-gray-400 dark:text-gray-555 mt-auto pt-4 text-center">
+                <i class="fas fa-flask"></i> PWA Standartlarında
             </div>
         </div>
 
-        <div class="w-full md:w-3/4 p-6 overflow-y-auto">
+        <!-- Mobile Bottom Navigation Bar -->
+        <div class="flex md:hidden items-center justify-around fixed bottom-0 left-0 right-0 z-40 shadow-lg pb-safe mobile-nav-bar">
+            <button onclick="renderGenelIslemler()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-blue-600 dark:text-blue-400 active" id="mobile-nav-general">
+                <i class="fas fa-home text-xl"></i>
+                <span>Ana Sayfa</span>
+            </button>
+            <button onclick="renderHomeScreen()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-home">
+                <i class="fas fa-users text-xl"></i>
+                <span>Öğrenciler</span>
+            </button>
+            <button onclick="renderSchedulePage()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-schedule">
+                <i class="fas fa-calendar-alt text-xl"></i>
+                <span>Program</span>
+            </button>
+            <button onclick="renderOdevTakibi()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-homework">
+                <i class="fas fa-tasks text-xl"></i>
+                <span>Ödevler</span>
+            </button>
+            <button onclick="renderDersKayitlari()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-lessons">
+                <i class="fas fa-book-open text-xl"></i>
+                <span>Kayıtlar</span>
+            </button>
+        </div>
+
+        <div class="w-full md:w-3/4 px-5 py-6 md:p-8 pb-36 md:pb-8 overflow-y-auto">
+            <div id="offlineIndicator" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-2 rounded-full text-sm shadow-xl font-semibold hidden flex items-center gap-2">
+                <i class="fas fa-wifi-slash"></i> Çevrimdışı Çalışılıyor (Verileriniz yerel kaydediliyor)
+            </div>
+            <div id="pwaUpdateBanner" class="fixed bottom-16 right-4 z-50 bg-blue-600 text-white px-4 py-3 rounded-xl text-sm shadow-2xl font-semibold hidden flex items-center gap-3">
+                <span>✨ Yeni bir sürüm mevcut!</span>
+                <button onclick="window.location.reload(true)" class="bg-white text-blue-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">Yenile</button>
+            </div>
+            <div id="pwaInstallBanner" class="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 bg-gradient-to-r from-primary to-secondary text-white p-4 rounded-2xl shadow-2xl hidden flex flex-col gap-2">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2">
+                        <img src="icons/icon-192x192.png" class="w-10 h-10 rounded-xl bg-white p-1" alt="Canfenci">
+                        <div>
+                            <h4 class="font-bold text-sm">Canfenci Takip Sistemi</h4>
+                            <p class="text-xs opacity-90">Uygulamayı ana ekrana ekleyin</p>
+                        </div>
+                    </div>
+                    <button onclick="dismissPWAInstall()" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="flex gap-2 justify-end mt-1">
+                    <button onclick="dismissPWAInstall()" class="px-3 py-1.5 text-xs font-medium text-white/90 hover:text-white">Daha Sonra</button>
+                    <button onclick="triggerPWAInstall()" class="px-4 py-1.5 bg-white text-primary rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">Yükle</button>
+                </div>
+            </div>
             <div id="syncStatus" class="fixed bottom-4 right-4 z-50 bg-gray-800 text-white px-3 py-1 rounded-full text-xs shadow-lg hidden"></div>
             <div id="dynamic-content"></div>
         </div>
     </div>
 
-    <script>
-        // ==================== KONU LİSTELERİ ====================
-        const KONU_LISTESI_SINIF5 = [
-            "Gökyüzündeki Komşumuz: Güneş", "Gökyüzündeki Komşumuz: Ay", "Dünyamız ve Gökyüzündeki Komşularımız",
-            "Kuvvet ve Kuvvetin Ölçülmesi", "Kütle ve Ağırlık İlişkisi", "Sürtünme Kuvveti",
-            "Hücre ve Organeller", "Destek ve Hareket Sistemi", "Işığın Yayılması",
-            "Işığın Madde ile Etkileşimi", "Tam Gölgenin Oluşumu", "Maddenin Tanecikli Yapısı",
-            "Isı ve Sıcaklık", "Hal Değişimi", "Madde ve Isı",
-            "Devre Elemanlarının Sembol ile Gösterimi", "Ampul Parlaklığını Etkileyen Değişkenler",
-            "Evsel Atıklar ve Geri Dönüşüm"
-        ];
-        const KONU_LISTESI_SINIF6 = [
-            "Güneş Sistemi ve Gezegenler", "Güneş ve Ay Tutulmaları", "Bileşke Kuvvet", 
-            "Sabit Süratli ve Sabit Hızlı Hareket", "Bitki ve Hayvanlarda Üreme, Büyüme ve Gelişme", 
-            "Denetleyici ve Düzenleyici Sistem", "Işığın Yansıması", "Aynalar", 
-            "Işığın Soğurulması", "Genleşme ve Büzülme", "Maddenin Hal Değişim Noktaları", 
-            "Yoğunluk", "Elektriğin İletimi", "Elektriksel Direnç ve Direncin Bağlı Olduğu Faktörler", 
-            "Biyoçeşitlilik", "İnsan ve Çevre Etkileşimi"
-        ];
-        const KONU_LISTESI_SINIF7 = [
-            "Türkiye ve Uzay Araştırmaları", "Uzayda Neler Var?", "Kuvvet, İş ve Enerji İlişkisi",
-            "Enerji Dönüşümleri", "Sindirim Sistemi", "Dolaşım Sistemi", "Solunum Sistemi",
-            "Boşaltım Sistemi", "Işığın Kırılması", "Mercekler", "Maddenin Tanecikli Yapısı",
-            "Saf Maddeler", "Karışımlar", "Karışımların Ayrılması", "Elektrik Yükleri ve Elektriklenme",
-            "Besin Zinciri ve Enerji Akışı", "Sürdürülebilir Yaşam"
-        ];
-        const KONU_LISTESI_LGS = [
-            "Mevsimlerin oluşumu", "İklim ve Hava Hareketleri", "DNA ve Genetik Kod", "Kalıtım",
-            "Mutasyon ve Modifikasyon", "Adaptasyon", "Biyoteknoloji", "Katı basıncı", "Sıvı Basıncı",
-            "Gaz Basıncı", "Periyodik Cetvel", "Fiziksel ve Kimyasal Değişimler", "Kimyasal Tepkimeler",
-            "Asitler ve Bazlar", "Özısı", "Maddenin Hal Değişimi", "Kimya Endüstrisi", "Kaldıraçlar",
-            "Makaralar", "Eğik Düzlem ve Çıkrık", "Dişli Çark, Kasnak ve Bileşik Makine", "Besin Zinciri",
-            "Fotosentez", "Solunum", "Madde Döngüleri ve Çevre Sorunları", "Sürdürülebilir Kalkınma",
-            "Elektrik Yükleri ve Elektriklenme", "Elektrik Yüklü Cisimler ve Elektroskop",
-            "Elektrik Enerjisinin Dönüşümü ve Güç Santralleri"
-        ];
+    <!-- ES Module script block loading all dependencies -->
+    <script type="module">
+        import './firebase-config.js';
+        import './store.js';
+        import './ui-helpers.js';
+        import './auth.js';
+        import './students.js';
+        import './exams.js';
+        import './homework.js';
+        import './schedule.js';
+        import './finance.js';
+        import './growth.js';
+        import './groups.js';
 
-        function getKonuListesiBySinif(sinif) {
-            const normalized = String(sinif || "").trim();
-            if (normalized === "5") return KONU_LISTESI_SINIF5;
-            if (normalized === "6") return KONU_LISTESI_SINIF6;
-            if (normalized === "7") return KONU_LISTESI_SINIF7;
-            return KONU_LISTESI_LGS;
-        }
-
-        const GENEL_DERSLER_GORUNUM = ["Türkçe", "İnkılap Tarihi / Sosyal Bilgiler", "Din Kültürü ve Ahlak Bilgisi", "Yabancı Dil (İngilizce)", "Matematik", "Fen Bilimleri"];
-        const GENEL_DERSLER_KEY = ["Türkçe", "İnkılap Tarihi ve Sosyal Bilgiler", "Din Kültürü ve Ahlak Bilgisi", "Yabancı Dil (İngilizce)", "Matematik", "Fen Bilimleri"];
-        const HATA_KODLARI = [
-            { kod: "BE", aciklama: "Bilgi Eksikliği" }, { kod: "KY", aciklama: "Kavram Yanılgısı" },
-            { kod: "D", aciklama: "Dikkatsizlik" }, { kod: "YO", aciklama: "Yanlış Okuma" },
-            { kod: "İH", aciklama: "İşlem Hatası" }, { kod: "ZY", aciklama: "Zaman Yetmedi" }
-        ];
-
-        let currentStudentId = null, chartInstance = null, currentSortOrder = "default";
-        let darkMode = localStorage.getItem('darkMode') === 'true';
-        let activeFilter = "all";
-        let currentPage = "home";
-        const STORAGE_KEY = "lgs_soru_bazli_v6";
-        const SCHEDULE_KEY = "student_schedule";
-        const DERS_KAYITLARI_KEY = "student_ders_kayitlari_v2";
-
-        // Yardımcı fonksiyonlar
-        function loadDersKayitlari(studentId) { const all = localStorage.getItem(DERS_KAYITLARI_KEY); const data = all ? JSON.parse(all) : {}; let kayitlar = data[studentId] || []; kayitlar = kayitlar.map(k => { if (typeof k.odev === 'string') k.odev = k.odev ? [k.odev] : []; if (!Array.isArray(k.odev)) k.odev = []; return k; }); return kayitlar; }
-        function saveDersKayitlari(studentId, lessons) { const all = localStorage.getItem(DERS_KAYITLARI_KEY); const data = all ? JSON.parse(all) : {}; data[studentId] = lessons; localStorage.setItem(DERS_KAYITLARI_KEY, JSON.stringify(data)); }
-        function getDersOzet(studentId, aylikUcret) { const kayitlar = loadDersKayitlari(studentId); const toplamDers = kayitlar.length; const odenenDersSayisi = kayitlar.filter(k => k.odendi === true).length; const toplamOdeme = odenenDersSayisi * (parseFloat(aylikUcret) || 0); return { toplamDers, odenenDersSayisi, toplamOdeme }; }
-        function calculateNet(dogru, yanlis) { let net = dogru - (yanlis/3); return net>0 ? parseFloat(net.toFixed(2)) : 0; }
-        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
-        function showSyncStatus(msg, isError) { const el = document.getElementById('syncStatus'); if(el){ el.textContent = msg; el.classList.remove('hidden','bg-gray-800','bg-red-600'); el.classList.add(isError?'bg-red-600':'bg-gray-800'); setTimeout(()=>el.classList.add('hidden'),3000); } }
-        function normalizeStudent(s) { if (s.sinif === undefined) s.sinif = ""; if (s.ucret === undefined) s.ucret = ""; if (s.veliTel === undefined) s.veliTel = ""; return s; }
-        function loadStudentsData() { try { const stored = localStorage.getItem(STORAGE_KEY); if(stored) { let data = JSON.parse(stored); if (Array.isArray(data)) { data = data.map(normalizeStudent); return data; } } } catch(e) {} return [{ id:"s1", adSoyad:"Zeynep Demir", sinif:"8", okul:"Mehmetçik Ortaokulu", hedefLise:"İstanbul Lisesi", hedefNet:"18.5", ucret:"", veliTel:"", denemeler:[] }]; }
-        function saveStudentsData(students) { localStorage.setItem(STORAGE_KEY, JSON.stringify(students)); showSyncStatus("✅ Kaydedildi", false); }
-        function loadSchedule(studentId) { const all = localStorage.getItem(SCHEDULE_KEY); const schedules = all ? JSON.parse(all) : {}; return schedules[studentId] || []; }
-        function saveSchedule(studentId, lessons) { const all = localStorage.getItem(SCHEDULE_KEY); const schedules = all ? JSON.parse(all) : {}; schedules[studentId] = lessons; localStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedules)); }
-        function getKonuBazliBasarilar(ogrenci) { const konuList = getKonuListesiBySinif(ogrenci.sinif); const stats = {}; konuList.forEach(k => stats[k] = { dogru: 0, toplamSoru: 0 }); if(!ogrenci.denemeler) return stats; for(let den of ogrenci.denemeler) { if(den.tip === "genel") continue; for(let soru of den.sorular) { const konu = soru.konuAdi; if(stats[konu]) { stats[konu].toplamSoru++; if(soru.durum === "dogru") stats[konu].dogru++; } } } const basari = {}; for(let k of konuList) { basari[k] = stats[k].toplamSoru ? (stats[k].dogru / stats[k].toplamSoru) * 100 : null; } return basari; }
-        function getOrtalamaNet(ogrenci) { const d = ogrenci.denemeler || []; if(!d.length) return 0; const toplam = d.reduce((s,e)=>s + (e.toplamNet || 0), 0); return parseFloat((toplam/d.length).toFixed(2)); }
-        function getBransOrtalamaNet(ogrenci) { const br = (ogrenci.denemeler||[]).filter(d=>d.tip==="branş"); if(!br.length) return null; return parseFloat((br.reduce((s,d)=>s+d.toplamNet,0)/br.length).toFixed(2)); }
-        function getGenelOrtalamaNet(ogrenci) { const gn = (ogrenci.denemeler||[]).filter(d=>d.tip==="genel"); if(!gn.length) return null; return parseFloat((gn.reduce((s,d)=>s+d.toplamNet,0)/gn.length).toFixed(2)); }
-        function getBestWorstTopics(b) { const entries = Object.entries(b).filter(([_,v])=>v!==null); if(!entries.length) return {zayif:[], guclu:[]}; const sorted = [...entries].sort((a,b)=>a[1]-b[1]); return {zayif: sorted.slice(0,3).map(([k,v])=>({konu:k, yuzde:v.toFixed(1)})), guclu: sorted.slice(-3).reverse().map(([k,v])=>({konu:k, yuzde:v.toFixed(1)}))}; }
-        function getMotivationMessage(s) { const d=s.denemeler||[]; if(!d.length) return "📝 İlk denemeyi ekleyin"; const sonNet = d[d.length-1].toplamNet; const hedef = parseFloat(s.hedefNet); if(isNaN(hedef)) return "🎯 Hedef net belirtilmemiş"; const fark = hedef - sonNet; if(fark<=0) return "🎉 Hedefine ulaştın!"; if(fark<=2) return `🚀 Hedefine ${fark.toFixed(1)} net kaldı`; if(fark<=5) return `💪 ${fark.toFixed(1)} net kaldı`; return `📈 Hedefine ${fark.toFixed(1)} net var.`; }
-        function getHataIstatistikleri(ogrenci) { const hataSayilari = {}; HATA_KODLARI.forEach(h => hataSayilari[h.kod] = 0); let toplamHata = 0; if(!ogrenci.denemeler) return { hataSayilari, toplamHata }; for(let den of ogrenci.denemeler) { if(den.tip === "genel") continue; for(let soru of den.sorular) { if((soru.durum === "yanlis" || soru.durum === "bos") && soru.hataKodu) { hataSayilari[soru.hataKodu]++; toplamHata++; } } } return { hataSayilari, toplamHata }; }
-        function lgsPuanHesapla(genelDenemeler) { if(!genelDenemeler || genelDenemeler.length === 0) return null; let toplamNet = 0; for(let den of genelDenemeler) toplamNet += den.toplamNet; const ortalamaNet = toplamNet / genelDenemeler.length; return Math.round(ortalamaNet * 5.2); }
-
-        // Yedekleme / Geri yükleme
-        function exportBackup() { try { const data = loadStudentsData(); const jsonStr = JSON.stringify(data, null, 2); const blob = new Blob([jsonStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = "canfenci_yedek.json"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showSyncStatus("✅ Yedek başarıyla alındı", false); } catch (err) { console.error("Yedek hatası:", err); alert("Yedek alınamadı: " + err.message); } }
-        function showImportModal() { const modal=document.createElement('div'); modal.className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"; modal.innerHTML=`<div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md shadow-xl"><h2 class="text-xl font-bold">📂 Manuel Geri Yükle</h2><input type="file" id="restoreFile" accept=".json" class="w-full border p-2 rounded my-2"><button onclick="importBackup()" class="bg-blue-600 text-white w-full py-2 rounded">Yükle</button><button onclick="this.closest('.fixed').remove()" class="mt-2 w-full border rounded py-2">İptal</button></div>`; document.body.appendChild(modal); }
-        function importBackup() { const file=document.getElementById('restoreFile').files[0]; if(!file) return; const reader=new FileReader(); reader.onload=e=>{ try{ const data=JSON.parse(e.target.result); if(Array.isArray(data)){ saveStudentsData(data.map(normalizeStudent)); alert("Veriler yüklendi!"); document.querySelector('.fixed')?.remove(); renderHomeScreen(); } } catch(err){ alert("Geçersiz dosya"); } }; reader.readAsText(file); }
-
-        // Yeni Öğrenci Ekle
-        function showAddStudentModal() {
-            const sinifOptions = ['5','6','7','8'].map(sinif => `<option value="${sinif}">${sinif}. Sınıf</option>`).join('');
-            const modalHtml = `<div id="addStudentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="if(event.target===this) closeAddStudentModal()"><div class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-xl" onclick="event.stopPropagation()"><h2 class="text-xl font-bold mb-4">➕ Yeni Öğrenci Ekle</h2><div class="space-y-3"><input type="text" id="newName" placeholder="Ad Soyad" class="student-form-input" required><input type="text" id="newSchool" placeholder="Okul" class="student-form-input" required><select id="newSinif" class="student-form-input" required><option value="" disabled selected>Sınıf Seçin (zorunlu)</option>${sinifOptions}</select><input type="text" id="newTargetSchool" placeholder="Hedef Lise" class="student-form-input" required><input type="text" id="newTargetNet" placeholder="Hedef Net" class="student-form-input" required><input type="text" id="newUcret" placeholder="Aylık Ücret (TL)" class="student-form-input"><input type="text" id="newVeliTel" placeholder="Veli Telefonu" class="student-form-input"><button onclick="addStudentFromModal()" class="w-full bg-blue-600 text-white py-2 rounded-xl font-semibold mt-2">Kaydet</button><button onclick="closeAddStudentModal()" class="w-full border border-gray-300 dark:border-gray-600 py-2 rounded-xl">İptal</button></div></div></div>`;
-            const existing = document.getElementById('addStudentModal'); if(existing) existing.remove(); const modalDiv = document.createElement('div'); modalDiv.id = 'addStudentModal'; modalDiv.innerHTML = modalHtml; document.body.appendChild(modalDiv);
-        }
-        function closeAddStudentModal() { document.getElementById('addStudentModal')?.remove(); }
-        function addStudentFromModal() { const name = document.getElementById('newName')?.value.trim(); const school = document.getElementById('newSchool')?.value.trim(); const sinif = document.getElementById('newSinif')?.value; const target = document.getElementById('newTargetSchool')?.value.trim(); const net = document.getElementById('newTargetNet')?.value.trim(); const ucret = document.getElementById('newUcret')?.value.trim(); const veliTel = document.getElementById('newVeliTel')?.value.trim(); if(!name || !school || !sinif || !target || !net){ alert("Ad, Okul, Sınıf, Hedef Lise ve Hedef Net alanları zorunludur"); return; } const students = loadStudentsData(); students.push({ id:"std"+Date.now(), adSoyad:name, sinif: sinif, okul:school, hedefLise:target, hedefNet:net, ucret: ucret || "", veliTel: veliTel || "", denemeler:[] }); saveStudentsData(students); closeAddStudentModal(); renderHomeScreen(); }
-
-        // Deneme Ata Modal
-        let denemeAtaMode = "branş";
-        let batchBransSoruSayisi = 0;
-        let batchGenelDersSayilari = {};
-        function showDenemeAtaModal() { denemeAtaMode = "branş"; batchBransSoruSayisi = 0; batchGenelDersSayilari = {}; GENEL_DERSLER_KEY.forEach(d => batchGenelDersSayilari[d] = 0); renderDenemeAtaModal(); }
-        function renderDenemeAtaModal() {
-            const students = loadStudentsData();
-            const studentCheckboxes = students.map(s => `<label class="flex items-center gap-2 p-1"><input type="checkbox" value="${s.id}" class="studentCheck"> ${escapeHtml(s.adSoyad)} (${escapeHtml(s.okul)}${s.sinif ? ', '+s.sinif+'. sınıf' : ''})</label>`).join('');
-            const bransHtml = `<div id="bransSecim" class="${denemeAtaMode === 'branş' ? '' : 'hidden'}"><div class="mb-3"><label class="font-medium">Toplam Soru Sayısı (Fen Bilimleri)</label><input type="number" id="bransSoruSayisi" min="1" value="${batchBransSoruSayisi || 1}" class="w-full border rounded p-2 modal-input"></div></div>`;
-            let genelDersHtml = `<div id="genelSecim" class="${denemeAtaMode === 'genel' ? '' : 'hidden'}"><div class="mb-2 font-medium">Ders Bazında Soru Sayıları:</div>`;
-            for(let i=0; i<GENEL_DERSLER_KEY.length; i++) {
-                const dersKey = GENEL_DERSLER_KEY[i];
-                const dersGorunum = GENEL_DERSLER_GORUNUM[i];
-                genelDersHtml += `<div class="mb-2 flex items-center gap-2"><label class="w-48 text-sm">${dersGorunum}</label><input type="number" min="0" value="${batchGenelDersSayilari[dersKey] || 0}" class="w-24 border rounded p-1 modal-input genelDersInput" data-ders="${dersKey}"></div>`;
-            }
-            genelDersHtml += `</div>`;
-            const modalHtml = `<div id="denemeAtaModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto p-4" onclick="if(event.target===this) closeDenemeAtaModal()"><div class="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl" onclick="event.stopPropagation()"><div class="flex justify-between items-center mb-3"><h2 class="text-xl font-bold">📋 Deneme Ata</h2><button onclick="closeDenemeAtaModal()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button></div><div class="mb-4 flex border-b"><button id="tabBransBtn" class="px-4 py-2 font-medium ${denemeAtaMode === 'branş' ? 'tab-active text-blue-600' : 'tab-inactive'}">🔬 Branş Deneme (Fen)</button><button id="tabGenelBtn" class="px-4 py-2 font-medium ${denemeAtaMode === 'genel' ? 'tab-active text-blue-600' : 'tab-inactive'}">📘 Genel Deneme (Tüm Dersler)</button></div><div class="mb-3"><label class="font-medium">Deneme Adı</label><input id="denemeAtaExamName" class="w-full border rounded p-2 modal-input" placeholder="Örn: Mart Denemesi"></div>${bransHtml}${genelDersHtml}<div class="mt-3"><label class="font-bold">👥 Öğrencileri Seç:</label><div class="grid grid-cols-2 gap-1 max-h-40 overflow-auto border p-2 rounded bg-gray-50 dark:bg-gray-900">${studentCheckboxes}</div></div><button id="saveDenemeAtaBtn" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-medium transition">📌 Seçilen Öğrencilere Ata</button></div></div>`;
-            const existing = document.getElementById('denemeAtaModal'); if(existing) existing.remove(); const modalDiv = document.createElement('div'); modalDiv.id = 'denemeAtaModal'; modalDiv.innerHTML = modalHtml; document.body.appendChild(modalDiv);
-            document.getElementById('tabBransBtn').addEventListener('click', () => { denemeAtaMode = 'branş'; document.getElementById('bransSecim').classList.remove('hidden'); document.getElementById('genelSecim').classList.add('hidden'); document.getElementById('tabBransBtn').classList.add('tab-active','text-blue-600'); document.getElementById('tabBransBtn').classList.remove('tab-inactive'); document.getElementById('tabGenelBtn').classList.add('tab-inactive'); document.getElementById('tabGenelBtn').classList.remove('tab-active','text-blue-600'); });
-            document.getElementById('tabGenelBtn').addEventListener('click', () => { denemeAtaMode = 'genel'; document.getElementById('bransSecim').classList.add('hidden'); document.getElementById('genelSecim').classList.remove('hidden'); document.getElementById('tabGenelBtn').classList.add('tab-active','text-blue-600'); document.getElementById('tabGenelBtn').classList.remove('tab-inactive'); document.getElementById('tabBransBtn').classList.add('tab-inactive'); document.getElementById('tabBransBtn').classList.remove('tab-active','text-blue-600'); });
-            document.getElementById('saveDenemeAtaBtn').addEventListener('click', () => saveDenemeAta());
-        }
-        function closeDenemeAtaModal() { document.getElementById('denemeAtaModal')?.remove(); }
-        function saveDenemeAta() {
-            const examName = document.getElementById('denemeAtaExamName')?.value.trim(); if(!examName){ alert("Deneme adı girin"); return; }
-            const selectedStudents = Array.from(document.querySelectorAll('.studentCheck:checked')).map(cb=>cb.value); if(selectedStudents.length===0){ alert("En az bir öğrenci seçin"); return; }
-            let sorular = [], tip = "";
-            if(denemeAtaMode === 'branş') { const soruSayisi = parseInt(document.getElementById('bransSoruSayisi')?.value) || 0; if(soruSayisi < 1){ alert("En az 1 soru olmalı"); return; } for(let i=0; i<soruSayisi; i++) { sorular.push({ soruNo: i+1, konuAdi: "", durum: "bos", hataKodu: null }); } tip = "branş"; }
-            else { let dersList = []; for(let i=0; i<GENEL_DERSLER_KEY.length; i++) { const dersKey = GENEL_DERSLER_KEY[i]; const adet = parseInt(document.querySelector(`.genelDersInput[data-ders="${dersKey}"]`)?.value) || 0; if(adet > 0) dersList.push({ ders: dersKey, adet }); } if(dersList.length===0){ alert("En az bir ders için soru sayısı girin"); return; } let soruNo = 1; for(let item of dersList) for(let i=0;i<item.adet;i++) sorular.push({ soruNo: soruNo++, konuAdi: item.ders, durum: "bos", hataKodu: null }); tip = "genel"; }
-            const newExam = { id: "ex_"+Date.now(), denemeAdi: examName, tarih: new Date().toISOString().slice(0,10), tip: tip, sorular: sorular, toplamDogru: 0, toplamYanlis: 0, toplamBos: sorular.length, toplamNet: 0, toplamSoru: sorular.length };
-            if(tip === "genel") { newExam.dersBilgileri = []; newExam.dersSonuclari = {}; const dersMap = {}; for(let s of sorular) dersMap[s.konuAdi] = (dersMap[s.konuAdi]||0)+1; for(let d in dersMap) { newExam.dersBilgileri.push({ ders:d, adet:dersMap[d] }); newExam.dersSonuclari[d] = { dogru:0, yanlis:0, bos:dersMap[d] }; } }
-            const students = loadStudentsData();
-            for(let sid of selectedStudents){ const idx = students.findIndex(s=>s.id===sid); if(idx !== -1){ if(!students[idx].denemeler) students[idx].denemeler = []; students[idx].denemeler.push(JSON.parse(JSON.stringify(newExam))); } }
-            saveStudentsData(students); alert(`${selectedStudents.length} öğrenciye deneme eklendi.`); closeDenemeAtaModal(); renderHomeScreen();
-        }
-
-        // ========== BRANŞ DENEME DÜZENLEME - Tümünü Doğru Yap butonu eklendi ==========
-        function editBransExam(studentId, examId, exam) {
-            const students = loadStudentsData();
-            const student = students.find(s => s.id === studentId);
-            if (!student) return;
-            const konuList = getKonuListesiBySinif(student.sinif);
-            function renderBransExamForm() {
-                let rows = '';
-                for(let i=0; i<exam.sorular.length; i++) {
-                    const soru = exam.sorular[i];
-                    const durum = soru.durum || "bos";
-                    const hataKodu = soru.hataKodu || "";
-                    const konuAdi = soru.konuAdi || "";
-                    const showKonuHata = (durum !== "dogru");
-                    rows += `<div class="border rounded-xl p-3 bg-white dark:bg-gray-800 soru-duzenleme-satiri" data-soru-index="${i}"><div class="font-medium mb-1">${i+1}. Soru</div><div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-end"><div><label class="text-xs">Durum</label><select class="w-full border rounded p-1 durum-select" data-index="${i}"><option value="dogru" ${durum === 'dogru' ? 'selected' : ''}>✅ Doğru</option><option value="yanlis" ${durum === 'yanlis' ? 'selected' : ''}>❌ Yanlış</option><option value="bos" ${durum === 'bos' ? 'selected' : ''}>⬜ Boş</option></select></div><div class="hata-konu-container" ${!showKonuHata ? 'style="display:none"' : ''}><div class="grid grid-cols-2 gap-2"><div><label class="text-xs">Fen Konusu</label><select class="w-full border rounded p-1 konu-select" data-index="${i}"><option value="">-- Seçin --</option>${konuList.map(k => `<option value="${k}" ${konuAdi === k ? 'selected' : ''}>${k}</option>`).join('')}</select></div><div><label class="text-xs">Hata Kodu</label><select class="w-full border rounded p-1 hata-select" data-index="${i}"><option value="">-- Seçin --</option>${HATA_KODLARI.map(h => `<option value="${h.kod}" ${hataKodu === h.kod ? 'selected' : ''}>${h.kod} - ${h.aciklama}</option>`).join('')}</select></div></div></div></div></div>`;
-                }
-                const html = `<div><button onclick="renderStudentPanel('${studentId}')" class="text-blue-600 mb-2 inline-block">← Geri</button><div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5"><div class="flex justify-between items-center mb-3"><h2 class="text-xl font-bold">Branş Deneme Düzenle - ${escapeHtml(exam.denemeAdi)}</h2><button onclick="setAllQuestionsCorrect()" class="btn-all-correct px-4 py-2 rounded-lg text-sm font-semibold shadow"><i class="fas fa-check-double mr-1"></i> Tümünü Doğru Yap</button></div><input id="editExamName" class="w-full border rounded p-2 mb-3 modal-input" placeholder="Deneme Adı" value="${escapeHtml(exam.denemeAdi)}"><div class="mb-2 text-sm text-gray-500">Her soru için durumu, Fen konusunu ve hata kodunu girin.</div><div class="space-y-3 max-h-96 overflow-auto mb-3">${rows}</div><div class="sticky-footer p-3 bg-gray-100 dark:bg-gray-700 rounded-xl flex justify-between font-semibold" id="editFooter"><span>📊 Toplam: ${exam.toplamSoru} soru | D:${exam.toplamDogru} Y:${exam.toplamYanlis} B:${exam.toplamBos}</span><span class="text-blue-600">Net: ${exam.toplamNet.toFixed(2)}</span></div><button onclick="saveBransExamEdit('${studentId}', '${examId}')" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-xl font-bold">Güncelle</button></div></div>`;
-                document.getElementById("dynamic-content").innerHTML = html;
-                function updateEditFooter() {
-                    let totalDogru = 0, totalYanlis = 0, totalBos = 0;
-                    const soruSayisi = exam.sorular.length;
-                    for(let i=0; i<soruSayisi; i++) {
-                        const durumSelect = document.querySelector(`.durum-select[data-index="${i}"]`);
-                        if(durumSelect) { const durum = durumSelect.value; if(durum === 'dogru') totalDogru++; else if(durum === 'yanlis') totalYanlis++; else totalBos++; }
-                        else { const soru = exam.sorular[i]; if(soru.durum === 'dogru') totalDogru++; else if(soru.durum === 'yanlis') totalYanlis++; else totalBos++; }
-                    }
-                    const net = calculateNet(totalDogru, totalYanlis);
-                    const footer = document.getElementById('editFooter');
-                    if(footer) footer.innerHTML = `<span>📊 Toplam: ${soruSayisi} soru | D:${totalDogru} Y:${totalYanlis} B:${totalBos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span>`;
-                }
-                document.querySelectorAll('.durum-select').forEach(sel => { sel.addEventListener('change', (e) => { const container = sel.closest('.soru-duzenleme-satiri').querySelector('.hata-konu-container'); if(sel.value === 'dogru') { container.style.display = 'none'; const idx = sel.getAttribute('data-index'); const konuSelect = document.querySelector(`.konu-select[data-index="${idx}"]`); const hataSelect = document.querySelector(`.hata-select[data-index="${idx}"]`); if(konuSelect) konuSelect.value = ""; if(hataSelect) hataSelect.value = ""; } else { container.style.display = 'block'; } updateEditFooter(); }); });
-                document.querySelectorAll('.konu-select, .hata-select').forEach(sel => { sel.addEventListener('change', () => updateEditFooter()); });
-                updateEditFooter();
-            }
-            window.setAllQuestionsCorrect = function() {
-                if(confirm("Tüm soruları doğru olarak işaretlemek istediğinize emin misiniz? Mevcut konu ve hata bilgileri silinecektir.")) {
-                    const soruSayisi = exam.sorular.length;
-                    for(let i=0; i<soruSayisi; i++) {
-                        const durumSelect = document.querySelector(`.durum-select[data-index="${i}"]`);
-                        if(durumSelect) {
-                            durumSelect.value = 'dogru';
-                            const container = durumSelect.closest('.soru-duzenleme-satiri').querySelector('.hata-konu-container');
-                            if(container) container.style.display = 'none';
-                            const konuSelect = document.querySelector(`.konu-select[data-index="${i}"]`);
-                            const hataSelect = document.querySelector(`.hata-select[data-index="${i}"]`);
-                            if(konuSelect) konuSelect.value = "";
-                            if(hataSelect) hataSelect.value = "";
+        window.onload = () => {
+            if (window.applyTheme) window.applyTheme();
+            if (window.registerPWA) window.registerPWA();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const action = urlParams.get('action');
+            
+            if (action === 'parent-hw-entry') {
+                const hwId = urlParams.get('hwId');
+                if (window.isFirebaseActive && hwId && window.db) {
+                    if (window.showSyncStatus) window.showSyncStatus("Ödev bilgileri buluttan alınıyor...", false);
+                    window.db.collection("homeworks").doc(hwId).get().then(doc => {
+                        if (doc.exists) {
+                            const d = doc.data();
+                            if (window.renderParentHwPasscodeScreen) window.renderParentHwPasscodeScreen(d);
+                        } else {
+                            fallbackToLegacy();
                         }
+                    }).catch(err => {
+                        console.error(err);
+                        fallbackToLegacy();
+                    });
+                } else {
+                    fallbackToLegacy();
+                }
+                function fallbackToLegacy() {
+                    const studentName = urlParams.get('studentName');
+                    const studentId = urlParams.get('studentId');
+                    const hwId = urlParams.get('hwId');
+                    const konu = urlParams.get('konu');
+                    const tur = urlParams.get('tur');
+                    const yayin = urlParams.get('yayin');
+                    if (window.renderParentHwEntry) window.renderParentHwEntry(studentName, studentId, hwId, konu, tur, yayin);
+                }
+            } else if (action === 'teacher-import-hw') {
+                const studentId = urlParams.get('studentId');
+                const hwId = urlParams.get('hwId');
+                const dogru = parseInt(urlParams.get('d')) || 0;
+                const yanlis = parseInt(urlParams.get('y')) || 0;
+                if (window.importHwResult) window.importHwResult(studentId, hwId, dogru, yanlis);
+            } else {
+                if (window.isFirebaseActive && window.auth) {
+                    window.auth.onAuthStateChanged(user => {
+                        if (user) {
+                            if (window.initializeFirestoreSync) {
+                                window.initializeFirestoreSync().then(() => {
+                                    const page = urlParams.get('page');
+                                    if (page === 'odevler' && window.renderOdevTakibi) {
+                                        window.renderOdevTakibi();
+                                    } else if (window.renderGenelIslemler) {
+                                        window.renderGenelIslemler();
+                                    }
+                                });
+                            }
+                        } else {
+                            if (window.renderLoginScreen) window.renderLoginScreen();
+                        }
+                    });
+                } else {
+                    const page = urlParams.get('page');
+                    if (page === 'odevler' && window.renderOdevTakibi) {
+                        window.renderOdevTakibi();
+                    } else if (window.renderGenelIslemler) {
+                        window.renderGenelIslemler();
                     }
-                    let totalDogru = soruSayisi, totalYanlis = 0, totalBos = 0;
-                    const net = calculateNet(totalDogru, totalYanlis);
-                    const footer = document.getElementById('editFooter');
-                    if(footer) footer.innerHTML = `<span>📊 Toplam: ${soruSayisi} soru | D:${totalDogru} Y:${totalYanlis} B:${totalBos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span>`;
-                    showSyncStatus("✅ Tüm sorular doğru olarak işaretlendi", false);
-                }
-            };
-            renderBransExamForm();
-        }
-        
-        function saveBransExamEdit(studentId, examId) {
-            const examName = document.getElementById('editExamName')?.value.trim();
-            if(!examName) { alert("Deneme adı girin"); return; }
-            const students = loadStudentsData();
-            const sIdx = students.findIndex(s => s.id === studentId);
-            if(sIdx === -1) { renderHomeScreen(); return; }
-            const examIndex = students[sIdx].denemeler.findIndex(e => e.id === examId);
-            if(examIndex === -1) { renderHomeScreen(); return; }
-            const exam = students[sIdx].denemeler[examIndex];
-            const soruSayisi = exam.sorular.length;
-            let toplamDogru=0, toplamYanlis=0, toplamBos=0;
-            const updatedSorular = [];
-            let hataEksik = false;
-            for(let i=0; i<soruSayisi; i++) {
-                const durumSelect = document.querySelector(`.durum-select[data-index="${i}"]`);
-                const konuSelect = document.querySelector(`.konu-select[data-index="${i}"]`);
-                const hataSelect = document.querySelector(`.hata-select[data-index="${i}"]`);
-                let durum = durumSelect ? durumSelect.value : exam.sorular[i].durum;
-                let konu = "";
-                let hataKodu = null;
-                if(durum === 'dogru') { toplamDogru++; }
-                else {
-                    if(konuSelect) konu = konuSelect.value;
-                    if(hataSelect) hataKodu = hataSelect.value;
-                    if(!konu) hataEksik = true;
-                    if(durum === 'yanlis') toplamYanlis++;
-                    else toplamBos++;
-                }
-                updatedSorular.push({ soruNo: i+1, konuAdi: konu || "", durum: durum, hataKodu: hataKodu || null });
-            }
-            if(hataEksik) { alert("Lütfen tüm yanlış veya boş sorular için konu seçiniz!"); return; }
-            const net = calculateNet(toplamDogru, toplamYanlis);
-            students[sIdx].denemeler[examIndex] = { ...exam, denemeAdi: examName, sorular: updatedSorular, toplamDogru, toplamYanlis, toplamBos, toplamNet: net, toplamSoru: soruSayisi };
-            saveStudentsData(students);
-            renderStudentPanel(studentId);
-        }
-
-        // Genel Deneme Düzenleme
-        function editGenelExam(studentId, examId, exam) {
-            let dersRows = '';
-            const dersBilgileri = exam.dersBilgileri || [];
-            const dersSonuclari = exam.dersSonuclari || {};
-            for(let item of dersBilgileri) {
-                const dersKey = item.ders;
-                const idx = GENEL_DERSLER_KEY.indexOf(dersKey);
-                const dersGorunum = idx !== -1 ? GENEL_DERSLER_GORUNUM[idx] : dersKey;
-                const toplamSoru = item.adet;
-                const sonuc = dersSonuclari[dersKey] || { dogru: 0, yanlis: 0, bos: toplamSoru };
-                dersRows += `<div class="border rounded-xl p-3 bg-white dark:bg-gray-800"><div class="font-bold mb-2">${dersGorunum}</div><div class="text-sm text-gray-500 mb-2">Toplam Soru: ${toplamSoru}</div><div class="grid grid-cols-3 gap-3"><div><label class="text-xs">Doğru</label><input type="number" min="0" max="${toplamSoru}" value="${sonuc.dogru}" class="w-full border rounded p-1 genel-dogru" data-ders="${dersKey}" data-toplam="${toplamSoru}"></div><div><label class="text-xs">Yanlış</label><input type="number" min="0" max="${toplamSoru}" value="${sonuc.yanlis}" class="w-full border rounded p-1 genel-yanlis" data-ders="${dersKey}" data-toplam="${toplamSoru}"></div><div><label class="text-xs">Boş</label><input type="number" min="0" max="${toplamSoru}" value="${sonuc.bos}" class="w-full border rounded p-1 genel-bos" data-ders="${dersKey}" data-toplam="${toplamSoru}" readonly></div></div></div>`;
-            }
-            const html = `<div><button onclick="renderStudentPanel('${studentId}')" class="text-blue-600 mb-2 inline-block">← Geri</button><div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5"><h2 class="text-xl font-bold mb-3">Genel Deneme Düzenle - ${escapeHtml(exam.denemeAdi)}</h2><input id="editExamName" class="w-full border rounded p-2 mb-3 modal-input" placeholder="Deneme Adı" value="${escapeHtml(exam.denemeAdi)}"><div class="mb-2 text-sm text-gray-500">Her ders için doğru, yanlış ve boş sayılarını girin. Boş sayısı otomatik hesaplanır.</div><div class="space-y-3 max-h-96 overflow-auto mb-3">${dersRows}</div><div class="sticky-footer p-3 bg-gray-100 dark:bg-gray-700 rounded-xl flex justify-between font-semibold" id="editFooter"><span>📊 Toplam: ${exam.toplamSoru} soru | D:${exam.toplamDogru} Y:${exam.toplamYanlis} B:${exam.toplamBos}</span><span class="text-blue-600">Net: ${exam.toplamNet.toFixed(2)}</span></div><button onclick="saveGenelExamEdit('${studentId}', '${examId}')" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-xl font-bold">Güncelle</button></div></div>`;
-            document.getElementById("dynamic-content").innerHTML = html;
-            const dogruInputs = document.querySelectorAll('.genel-dogru');
-            const yanlisInputs = document.querySelectorAll('.genel-yanlis');
-            const bosInputs = document.querySelectorAll('.genel-bos');
-            function updateDers(dogruInput, yanlisInput, bosInput, toplam) { let dogru = parseInt(dogruInput.value) || 0; let yanlis = parseInt(yanlisInput.value) || 0; if(dogru > toplam) dogru = toplam; if(yanlis > toplam - dogru) yanlis = toplam - dogru; dogruInput.value = dogru; yanlisInput.value = yanlis; bosInput.value = toplam - dogru - yanlis; }
-            function updateAll() { let totalDogru = 0, totalYanlis = 0, totalBos = 0; dogruInputs.forEach((inp, idx) => { const toplam = parseInt(inp.getAttribute('data-toplam')); const yanlisInp = yanlisInputs[idx]; const bosInp = bosInputs[idx]; const dogru = parseInt(inp.value) || 0; const yanlis = parseInt(yanlisInp.value) || 0; totalDogru += dogru; totalYanlis += yanlis; totalBos += toplam - dogru - yanlis; }); const net = calculateNet(totalDogru, totalYanlis); const footer = document.getElementById('editFooter'); if(footer) footer.innerHTML = `<span>📊 Toplam: ${exam.toplamSoru} soru | D:${totalDogru} Y:${totalYanlis} B:${totalBos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span>`; }
-            for(let i=0; i<dogruInputs.length; i++) { const toplam = parseInt(dogruInputs[i].getAttribute('data-toplam')); const dogruInp = dogruInputs[i]; const yanlisInp = yanlisInputs[i]; const bosInp = bosInputs[i]; dogruInp.addEventListener('input', () => { updateDers(dogruInp, yanlisInp, bosInp, toplam); updateAll(); }); yanlisInp.addEventListener('input', () => { updateDers(dogruInp, yanlisInp, bosInp, toplam); updateAll(); }); }
-            updateAll();
-        }
-        
-        function saveGenelExamEdit(studentId, examId) {
-            const examName = document.getElementById('editExamName')?.value.trim();
-            if(!examName) { alert("Deneme adı girin"); return; }
-            const students = loadStudentsData();
-            const sIdx = students.findIndex(s => s.id === studentId);
-            if(sIdx === -1) { renderHomeScreen(); return; }
-            const examIndex = students[sIdx].denemeler.findIndex(e => e.id === examId);
-            if(examIndex === -1) { renderHomeScreen(); return; }
-            const exam = students[sIdx].denemeler[examIndex];
-            const dersBilgileri = exam.dersBilgileri || [];
-            const dersSonuclari = {};
-            let toplamDogru = 0, toplamYanlis = 0, toplamBos = 0;
-            for(let item of dersBilgileri) {
-                const dersKey = item.ders;
-                const toplamSoru = item.adet;
-                const dogruInput = document.querySelector(`.genel-dogru[data-ders="${dersKey}"]`);
-                const yanlisInput = document.querySelector(`.genel-yanlis[data-ders="${dersKey}"]`);
-                if(!dogruInput) continue;
-                let dogru = parseInt(dogruInput.value) || 0;
-                let yanlis = parseInt(yanlisInput.value) || 0;
-                if(dogru > toplamSoru) dogru = toplamSoru;
-                if(yanlis > toplamSoru - dogru) yanlis = toplamSoru - dogru;
-                const bos = toplamSoru - dogru - yanlis;
-                dersSonuclari[dersKey] = { dogru, yanlis, bos };
-                toplamDogru += dogru;
-                toplamYanlis += yanlis;
-                toplamBos += bos;
-            }
-            const net = calculateNet(toplamDogru, toplamYanlis);
-            const updatedSorular = [];
-            let soruIndex = 0;
-            for(let item of dersBilgileri) {
-                const dersKey = item.ders;
-                const sonuc = dersSonuclari[dersKey];
-                const adet = item.adet;
-                let dogruKalan = sonuc.dogru;
-                let yanlisKalan = sonuc.yanlis;
-                let bosKalan = sonuc.bos;
-                for(let i=0; i<adet; i++) {
-                    let durum = "";
-                    if(dogruKalan > 0) { durum = "dogru"; dogruKalan--; }
-                    else if(yanlisKalan > 0) { durum = "yanlis"; yanlisKalan--; }
-                    else { durum = "bos"; bosKalan--; }
-                    updatedSorular.push({ soruNo: soruIndex+1, konuAdi: dersKey, durum: durum, hataKodu: null });
-                    soruIndex++;
                 }
             }
-            students[sIdx].denemeler[examIndex] = { ...exam, denemeAdi: examName, sorular: updatedSorular, dersSonuclari: dersSonuclari, toplamDogru, toplamYanlis, toplamBos, toplamNet: net, toplamSoru: exam.toplamSoru };
-            saveStudentsData(students);
-            renderStudentPanel(studentId);
-        }
-        
-        function editExam(studentId, examId) {
-            const students = loadStudentsData();
-            const student = students.find(s => s.id === studentId);
-            if(!student) return;
-            const exam = student.denemeler.find(e => e.id === examId);
-            if(!exam) return;
-            if(exam.tip === "genel") { editGenelExam(studentId, examId, exam); } else { editBransExam(studentId, examId, exam); }
-        }
-        
-        function viewExam(studentId, examId) {
-            const students = loadStudentsData(); const s = students.find(s => s.id === studentId); if(!s) return; const ex = s.denemeler.find(e => e.id === examId); if(!ex) return;
-            let detay = '<div class="space-y-1 max-h-80 overflow-auto">';
-            for(let soru of ex.sorular) { const durumEmoji = soru.durum === 'dogru' ? '✅' : (soru.durum === 'yanlis' ? '❌' : '⬜'); const hataStr = soru.hataKodu ? ` (${soru.hataKodu})` : ''; const konuStr = soru.konuAdi ? ` (${soru.konuAdi})` : ''; detay += `<div class="border-b py-1">${soru.soruNo}. Soru${konuStr}: ${durumEmoji} ${soru.durum}${hataStr}</div>`; }
-            detay += '</div>';
-            const modal = document.createElement('div'); modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
-            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-5 max-w-2xl w-full max-h-[80vh] overflow-auto shadow-xl"><div class="flex justify-between"><h2 class="text-xl font-bold">Deneme Detayı</h2><button onclick="this.closest('.fixed').remove()"><i class="fas fa-times"></i></button></div><p class="font-bold">${escapeHtml(ex.denemeAdi)}</p><p>Tarih: ${ex.tarih} | Net: ${ex.toplamNet} | D:${ex.toplamDogru} Y:${ex.toplamYanlis} B:${ex.toplamBos}</p><h3 class="font-bold mt-2">Detaylar</h3>${detay}<button onclick="this.closest('.fixed').remove(); editExam('${studentId}','${examId}')" class="mt-3 bg-blue-600 text-white px-4 py-1 rounded">Düzenle</button></div>`;
-            document.body.appendChild(modal);
-        }
-        function deleteExam(studentId, examId) { if(confirm("Denemeyi sil?")){ let students=loadStudentsData(); const sIdx=students.findIndex(s=>s.id===studentId); if(sIdx!==-1){ students[sIdx].denemeler=students[sIdx].denemeler.filter(e=>e.id!==examId); saveStudentsData(students); renderStudentPanel(studentId); } } }
-        function copyExamToOthers(studentId, examId) { alert("Kopyalama işlemi"); }
-        function executeCopyExam(sourceStudentId, examId) { alert("Kopyalandı"); }
-
-        // Raporlama
-        async function exportReport(format) {
-            if (!currentStudentId) { alert("Önce bir öğrenci seçin"); return; }
-            const students = loadStudentsData();
-            const student = students.find(s => s.id === currentStudentId);
-            if (!student) return;
-            const denemeler = student.denemeler || [];
-            const bransDenemeler = denemeler.filter(d => d.tip === "branş");
-            const bransSayisi = bransDenemeler.length;
-            const bransOrt = getBransOrtalamaNet(student) || 0;
-            const basari = getKonuBazliBasarilar(student);
-            const { zayif } = getBestWorstTopics(basari);
-            const hataIstat = getHataIstatistikleri(student);
-            const hataList = HATA_KODLARI.map(h => ({ kod: h.kod, ad: h.aciklama, adet: hataIstat.hataSayilari[h.kod] || 0 }));
-            const genelDenemeler = denemeler.filter(d => d.tip === "genel");
-            const genelSayisi = genelDenemeler.length;
-            const dersBazliToplam = {};
-            GENEL_DERSLER_KEY.forEach(d => dersBazliToplam[d] = { dogru: 0, toplamSoru: 0 });
-            for(let den of genelDenemeler) { if(den.dersSonuclari) { for(let d in den.dersSonuclari) { if(dersBazliToplam[d]) { dersBazliToplam[d].dogru += den.dersSonuclari[d].dogru; dersBazliToplam[d].toplamSoru += (den.dersSonuclari[d].dogru + den.dersSonuclari[d].yanlis + den.dersSonuclari[d].bos); } } } }
-            const dersYuzdeler = [];
-            for(let i=0; i<GENEL_DERSLER_KEY.length; i++) { const d = GENEL_DERSLER_KEY[i]; const t = dersBazliToplam[d].toplamSoru; const yuzde = t ? ((dersBazliToplam[d].dogru / t) * 100).toFixed(1) : null; dersYuzdeler.push({ ad: GENEL_DERSLER_GORUNUM[i], yuzde: yuzde }); }
-            const reportContent = `<div style="font-family: Arial, sans-serif; max-width: 1100px; margin: 0 auto; padding: 20px;"><h1 style="color: #007BFF; text-align: center;">Canfenci Deneme Analizi Raporu</h1><div style="text-align: center; margin-bottom: 20px;"><h2>${escapeHtml(student.adSoyad)}</h2><p>${escapeHtml(student.okul)} | ${student.sinif ? student.sinif+'. Sınıf' : 'Sınıf belirtilmemiş'} | 🎯 Hedef Net: ${student.hedefNet} | 🏫 Hedef Lise: ${escapeHtml(student.hedefLise)}</p></div><div style="display: flex; gap: 30px; border-top: 2px solid #ccc; padding-top: 20px;"><div style="flex: 1;"><h3 style="background: #0F766E; color: white; padding: 8px; border-radius: 8px;">🔬 Branş Deneme (Fen)</h3><p><strong>Toplam Branş Deneme Sayısı:</strong> ${bransSayisi}</p><p><strong>Ortalama Net:</strong> ${bransOrt.toFixed(2)}</p><h4>📉 En Zayıf 3 Fen Konusu</h4><ul>${zayif.map(z=>`<li>${z.konu} (%${z.yuzde})</li>`).join('') || '<li>Veri yok</li>'}</ul><h4>⚠️ Hata Kodu Analizi</h4><ul>${hataList.map(h=>`<li>${h.kod} - ${h.ad}: ${h.adet} hata</li>`).join('')}</ul></div><div style="flex: 1;"><h3 style="background: #007BFF; color: white; padding: 8px; border-radius: 8px;">📘 Genel Deneme</h3><p><strong>Toplam Genel Deneme Sayısı:</strong> ${genelSayisi}</p><p><strong>Ortalama Net:</strong> ${getGenelOrtalamaNet(student) || 0}</p><p><strong>Tahmini LGS Puanı:</strong> ${lgsPuanHesapla(genelDenemeler) || '—'}</p><h4>📚 Ders Bazlı Ortalama Başarı (%)</h4><ul>${dersYuzdeler.map(d => `<li>${d.ad}: ${d.yuzde !== null ? d.yuzde+'%' : '—'}</li>`).join('')}</ul></div></div><hr style="margin: 20px 0;"><p style="text-align: center; font-size: 12px; color: gray;">Rapor Tarihi: ${new Date().toLocaleDateString()} - Canfenci Deneme Analizi</p></div>`;
-            if (format === 'pdf') { const printWindow = window.open('', '_blank'); printWindow.document.write(`<html><head><title>${student.adSoyad} - Deneme Raporu</title><style>body { font-family: Arial; margin: 20px; }</style></head><body>${reportContent}</body></html>`); printWindow.document.close(); printWindow.print(); }
-            else if (format === 'word') { try { const blob = new Blob([reportContent], { type: 'application/msword' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${student.adSoyad}_rapor.doc`; document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url); } catch (err) { alert("Word raporu oluşturulamadı: " + err.message); } }
-        }
-
-        // Öğrenci Paneli
-        async function renderStudentPanel(id) {
-            try {
-                currentPage = "student";
-                const students = loadStudentsData();
-                const student = students.find(s => s.id === id);
-                if(!student){ renderHomeScreen(); return; }
-                currentStudentId = id;
-                const denemeler = student.denemeler || [];
-                const bransDenemeler = denemeler.filter(d => d.tip === "branş");
-                const genelDenemeler = denemeler.filter(d => d.tip === "genel");
-                const konuList = getKonuListesiBySinif(student.sinif);
-                const hataKonulari = {}; konuList.forEach(k=>hataKonulari[k]=0);
-                let toplamHataSoru = 0;
-                for(let den of bransDenemeler) for(let soru of den.sorular) if(soru.durum !== "dogru" && soru.konuAdi && konuList.includes(soru.konuAdi)) { hataKonulari[soru.konuAdi]++; toplamHataSoru++; }
-                const enCokHataYapilan = Object.entries(hataKonulari).filter(([_,a])=>a>0).sort((a,b)=>b[1]-a[1]).slice(0,3);
-                const { hataSayilari, toplamHata } = getHataIstatistikleri(student);
-                const genelOrtalamaNet = genelDenemeler.length ? (genelDenemeler.reduce((s,d)=>s+d.toplamNet,0)/genelDenemeler.length).toFixed(2) : 0;
-                const lgsPuan = lgsPuanHesapla(genelDenemeler);
-                const dersBazliNetler = {}; GENEL_DERSLER_KEY.forEach(d=>dersBazliNetler[d]={dogru:0,yanlis:0,bos:0,toplamSoru:0});
-                for(let den of genelDenemeler) if(den.dersSonuclari) for(let d in den.dersSonuclari) if(dersBazliNetler[d]) { const s=den.dersSonuclari[d]; dersBazliNetler[d].dogru+=s.dogru; dersBazliNetler[d].yanlis+=s.yanlis; dersBazliNetler[d].bos+=s.bos; dersBazliNetler[d].toplamSoru+=s.dogru+s.yanlis+s.bos; }
-                const dersBazliYuzdeler = {};
-                for(let i=0;i<GENEL_DERSLER_KEY.length;i++){ const d=GENEL_DERSLER_KEY[i]; const t=dersBazliNetler[d].toplamSoru; dersBazliYuzdeler[d]=t?((dersBazliNetler[d].dogru/t)*100).toFixed(1):null; }
-                const genelSorted = [...genelDenemeler].sort((a,b)=>new Date(a.tarih)-new Date(b.tarih));
-                const netChartData = genelSorted.map(e=>e.toplamNet);
-                const netChartLabels = genelSorted.map(e=>e.denemeAdi);
-                const motivasyon = getMotivationMessage(student);
-                const hedefSayi = parseFloat(student.hedefNet);
-                const hedefGecerli = !isNaN(hedefSayi);
-                const ekstraBilgiHtml = (student.ucret || student.veliTel) ? `<div class="flex flex-wrap gap-3 mt-2 text-sm">${student.ucret ? `<span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full"><i class="fas fa-money-bill-wave"></i> Aylık Ücret: ${escapeHtml(student.ucret)} TL</span>` : ''}${student.veliTel ? `<span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full"><i class="fas fa-phone-alt"></i> Veli: ${escapeHtml(student.veliTel)}</span>` : ''}</div>` : '';
-                const html = `<div class="flex flex-wrap justify-between gap-3 mb-4"><button onclick="renderHomeScreen()" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-xl"><i class="fas fa-arrow-left"></i> Ana Sayfa</button><div class="relative inline-block"><button onclick="toggleReportMenu()" class="bg-blue-600 text-white px-5 py-2 rounded-xl shadow"><i class="fas fa-file-alt"></i> Rapor Al</button><div id="reportMenu" class="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 rounded-md shadow-lg z-50 hidden"><button onclick="exportReport('pdf'); hideReportMenu()" class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fas fa-file-pdf"></i> PDF Olarak Kaydet</button><button onclick="exportReport('word'); hideReportMenu()" class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fas fa-file-word"></i> Word Olarak Kaydet</button></div></div></div><div class="bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border"><div class="flex justify-between flex-wrap"><div><h2 class="text-2xl font-black">${escapeHtml(student.adSoyad)}</h2><p>🏫 ${escapeHtml(student.okul)} | 🎯 ${escapeHtml(student.hedefLise)} | 📚 ${student.sinif ? student.sinif+'. Sınıf' : 'Sınıf belirtilmemiş'}</p>${ekstraBilgiHtml}</div><div class="text-right"><span class="bg-white dark:bg-gray-700 px-3 py-1 rounded-full shadow">🎯 ${student.hedefNet}</span><br><span>📊 Genel Ort. Net: ${genelOrtalamaNet}</span></div></div><div class="mt-2 p-2 rounded-xl text-center font-medium border motivation-card">${motivasyon}</div></div><div class="mt-4 bg-white dark:bg-gray-800 p-3 rounded-2xl shadow"><canvas id="netChart" height="150"></canvas></div><div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 mt-4"><h3 class="font-bold text-lg">📘 Genel Deneme İstatistikleri</h3>${genelDenemeler.length===0 ? '<p class="text-gray-500 mt-2">Henüz genel deneme eklenmemiş.</p>' : `<div class="mt-2 grid grid-cols-2 gap-2"><div class="border rounded p-2"><span class="font-bold">Toplam Deneme:</span> ${genelDenemeler.length}</div><div class="border rounded p-2"><span class="font-bold">Ortalama Net:</span> ${genelOrtalamaNet}</div><div class="border rounded p-2"><span class="font-bold">LGS 2025 Tahmini Puan:</span> <span class="text-blue-600 font-bold">${lgsPuan !== null ? lgsPuan : '—'}</span></div></div><div class="mt-3"><h4 class="font-semibold">Ders Bazlı Ortalama Başarı (%)</h4><div class="grid grid-cols-2 gap-1 mt-1">${GENEL_DERSLER_KEY.map((d,i)=>`<div class="flex justify-between text-sm"><span>${GENEL_DERSLER_GORUNUM[i]}</span><span class="font-medium">${dersBazliYuzdeler[d] !== null ? dersBazliYuzdeler[d]+'%' : '—'}</span></div>`).join('')}</div></div>`}</div><div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 mt-4"><h3 class="font-bold text-lg">🔬 Branş Deneme İstatistikleri (Fen)</h3>${bransDenemeler.length===0 ? '<p class="text-gray-500 mt-2">Henüz branş deneme eklenmemiş.</p>' : `<div class="mt-2 grid grid-cols-2 gap-2"><div class="border rounded p-2"><span class="font-bold">Toplam Deneme:</span> ${bransDenemeler.length}</div><div class="border rounded p-2"><span class="font-bold">Ortalama Net:</span> ${(bransDenemeler.reduce((s,d)=>s+d.toplamNet,0)/bransDenemeler.length).toFixed(2)}</div></div><div class="mt-3"><h4 class="font-semibold">En Çok Hata Yapılan Fen Konuları</h4><div class="space-y-1 mt-1">${enCokHataYapilan.length===0 ? '<p class="text-gray-500">Henüz hata kaydı yok.</p>' : enCokHataYapilan.map(([konu,adet])=>`<div class="flex justify-between border-b py-1"><span>${konu}</span><span class="font-semibold text-red-600">${adet} hata (${toplamHataSoru?((adet/toplamHataSoru)*100).toFixed(1):0}%)</span></div>`).join('')}</div></div>${toplamHata>0 ? `<div class="mt-3"><h4 class="font-semibold">Hata Kodu Analizi</h4><div class="grid grid-cols-2 gap-1 mt-1">${HATA_KODLARI.map(h=>`<div class="text-sm"><span class="font-bold">${h.kod}</span> ${hataSayilari[h.kod]||0} (${toplamHata?(((hataSayilari[h.kod]||0)/toplamHata)*100).toFixed(1):0}%)</div>`).join('')}</div></div>` : ''}`}</div><div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 mt-4"><h3 class="font-bold text-lg">📝 Tüm Denemeler</h3><div class="space-y-2 max-h-80 overflow-auto mt-2">${denemeler.length===0 ? '<p class="text-center">Henüz deneme yok.</p>' : denemeler.slice().reverse().map(ex=>`<div class="border rounded-xl p-3 flex justify-between flex-wrap"><div><span class="font-bold">${escapeHtml(ex.denemeAdi)}</span> <span class="text-xs text-gray-400">${ex.tarih}</span> <span class="text-xs exam-badge dark:bg-gray-600 dark:text-white px-1 rounded">${ex.tip === "genel" ? "📘 Genel" : "🔬 Branş"}</span><br><span>Net: <strong class="text-blue-600">${ex.toplamNet}</strong> (${ex.toplamDogru}D ${ex.toplamYanlis}Y ${ex.toplamBos}B)</span></div><div class="flex gap-2"><button onclick="viewExam('${id}','${ex.id}')" class="text-blue-500"><i class="fas fa-eye"></i></button><button onclick="editExam('${id}','${ex.id}')" class="text-green-500"><i class="fas fa-edit"></i></button><button onclick="copyExamToOthers('${id}','${ex.id}')" class="text-purple-500"><i class="fas fa-copy"></i></button><button onclick="deleteExam('${id}','${ex.id}')" class="text-red-500"><i class="fas fa-trash"></i></button></div></div>`).join('')}</div></div>`;
-                document.getElementById("dynamic-content").innerHTML = html;
-                setTimeout(()=>{ const ctx = document.getElementById("netChart")?.getContext("2d"); if(ctx && genelSorted.length){ if(chartInstance) chartInstance.destroy(); const datasets = [{label:'Genel Deneme Netleri', data:netChartData, borderColor:'#007BFF', borderWidth:2, tension:0.2}]; if(hedefGecerli) datasets.push({label:`Hedef Net (${hedefSayi})`, data:Array(genelSorted.length).fill(hedefSayi), borderColor:'#10B981', borderDash:[5,5], pointRadius:0}); chartInstance = new Chart(ctx, {type:'line', data:{labels:netChartLabels, datasets}, options:{responsive:true}}); } },50);
-            } catch(err) { console.error(err); alert("Öğrenci paneli açılamadı: "+err.message); renderHomeScreen(); }
-        }
-        
-        function toggleReportMenu() { const menu = document.getElementById('reportMenu'); if (menu) menu.classList.toggle('hidden'); }
-        function hideReportMenu() { const menu = document.getElementById('reportMenu'); if (menu) menu.classList.add('hidden'); }
-
-        // Ana Sayfa
-        function renderHomeScreen() {
-            currentPage = "home";
-            const students = loadStudentsData();
-            let filtered = students;
-            if (activeFilter !== "all") { filtered = students.filter(s => s.sinif === activeFilter); }
-            const sorted = getSortedStudents(filtered, currentSortOrder);
-            const filterHtml = `<div class="flex gap-2 mb-4 flex-wrap"><button onclick="setFilter('all')" class="px-3 py-1 rounded-full text-sm font-medium ${activeFilter === 'all' ? 'filter-btn-active' : 'filter-btn-inactive'}">Tümü</button><button onclick="setFilter('5')" class="px-3 py-1 rounded-full text-sm font-medium ${activeFilter === '5' ? 'filter-btn-active' : 'filter-btn-inactive'}">5. Sınıf</button><button onclick="setFilter('6')" class="px-3 py-1 rounded-full text-sm font-medium ${activeFilter === '6' ? 'filter-btn-active' : 'filter-btn-inactive'}">6. Sınıf</button><button onclick="setFilter('7')" class="px-3 py-1 rounded-full text-sm font-medium ${activeFilter === '7' ? 'filter-btn-active' : 'filter-btn-inactive'}">7. Sınıf</button><button onclick="setFilter('8')" class="px-3 py-1 rounded-full text-sm font-medium ${activeFilter === '8' ? 'filter-btn-active' : 'filter-btn-inactive'}">8. Sınıf</button></div>`;
-            const sortHtml = `<div class="flex gap-2 mb-4 flex-wrap"><button onclick="setSortOrder('default')" class="px-3 py-1 rounded-full text-sm font-medium ${currentSortOrder==='default'?'btn-sort-active':'btn-sort-inactive'}">Varsayılan</button><button onclick="setSortOrder('net-desc')" class="px-3 py-1 rounded-full text-sm font-medium ${currentSortOrder==='net-desc'?'btn-sort-active':'btn-sort-inactive'}">Ort.Net (Yüksek↓)</button><button onclick="setSortOrder('net-asc')" class="px-3 py-1 rounded-full text-sm font-medium ${currentSortOrder==='net-asc'?'btn-sort-active':'btn-sort-inactive'}">Ort.Net (Düşük↑)</button></div>`;
-            const studentsHtml = sorted.length===0 ? '<div class="bg-white rounded-2xl shadow p-6 text-center">Öğrenci yok</div>' : sorted.map(s => { const son = s.denemeler?.length ? s.denemeler[s.denemeler.length-1].toplamNet : null; const bransOrt = getBransOrtalamaNet(s); const genelOrt = getGenelOrtalamaNet(s); const sinifGoster = s.sinif ? `${s.sinif}. Sınıf` : "Sınıf belirtilmemiş"; return `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 relative"><div onclick="selectStudent('${s.id}')" class="cursor-pointer"><h3 class="text-xl font-bold">${escapeHtml(s.adSoyad)}</h3><p class="text-gray-600 dark:text-gray-300">${escapeHtml(s.okul)} | ${sinifGoster}</p><p class="text-blue-600 font-semibold">🎯 ${s.hedefNet}</p><div class="flex flex-wrap gap-2 mt-1">${bransOrt !== null ? `<span class="stat-badge">🔬 Branş Ort: ${bransOrt}</span>` : ''}${genelOrt !== null ? `<span class="stat-badge">📘 Genel Ort: ${genelOrt}</span>` : ''}${son !== null ? `<span class="stat-badge">📈 Son Net: ${son}</span>` : ''}</div></div><div class="absolute top-2 right-2 flex gap-2"><button onclick="editStudent('${s.id}')" class="text-blue-500">✏️</button><button onclick="deleteStudent('${s.id}')" class="text-red-500">🗑️</button></div><div class="text-xs text-gray-400 dark:text-gray-500 mt-2">📌 ${s.denemeler?.length||0} deneme</div></div>`; }).join('');
-            const addButtonHtml = `<div class="mb-4 flex justify-end"><button onclick="showAddStudentModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow"><i class="fas fa-plus"></i> Yeni Öğrenci Ekle</button></div>`;
-            document.getElementById("dynamic-content").innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow mb-4"><h2 class="text-xl font-bold">📋 Öğrenci Listesi</h2><p class="text-sm text-gray-500">Toplam ${sorted.length} öğrenci (${activeFilter === 'all' ? 'Tümü' : activeFilter+'. sınıf'})</p></div>${addButtonHtml}${filterHtml}${sortHtml}<div class="grid md:grid-cols-2 gap-5">${studentsHtml}</div>`;
-        }
-        
-        function getSortedStudents(students, order) { if(order === 'default') return [...students]; const withAvg = students.map(s => ({ ...s, ortalamaNet: getOrtalamaNet(s) })); if(order === 'net-desc') return withAvg.sort((a,b) => b.ortalamaNet - a.ortalamaNet); if(order === 'net-asc') return withAvg.sort((a,b) => a.ortalamaNet - b.ortalamaNet); return students; }
-        function setSortOrder(order){ currentSortOrder = order; renderHomeScreen(); }
-        function setFilter(sinif) { activeFilter = sinif; renderHomeScreen(); }
-        function deleteStudent(id) { if(confirm("Öğrenciyi sil?")){ let students = loadStudentsData().filter(s => s.id !== id); saveStudentsData(students); if(currentStudentId === id) renderHomeScreen(); else renderHomeScreen(); } }
-        function editStudent(id) { const s = loadStudentsData().find(s => s.id === id); if(!s) return; const sinifOptions = ['5','6','7','8'].map(sinif => `<option value="${sinif}" ${s.sinif === sinif ? 'selected' : ''}>${sinif}. Sınıf</option>`).join(''); const modal = document.createElement('div'); modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"; modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md"><h2 class="text-xl font-bold">✏️ Düzenle</h2><input id="editName" class="w-full border p-2 rounded mb-2 student-form-input" value="${escapeHtml(s.adSoyad)}" required><input id="editSchool" class="w-full border p-2 rounded mb-2 student-form-input" value="${escapeHtml(s.okul)}" required><select id="editSinif" class="w-full border p-2 rounded mb-2 student-form-input" required><option value="" disabled>Sınıf Seçin (zorunlu)</option>${sinifOptions}</select><input id="editTargetSchool" class="w-full border p-2 rounded mb-2 student-form-input" value="${escapeHtml(s.hedefLise)}" required><input id="editTargetNet" class="w-full border p-2 rounded mb-2 student-form-input" value="${s.hedefNet}" required><input id="editUcret" class="w-full border p-2 rounded mb-2 student-form-input" placeholder="Aylık Ücret (TL)" value="${escapeHtml(s.ucret)}"><input id="editVeliTel" class="w-full border p-2 rounded mb-2 student-form-input" placeholder="Veli Telefonu" value="${escapeHtml(s.veliTel)}"><button onclick="saveStudentEdit('${id}')" class="bg-blue-600 text-white w-full py-2 rounded">Kaydet</button><button onclick="this.closest('.fixed').remove()" class="mt-2 w-full border rounded py-2">İptal</button></div>`; document.body.appendChild(modal); }
-        function saveStudentEdit(id) { const name = document.getElementById('editName')?.value.trim(); const school = document.getElementById('editSchool')?.value.trim(); const sinif = document.getElementById('editSinif')?.value; const target = document.getElementById('editTargetSchool')?.value.trim(); const net = document.getElementById('editTargetNet')?.value.trim(); const ucret = document.getElementById('editUcret')?.value.trim(); const veliTel = document.getElementById('editVeliTel')?.value.trim(); if(!name || !school || !sinif || !target || !net){ alert("Ad, Okul, Sınıf, Hedef Lise ve Hedef Net zorunludur"); return; } const students = loadStudentsData(); const idx = students.findIndex(s => s.id === id); if(idx !== -1){ students[idx] = { ...students[idx], adSoyad:name, sinif: sinif, okul:school, hedefLise:target, hedefNet:net, ucret: ucret || "", veliTel: veliTel || "" }; saveStudentsData(students); } document.querySelector('.fixed')?.remove(); renderHomeScreen(); }
-
-        // Ders Programı
-        function renderSchedulePage() {
-            currentPage = "schedule";
-            const students = loadStudentsData();
-            if (students.length === 0) { document.getElementById("dynamic-content").innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 text-center text-gray-500">Henüz öğrenci eklenmemiş. Lütfen önce öğrenci ekleyin.</div>`; return; }
-            let selectedStudentId = students[0].id;
-            let lessons = loadSchedule(selectedStudentId);
-            function buildUI() {
-                const gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
-                const saatler = []; for (let h = 0; h < 24; h++) for (let m = 0; m < 60; m += 30) saatler.push(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`);
-                let allSchedules = []; for (let s of students) { let sch = loadSchedule(s.id); for (let item of sch) allSchedules.push({ ogrenciAd: s.adSoyad, ogrenciId: s.id, gun: item.gun, saat: item.saat, dersAdi: item.dersAdi }); }
-                const gunSirasi = { "Pazartesi":1, "Salı":2, "Çarşamba":3, "Perşembe":4, "Cuma":5, "Cumartesi":6, "Pazar":7 };
-                allSchedules.sort((a,b) => (gunSirasi[a.gun] - gunSirasi[b.gun]) || (a.saat.localeCompare(b.saat)));
-                const html = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6"><h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">📅 Haftalık Ders Programı</h2><p class="text-gray-500 dark:text-gray-400 mb-6">Öğrencilerin ders programlarını yönetin ve tüm programları toplu görün.</p><div class="mb-8 bg-gray-50 dark:bg-gray-900 rounded-xl p-4"><h3 class="text-lg font-semibold mb-3 flex items-center"><i class="fas fa-user-graduate mr-2 text-blue-500"></i> ${escapeHtml(students.find(s=>s.id===selectedStudentId)?.adSoyad || 'Seçili Öğrenci')} - Ders Programı Düzenle</h3><div class="flex flex-wrap gap-4 items-end mb-4"><div class="flex-1 min-w-[200px]"><label class="font-medium block mb-1">Öğrenci Değiştir</label><select id="scheduleStudentSelect" class="student-form-input w-full">${students.map(s => `<option value="${s.id}" ${s.id === selectedStudentId ? 'selected' : ''}>${escapeHtml(s.adSoyad)} (${escapeHtml(s.okul)})</option>`).join('')}</select></div><div><button onclick="showAddScheduleModal('${selectedStudentId}')" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-xl transition"><i class="fas fa-plus-circle mr-1"></i> Ders Programı Ekle</button></div></div><div class="overflow-x-auto"><table class="w-full border-collapse border border-gray-300 dark:border-gray-700 rounded-lg"><thead class="bg-gray-100 dark:bg-gray-700"><tr><th class="border p-2">Gün</th><th class="border p-2">Saat</th><th class="border p-2">Ders</th><th class="border p-2">İşlemler</th></tr></thead><tbody id="scheduleTableBody">${lessons.map((les, idx) => `<tr><td class="border p-2">${escapeHtml(les.gun)}</td><td class="border p-2">${escapeHtml(les.saat)}</td><td class="border p-2">${escapeHtml(les.dersAdi)}</td><td class="border p-2"><button onclick="editScheduleLesson(${idx})" class="text-blue-500 mr-2"><i class="fas fa-edit"></i></button><button onclick="deleteScheduleLesson(${idx})" class="text-red-500"><i class="fas fa-trash"></i></button></td></tr>`).join('')}${lessons.length === 0 ? '<tr><td colspan="4" class="text-center p-4 text-gray-500">Henüz ders eklenmemiş.</td></tr>' : ''}</tbody></table></div></div><div class="mt-8"><h3 class="text-xl font-bold mb-3 text-gray-800 dark:text-white">📋 Tüm Öğrencilerin Ders Programı</h3><div class="overflow-x-auto"><table class="w-full border-collapse border border-gray-300 dark:border-gray-700 rounded-lg"><thead class="bg-gray-100 dark:bg-gray-700"><tr><th class="border p-2">Öğrenci</th><th class="border p-2">Gün</th><th class="border p-2">Saat</th><th class="border p-2">Ders</th></tr></thead><tbody>${allSchedules.map(sch => `<tr><td class="border p-2">${escapeHtml(sch.ogrenciAd)}</td><td class="border p-2">${escapeHtml(sch.gun)}</td><td class="border p-2">${escapeHtml(sch.saat)}</td><td class="border p-2">${escapeHtml(sch.dersAdi)}</td></tr>`).join('')}${allSchedules.length === 0 ? '<tr><td colspan="4" class="text-center p-4 text-gray-500">Henüz hiçbir öğrenci için ders eklenmemiş.</td></tr>' : ''}</tbody></table></div></div></div>`;
-                document.getElementById("dynamic-content").innerHTML = html;
-                document.getElementById("scheduleStudentSelect").addEventListener("change", (e) => { selectedStudentId = e.target.value; lessons = loadSchedule(selectedStudentId); buildUI(); });
-                window.editScheduleLesson = (idx) => { const les = lessons[idx]; const yeniGun = prompt("Gün (Pazartesi, Salı...):", les.gun); const yeniSaat = prompt("Saat (HH:MM):", les.saat); const yeniDers = prompt("Ders Adı:", les.dersAdi); if (yeniGun && yeniSaat && yeniDers) { const conflict = lessons.some((l, i) => i !== idx && l.gun === yeniGun && l.saat === yeniSaat); if (conflict) { alert("Bu gün ve saatte başka bir ders var!"); return; } lessons[idx] = { gun: yeniGun, saat: yeniSaat, dersAdi: yeniDers }; saveSchedule(selectedStudentId, lessons); buildUI(); } };
-                window.deleteScheduleLesson = (idx) => { if (confirm("Bu dersi silmek istediğinize emin misiniz?")) { lessons.splice(idx, 1); saveSchedule(selectedStudentId, lessons); buildUI(); } };
-            }
-            buildUI();
-        }
-
-        // Ders Programı Ekleme Modalı
-        function showAddScheduleModal(studentId) {
-            const gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
-            const saatler = []; for (let h = 0; h < 24; h++) for (let m = 0; m < 60; m += 30) saatler.push(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`);
-            const modalHtml = `<div id="addScheduleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="if(event.target===this) closeAddScheduleModal()"><div class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-xl" onclick="event.stopPropagation()"><h2 class="text-xl font-bold mb-4">📅 Yeni Ders Ekle</h2><div class="space-y-4"><div><label class="block text-sm font-medium mb-1">Gün</label><select id="modalScheduleDay" class="student-form-input">${gunler.map(g => `<option value="${g}">${g}</option>`).join('')}</select></div><div><label class="block text-sm font-medium mb-1">Saat</label><select id="modalScheduleTime" class="student-form-input">${saatler.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div><div><label class="block text-sm font-medium mb-1">Ders Adı</label><input type="text" id="modalScheduleLessonName" class="student-form-input" placeholder="Örn: Matematik"></div><button onclick="addScheduleFromModal('${studentId}')" class="w-full bg-blue-600 text-white py-2 rounded-xl font-semibold mt-2">Ekle</button><button onclick="closeAddScheduleModal()" class="w-full border border-gray-300 dark:border-gray-600 py-2 rounded-xl">İptal</button></div></div></div>`;
-            const existing = document.getElementById('addScheduleModal'); if(existing) existing.remove(); const modalDiv = document.createElement('div'); modalDiv.id = 'addScheduleModal'; modalDiv.innerHTML = modalHtml; document.body.appendChild(modalDiv);
-        }
-        function closeAddScheduleModal() { document.getElementById('addScheduleModal')?.remove(); }
-        function addScheduleFromModal(studentId) { const gun = document.getElementById('modalScheduleDay')?.value; const saat = document.getElementById('modalScheduleTime')?.value; const dersAdi = document.getElementById('modalScheduleLessonName')?.value.trim(); if (!dersAdi) { alert("Ders adı giriniz"); return; } const lessons = loadSchedule(studentId); const conflict = lessons.some(lesson => lesson.gun === gun && lesson.saat === saat); if (conflict) { alert("Bu gün ve saatte zaten bir ders var!"); return; } lessons.push({ gun, saat, dersAdi }); saveSchedule(studentId, lessons); closeAddScheduleModal(); renderSchedulePage(); }
-
-        // Ders Kayıtları
-        function renderDersKayitlari() {
-            currentPage = "dersKayitlari";
-            const students = loadStudentsData();
-            if (students.length === 0) { document.getElementById("dynamic-content").innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 text-center text-gray-500">Henüz öğrenci eklenmemiş. Lütfen önce öğrenci ekleyin.</div>`; return; }
-            let cardsHtml = '<div class="grid md:grid-cols-2 gap-5">';
-            for (let s of students) { const aylikUcret = parseFloat(s.ucret) || 0; const { toplamDers, odenenDersSayisi, toplamOdeme } = getDersOzet(s.id, aylikUcret); cardsHtml += `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5 hover:shadow-lg transition cursor-pointer" onclick="renderDersDetay('${s.id}')"><div class="flex justify-between"><h3 class="text-xl font-bold">${escapeHtml(s.adSoyad)}</h3><i class="fas fa-chevron-right text-gray-400"></i></div><p class="text-sm text-gray-500">${escapeHtml(s.okul)} | 📞 ${escapeHtml(s.veliTel || 'Belirtilmemiş')}</p><p class="text-sm text-blue-600">💰 Aylık Ücret: ${aylikUcret} TL</p><div class="mt-2 flex gap-3 text-sm"><span class="stat-badge">📚 Toplam Ders: ${toplamDers}</span><span class="stat-badge">✅ Ödenen Ders: ${odenenDersSayisi}</span><span class="stat-badge">💵 Toplam Ödeme: ${toplamOdeme} TL</span></div></div>`; }
-            cardsHtml += '</div>'; document.getElementById("dynamic-content").innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow mb-4"><h2 class="text-xl font-bold">📚 Ders Kayıtları</h2><p class="text-sm text-gray-500">Öğrenci kartına tıklayarak ders kayıtlarını yönetin.</p></div>${cardsHtml}`;
-        }
-
-        let _currentDersKayitStudentId = null;
-        function renderDersDetay(studentId) {
-            currentPage = "dersDetay";
-            _currentDersKayitStudentId = studentId;
-            const students = loadStudentsData();
-            const student = students.find(s => s.id === studentId);
-            if (!student) { renderDersKayitlari(); return; }
-            let kayitlar = loadDersKayitlari(studentId);
-            kayitlar = kayitlar.map((k, idx) => ({ ...k, dersNo: idx+1 }));
-            saveDersKayitlari(studentId, kayitlar);
-            let tableRows = '';
-            for (let k of kayitlar) { const odevList = Array.isArray(k.odev) ? k.odev : (k.odev ? [k.odev] : []); const odevHtml = odevList.map(od => `<div class="inline-block bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-0.5 text-xs mr-1 mb-1">${escapeHtml(od)}</div>`).join(''); tableRows += `<tr class="border-b"><td class="p-2">${k.dersNo}</td><td class="p-2">${k.tarih}</td><td class="p-2">${k.konu}</td><td class="p-2">${escapeHtml(k.icerik || '')}</td><td class="p-2"><div class="flex flex-wrap">${odevHtml || '—'}</div></td><td class="p-2"><span class="px-2 py-1 rounded-full text-xs ${k.odendi ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}">${k.odendi ? 'Ödendi' : 'Bekliyor'}</span></td><td class="p-2"><button onclick="editDersKayit('${studentId}', ${k.dersNo})" class="text-blue-500 mr-2"><i class="fas fa-edit"></i></button><button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="text-red-500"><i class="fas fa-trash"></i></button></td></tr>`; }
-            const html = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">📖 Ders Kayıtları - ${escapeHtml(student.adSoyad)}</h2><button onclick="renderDersKayitlari()" class="bg-gray-500 text-white px-4 py-2 rounded-xl"><i class="fas fa-arrow-left"></i> Geri</button></div><div class="mb-6 bg-gray-50 dark:bg-gray-900 p-4 rounded-xl"><h3 class="font-bold mb-2">➕ Yeni Ders Kaydı Ekle</h3><div class="grid grid-cols-1 md:grid-cols-3 gap-3"><input type="date" id="kayitTarih" class="student-form-input"><select id="kayitKonu" class="modal-input"><option value="">Konu Seç</option>${getKonuListesiBySinif(student.sinif).map(k=>`<option value="${k}">${k}</option>`).join('')}</select><input type="text" id="kayitIcerik" placeholder="İçerik" class="student-form-input"></div><div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2"><div><label class="block text-sm">Ödevler</label><div class="flex gap-2"><input type="text" id="yeniOdev" placeholder="Ödev metni" class="student-form-input flex-1"><button onclick="addOdevToList()" class="bg-blue-500 text-white px-3 py-1 rounded">Ekle</button></div><div id="odevListesi" class="flex flex-wrap gap-1 mt-2"></div></div><div><label class="block text-sm">Ödeme Durumu</label><select id="kayitOdendi" class="modal-input"><option value="true">Ödendi</option><option value="false" selected>Bekliyor</option></select></div><div class="flex items-end"><button onclick="addDersKayit('${studentId}')" class="bg-green-600 text-white px-4 py-2 rounded-xl">Kaydet</button></div></div></div><div class="overflow-x-auto"><table class="w-full border-collapse border border-gray-300 dark:border-gray-700"><thead class="bg-gray-100 dark:bg-gray-700"><tr><th class="border p-2">Ders No</th><th class="border p-2">Tarih</th><th class="border p-2">Konu</th><th class="border p-2">İçerik</th><th class="border p-2">Ödevler</th><th class="border p-2">Durum</th><th class="border p-2">İşlemler</th></tr></thead><tbody>${tableRows || '<tr><td colspan="7" class="text-center p-4">Henüz ders kaydı yok.您</tr>'}</tbody></table></div></div>`;
-            document.getElementById("dynamic-content").innerHTML = html;
-            window._geciciOdevList = [];
-            window.addOdevToList = () => { const input = document.getElementById("yeniOdev"); const val = input.value.trim(); if (val) { window._geciciOdevList.push(val); input.value = ""; const container = document.getElementById("odevListesi"); if (container) container.innerHTML = window._geciciOdevList.map((od, idx) => `<div class="bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-1 text-xs flex items-center gap-1">${escapeHtml(od)}<button onclick="removeOdevFromList(${idx})" class="text-red-500"><i class="fas fa-times-circle"></i></button></div>`).join(''); } };
-            window.removeOdevFromList = (idx) => { window._geciciOdevList.splice(idx, 1); const container = document.getElementById("odevListesi"); if (container) container.innerHTML = window._geciciOdevList.map((od, idx) => `<div class="bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-1 text-xs flex items-center gap-1">${escapeHtml(od)}<button onclick="removeOdevFromList(${idx})" class="text-red-500"><i class="fas fa-times-circle"></i></button></div>`).join(''); };
-        }
-        function addDersKayit(studentId) { const tarih = document.getElementById("kayitTarih").value; const konu = document.getElementById("kayitKonu").value; const icerik = document.getElementById("kayitIcerik").value; const odendi = document.getElementById("kayitOdendi").value === "true"; const odevler = window._geciciOdevList || []; if (!tarih || !konu) { alert("Tarih ve konu seçiniz"); return; } let kayitlar = loadDersKayitlari(studentId); const yeniNo = kayitlar.length + 1; kayitlar.push({ dersNo: yeniNo, tarih, konu, icerik, odev: odevler, odendi }); saveDersKayitlari(studentId, kayitlar); renderDersDetay(studentId); }
-        function editDersKayit(studentId, dersNo) { let kayitlar = loadDersKayitlari(studentId); const idx = kayitlar.findIndex(k => k.dersNo === dersNo); if (idx === -1) return; const k = kayitlar[idx]; const odevList = Array.isArray(k.odev) ? k.odev : (k.odev ? [k.odev] : []); const odevStr = odevList.join(", "); const yeniTarih = prompt("Tarih (YYYY-MM-DD):", k.tarih); const yeniKonu = prompt("Konu:", k.konu); const yeniIcerik = prompt("İçerik:", k.icerik); const yeniOdevlerStr = prompt("Ödevler (virgülle ayırın):", odevStr); const yeniOdendi = confirm("Ödendi mi? (Tamam:Ödendi, İptal:Bekliyor)"); if (yeniTarih && yeniKonu) { const yeniOdevler = yeniOdevlerStr ? yeniOdevlerStr.split(",").map(s => s.trim()).filter(s => s) : []; kayitlar[idx] = { ...k, tarih: yeniTarih, konu: yeniKonu, icerik: yeniIcerik || '', odev: yeniOdevler, odendi: yeniOdendi }; saveDersKayitlari(studentId, kayitlar); renderDersDetay(studentId); } }
-        function deleteDersKayit(studentId, dersNo) { if (confirm("Bu ders kaydını silmek istediğinize emin misiniz?")) { let kayitlar = loadDersKayitlari(studentId); kayitlar = kayitlar.filter(k => k.dersNo !== dersNo); kayitlar = kayitlar.map((k, idx) => ({ ...k, dersNo: idx+1 })); saveDersKayitlari(studentId, kayitlar); renderDersDetay(studentId); } }
-
-        // Karşılaştırma
-        function showCompareModal() { alert("Karşılaştırma özelliği yakında eklenecektir."); }
-        function closeCompareModal() {}
-        function renderComparison() {}
-
-        // Tema
-        function toggleTheme(){ darkMode = !darkMode; localStorage.setItem('darkMode', darkMode); applyTheme(); if (currentPage === 'home') renderHomeScreen(); else if (currentPage === 'schedule') renderSchedulePage(); else if (currentPage === 'student' && currentStudentId) renderStudentPanel(currentStudentId); else if (currentPage === 'dersKayitlari') renderDersKayitlari(); else if (currentPage === 'dersDetay' && window._currentDersKayitStudentId) renderDersDetay(window._currentDersKayitStudentId); else renderHomeScreen(); const themeBtn = document.getElementById('themeBtnText'); if(themeBtn) themeBtn.textContent = darkMode ? 'Açık Mod' : 'Koyu Mod'; }
-        function applyTheme(){ if(darkMode) document.body.classList.add('dark'); else document.body.classList.remove('dark'); }
-
-        // PWA
-        function registerPWA(){ const manifest = { name:"Canfenci Deneme Analizi", short_name:"Canfenci", start_url:".", display:"standalone", theme_color:"#007BFF" }; const link = document.createElement('link'); link.rel = 'manifest'; link.href = "data:application/json,"+encodeURIComponent(JSON.stringify(manifest)); document.head.appendChild(link); const swCode = `self.addEventListener('install',e=>self.skipWaiting()); self.addEventListener('fetch',e=>e.respondWith(fetch(e.request)));`; if('serviceWorker' in navigator) navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode],{type:'application/javascript'}))); }
-        
-        window.selectStudent = async (id) => { await renderStudentPanel(id); };
-        window.renderHomeScreen = renderHomeScreen;
-        window.deleteStudent = deleteStudent;
-        window.editStudent = editStudent;
-        window.saveStudentEdit = saveStudentEdit;
-        window.setSortOrder = setSortOrder;
-        window.setFilter = setFilter;
-        window.exportBackup = exportBackup;
-        window.showImportModal = showImportModal;
-        window.importBackup = importBackup;
-        window.showCompareModal = showCompareModal;
-        window.closeCompareModal = closeCompareModal;
-        window.renderComparison = renderComparison;
-        window.showDenemeAtaModal = showDenemeAtaModal;
-        window.closeDenemeAtaModal = closeDenemeAtaModal;
-        window.saveDenemeAta = saveDenemeAta;
-        window.showAddStudentModal = showAddStudentModal;
-        window.closeAddStudentModal = closeAddStudentModal;
-        window.addStudentFromModal = addStudentFromModal;
-        window.toggleTheme = toggleTheme;
-        window.editExam = editExam;
-        window.viewExam = viewExam;
-        window.deleteExam = deleteExam;
-        window.copyExamToOthers = copyExamToOthers;
-        window.executeCopyExam = executeCopyExam;
-        window.exportReport = exportReport;
-        window.toggleReportMenu = toggleReportMenu;
-        window.hideReportMenu = hideReportMenu;
-        window.renderSchedulePage = renderSchedulePage;
-        window.renderDersKayitlari = renderDersKayitlari;
-        window.renderDersDetay = renderDersDetay;
-        window.addDersKayit = addDersKayit;
-        window.editDersKayit = editDersKayit;
-        window.deleteDersKayit = deleteDersKayit;
-        window.addOdevToList = window.addOdevToList;
-        window.removeOdevFromList = window.removeOdevFromList;
-        window.showAddScheduleModal = showAddScheduleModal;
-        window.closeAddScheduleModal = closeAddScheduleModal;
-        window.addScheduleFromModal = addScheduleFromModal;
-
-        window.onload = () => { applyTheme(); registerPWA(); renderHomeScreen(); };
+        };
     </script>
 </body>
 </html>

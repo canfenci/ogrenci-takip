@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Check if the user is authenticated (Teacher)
+    function isTeacher() {
+      return request.auth != null;
+    }
+
+    // Owner checks
+    function isOwner(resource) {
+      return isTeacher() && resource.data.userId == request.auth.uid;
+    }
+    
+    function isNewDocOwner() {
+      return isTeacher() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Teacher has read/write permissions on all core collections, restricted by userId
+    match /students/{studentId} {
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isNewDocOwner();
+    }
+
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /schedules/{studentId} {
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isNewDocOwner();
+    }
+
+    match /lessons/{studentId} {
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isNewDocOwner();
+    }
+    
+    match /groups/{groupId} {
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isNewDocOwner();
+    }
+
+    // Homeworks collection
+    match /homeworks/{hwId} {
+      // Teacher can create/write their own
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isNewDocOwner();
+      
+      // Parent/student can read any homework or update ONLY its completion fields (durum, dogru, yanlis)
+      allow read: if true;
+      allow update: if true 
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['durum', 'dogru', 'yanlis']);
+    }
+  }
+}
