@@ -5,7 +5,7 @@ import { store, loadStudentsData, saveStudentsData, loadSchedule, loadDersKayitl
 import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { getBransOrtalamaNet, getGenelOrtalamaNet, getOrtalamaNet, getKonuBazliBasarilar, getBestWorstTopics, getMotivationMessage, getHataIstatistikleri, lgsPuanHesapla } from './exams.js';
-import { buildStudentTimeline, calculateStudentSummary, formatTimelineDate } from './student-insights.js';
+import { buildStudentTimeline, calculateSmartExamAnalysis, calculateStudentSummary, formatTimelineDate } from './student-insights.js';
 
 export function onTargetSchoolChanged(selectEl, netInputId, customAreaId) {
     const customArea = document.getElementById(customAreaId);
@@ -603,6 +603,7 @@ export async function renderStudentPanel(id) {
         const lessonRecords = loadDersKayitlari(id);
         const studentSchedule = loadSchedule(id);
         const studentSummary = calculateStudentSummary(student, studentHomeworks, lessonRecords, studentSchedule);
+        const smartAnalysis = calculateSmartExamAnalysis(student);
         const timelineEvents = buildStudentTimeline(student, studentHomeworks, lessonRecords);
         const timelineToneClasses = {
             blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800',
@@ -648,6 +649,57 @@ export async function renderStudentPanel(id) {
                     </div>`;
             })()
             : '<p class="text-sm text-gray-400 font-semibold">Yaklaşan ders bulunmuyor. Ders Programı bölümünden haftalık ders ekleyebilirsiniz.</p>';
+        const subjectDisplayNames = Object.fromEntries(GENEL_DERSLER_KEY.map((key, index) => [key, GENEL_DERSLER_GORUNUM[index] || key]));
+        const subjectPerformanceHtml = smartAnalysis.subjectPerformance.length
+            ? smartAnalysis.subjectPerformance.map(subject => {
+                const trendText = subject.trend === null
+                    ? '—'
+                    : `${subject.trend >= 0 ? '▲' : '▼'} ${Math.abs(subject.trend).toFixed(2)}`;
+                const trendClass = subject.trend === null
+                    ? 'text-gray-400'
+                    : (subject.trend >= 0 ? 'text-green-600' : 'text-red-600');
+                return `
+                    <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 items-center py-2.5 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm text-gray-800 dark:text-gray-100 truncate">${escapeHtml(subjectDisplayNames[subject.subject] || subject.subject)}</p>
+                            <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 mt-1.5 overflow-hidden">
+                                <div class="h-full rounded-full ${subject.successRate >= 70 ? 'bg-green-500' : subject.successRate >= 50 ? 'bg-amber-500' : 'bg-red-500'}" style="width: ${Math.min(100, Math.max(0, subject.successRate || 0))}%"></div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black text-sm text-indigo-600 dark:text-indigo-400">%${subject.successRate ?? 0}</p>
+                            <p class="text-[11px] text-gray-400">Ort. ${subject.averageNet ?? 0} net</p>
+                        </div>
+                        <span class="text-xs font-black ${trendClass}" title="Son denemeye göre net değişimi">${trendText}</span>
+                    </div>`;
+            }).join('')
+            : '<p class="text-sm text-gray-400 text-center py-6">Ders bazlı analiz için genel deneme sonucu ekleyin.</p>';
+        const priorityTopicsHtml = smartAnalysis.priorityTopics.length
+            ? smartAnalysis.priorityTopics.map((topic, index) => `
+                <div class="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-xl p-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="w-7 h-7 shrink-0 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-black">${index + 1}</span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm text-gray-800 dark:text-gray-100 truncate">${escapeHtml(topic.topic)}</p>
+                            <p class="text-xs text-gray-500">${topic.attempts} soruda ${topic.errors} hata</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-black text-red-600 dark:text-red-400">%${topic.errorRate}</span>
+                </div>`).join('')
+            : '<p class="text-sm text-gray-400 text-center py-6">Konu önceliği için branş denemesi soru sonuçları gerekli.</p>';
+        const recommendationsHtml = smartAnalysis.recommendations.length
+            ? smartAnalysis.recommendations.map(recommendation => `
+                <li class="flex gap-2 text-sm text-gray-700 dark:text-gray-200">
+                    <i class="fas fa-lightbulb text-amber-500 mt-0.5"></i>
+                    <span>${escapeHtml(recommendation)}</span>
+                </li>`).join('')
+            : '<li class="text-sm text-gray-400">Yeni öneri oluşturmak için daha fazla deneme verisi gerekli.</li>';
+        const warningsHtml = smartAnalysis.warnings.length
+            ? `<div class="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl p-3">
+                    <p class="text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-2"><i class="fas fa-exclamation-triangle"></i> Veri tutarlılığı uyarıları</p>
+                    <ul class="space-y-1 list-disc pl-5 text-xs text-amber-800 dark:text-amber-300">${smartAnalysis.warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join('')}</ul>
+               </div>`
+            : '<div class="text-xs font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30 rounded-xl p-3"><i class="fas fa-check-circle"></i> Deneme kayıtlarında veri tutarsızlığı bulunmadı.</div>';
             
         const genelExamsHtml = genelDenemeler.length === 0 
             ? '<p class="text-center text-gray-500 py-3">Henüz genel deneme yok.</p>' 
@@ -925,6 +977,51 @@ export async function renderStudentPanel(id) {
                     <div class="max-h-[560px] overflow-y-auto pr-1">
                         ${timelineHtml}
                     </div>
+                </div>
+            </section>
+
+            <!-- Akıllı Deneme Analizi -->
+            <section class="bg-white dark:bg-gray-800 rounded-2xl border shadow p-5 space-y-5" aria-labelledby="smartExamAnalysisHeading">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <h3 id="smartExamAnalysisHeading" class="section-heading text-xl font-black text-gray-800 dark:text-white"><i class="fas fa-brain text-purple-500"></i> Akıllı Deneme Analizi</h3>
+                        <p class="text-sm text-gray-500 mt-1">Sonuçlardan üretilen açıklanabilir gelişim önerileri</p>
+                    </div>
+                    <span class="text-xs bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 px-3 py-1.5 rounded-full font-bold">${smartAnalysis.generalExamCount} genel deneme</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-4">
+                        <p class="text-xs font-bold text-indigo-500 uppercase tracking-wide">Son 3 ortalama</p>
+                        <p class="text-2xl font-black text-indigo-700 dark:text-indigo-300 mt-1">${smartAnalysis.recentThreeAverage === null ? '—' : smartAnalysis.recentThreeAverage.toFixed(2)}</p>
+                    </div>
+                    <div class="bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-4">
+                        <p class="text-xs font-bold text-blue-500 uppercase tracking-wide">Son 5 ortalama</p>
+                        <p class="text-2xl font-black text-blue-700 dark:text-blue-300 mt-1">${smartAnalysis.recentFiveAverage === null ? '—' : smartAnalysis.recentFiveAverage.toFixed(2)}</p>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-700 rounded-xl p-4">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Son deneme değişimi</p>
+                        <p class="text-2xl font-black mt-1 ${smartAnalysis.latestChange === null ? 'text-gray-400' : smartAnalysis.latestChange >= 0 ? 'text-green-600' : 'text-red-600'}">${smartAnalysis.latestChange === null ? '—' : `${smartAnalysis.latestChange >= 0 ? '+' : ''}${smartAnalysis.latestChange.toFixed(2)}`}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div class="bg-gray-50 dark:bg-gray-900/20 rounded-xl border border-gray-100 dark:border-gray-700 p-4">
+                        <h4 class="font-black text-sm text-gray-800 dark:text-white mb-2"><i class="fas fa-chart-bar text-blue-500"></i> Ders Bazlı Son 5 Deneme</h4>
+                        ${subjectPerformanceHtml}
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900/20 rounded-xl border border-gray-100 dark:border-gray-700 p-4">
+                        <h4 class="font-black text-sm text-gray-800 dark:text-white mb-3"><i class="fas fa-crosshairs text-red-500"></i> Öncelikli Konular</h4>
+                        <div class="space-y-2">${priorityTopicsHtml}</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4">
+                    <div class="bg-amber-50/60 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/30 rounded-xl p-4">
+                        <h4 class="font-black text-sm text-gray-800 dark:text-white mb-3"><i class="fas fa-route text-amber-500"></i> Önerilen Sonraki Adımlar</h4>
+                        <ul class="space-y-2">${recommendationsHtml}</ul>
+                    </div>
+                    ${warningsHtml}
                 </div>
             </section>
             
