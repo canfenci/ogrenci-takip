@@ -89,3 +89,16 @@ test('student pricing is presented as a per-lesson fee with legacy data fallback
   assert.match(finance, /s\.dersUcreti/);
   assert.match(store, /dersUcreti: s\.dersUcreti \|\| s\.aylikUcret \|\| s\.ucret/);
 });
+
+test('lesson reminders require user action for WhatsApp and avoid duplicate notifications', async () => {
+  const reminders = await readProjectFile('lesson-reminders.js');
+  const serviceWorker = await readProjectFile('sw.js');
+
+  assert.match(reminders, /Notification\.permission === 'granted'/);
+  assert.match(reminders, /isNotified/);
+  assert.match(reminders, /!reminder\.isDue/);
+  assert.match(reminders, /markLessonReminderSent/);
+  assert.match(reminders, /window\.open\(url, '_blank'/);
+  assert.doesNotMatch(reminders, /fetch\([^)]*api\.whatsapp/);
+  assert.match(serviceWorker, /lesson-reminders\.js/);
+});
