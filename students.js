@@ -236,8 +236,8 @@ export function editStudent(id) {
                     <input id="editTargetNet" class="student-form-input min-h-[44px]" value="${s.hedefNet}" placeholder="Hedef Net" ${isPopular ? 'readonly' : ''} required>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold mb-1">Aylık Ücret (TL)</label>
-                    <input id="editUcret" class="student-form-input min-h-[44px]" placeholder="Aylık Ücret (TL)" value="${escapeHtml(s.aylikUcret || s.ucret || '')}">
+                    <label class="block text-xs font-semibold mb-1">Bir Ders Ücreti (TL)</label>
+                    <input id="editUcret" class="student-form-input min-h-[44px]" placeholder="Bir Ders Ücreti (TL)" value="${escapeHtml(s.dersUcreti || s.aylikUcret || s.ucret || '')}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold mb-1">Veli Telefonu</label>
@@ -274,8 +274,7 @@ export function saveStudentEdit(id) {
         students[sIdx].sinif = sinif;
         students[sIdx].hedefLise = target;
         students[sIdx].hedefNet = net;
-        students[sIdx].aylikUcret = ucret || "";
-        students[sIdx].ucret = ucret || "";
+        students[sIdx].dersUcreti = ucret || "";
         students[sIdx].veliTel = veliTel || "";
         saveStudentsData(students);
         document.querySelector('.fixed')?.remove();
@@ -323,8 +322,8 @@ export function showAddStudentModal() {
                         <input type="text" id="newTargetNet" placeholder="Hedef Net" class="student-form-input min-h-[44px]" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold mb-1">Aylık Ücret (TL)</label>
-                        <input type="text" id="newUcret" placeholder="Aylık Ücret (TL)" class="student-form-input min-h-[44px]">
+                        <label class="block text-xs font-semibold mb-1">Bir Ders Ücreti (TL)</label>
+                        <input type="text" id="newUcret" placeholder="Bir Ders Ücreti (TL)" class="student-form-input min-h-[44px]">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold mb-1">Veli Telefonu</label>
@@ -371,8 +370,7 @@ export function addStudentFromModal() {
         okul: school,
         hedefLise: target,
         hedefNet: net,
-        aylikUcret: ucret || "",
-        ucret: ucret || "",
+        dersUcreti: ucret || "",
         veliTel: veliTel || "",
         denemeler: [],
         studyPlan: {},
@@ -480,8 +478,7 @@ export function importBackup() {
                         okul: s.okul || "",
                         sinif: s.sinif || "8",
                         veliTel: s.veliTel || "",
-                        aylikUcret: s.aylikUcret || s.ucret || 0,
-                        ucret: s.aylikUcret || s.ucret || 0,
+                        dersUcreti: s.dersUcreti || s.aylikUcret || s.ucret || 0,
                         hedefLise: s.hedefLise || "",
                         hedefNet: s.hedefNet || 0,
                         denemeler: s.denemeler || [],
@@ -593,10 +590,10 @@ export async function renderStudentPanel(id) {
         const hedefSayi = parseFloat(student.hedefNet);
         const hedefGecerli = !isNaN(hedefSayi);
         
-        const aylikUcretDegeri = student.aylikUcret || student.ucret || '';
+        const dersUcretiDegeri = student.dersUcreti || student.aylikUcret || student.ucret || '';
         const veliTelDegeri = student.veliTel || '';
-        const ekstraBilgiHtml = (aylikUcretDegeri || veliTelDegeri) 
-            ? `<div class="flex flex-wrap gap-3 mt-2 text-sm">${aylikUcretDegeri ? `<span class="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full"><i class="fas fa-money-bill-wave"></i> Aylık Ücret: ${escapeHtml(aylikUcretDegeri)} TL</span>` : ''}${veliTelDegeri ? `<span class="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full"><i class="fas fa-phone-alt"></i> Veli: ${escapeHtml(veliTelDegeri)}</span>` : ''}</div>` 
+        const ekstraBilgiHtml = (dersUcretiDegeri || veliTelDegeri)
+            ? `<div class="flex flex-wrap gap-3 mt-2 text-sm">${dersUcretiDegeri ? `<span class="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full"><i class="fas fa-money-bill-wave"></i> Bir Ders Ücreti: ${escapeHtml(dersUcretiDegeri)} TL</span>` : ''}${veliTelDegeri ? `<span class="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full"><i class="fas fa-phone-alt"></i> Veli: ${escapeHtml(veliTelDegeri)}</span>` : ''}</div>`
             : '';
 
         const studentHomeworks = getStudentOdevler(student);

@@ -78,3 +78,14 @@ test('student detail includes explainable smart exam analysis', async () => {
   assert.match(students, /Öncelikli Konular/);
   assert.match(students, /Veri tutarlılığı uyarıları/);
 });
+
+test('student pricing is presented as a per-lesson fee with legacy data fallback', async () => {
+  const students = await readProjectFile('students.js');
+  const finance = await readProjectFile('finance.js');
+  const store = await readProjectFile('store.js');
+
+  assert.doesNotMatch(students, /Aylık Ücret/);
+  assert.match(students, /Bir Ders Ücreti/);
+  assert.match(finance, /s\.dersUcreti/);
+  assert.match(store, /dersUcreti: s\.dersUcreti \|\| s\.aylikUcret \|\| s\.ucret/);
+});
