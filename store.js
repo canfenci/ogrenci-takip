@@ -339,7 +339,7 @@ export const store = {
     globalGroups: [],
     chartInstance: null,
     currentSortOrder: "default",
-    useFirestore: true,
+    useFirestore: false,
     isSyncInitialized: false,
     teacherBranches: initialBranches,
     teacherName: localStorage.getItem('teacher_name_v1') || "Öğretmen Adı",

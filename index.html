@@ -478,6 +478,9 @@
         window.onload = () => {
             if (window.applyTheme) window.applyTheme();
             if (window.registerPWA) window.registerPWA();
+            if (window.CLOUD_FEATURES_ENABLED !== true && window.showLocalDevelopmentBanner) {
+                window.showLocalDevelopmentBanner();
+            }
             
             const urlParams = new URLSearchParams(window.location.search);
             const action = urlParams.get('action');
