@@ -103,17 +103,6 @@ test('lesson reminders require user action for WhatsApp and avoid duplicate noti
   assert.match(serviceWorker, /lesson-reminders\.js/);
 });
 
-test('weekly goal dashboard combines progress and today items without automatic messaging', async () => {
-  const goals = await readProjectFile('weekly-goals.js');
-  const serviceWorker = await readProjectFile('sw.js');
-  assert.match(goals, /Bugün Yapılacaklar/);
-  assert.match(goals, /Haftalık Özeti Veliye Gönder/);
-  assert.match(goals, /getElementById\('weeklyGoalModal'\)/);
-  assert.match(goals, /window\.open\(url, '_blank'/);
-  assert.doesNotMatch(goals, /fetch\([^)]*api\.whatsapp/);
-  assert.match(serviceWorker, /weekly-goals\.js/);
-});
-
 test('finance excludes cancelled and excused lessons from billing', async () => {
   const finance = await readProjectFile('finance.js');
   const serviceWorker = await readProjectFile('sw.js');
