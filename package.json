@@ -1,0 +1,8 @@
+{
+  "name": "canfenci-ogrenci-takip",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}
