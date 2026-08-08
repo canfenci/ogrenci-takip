@@ -490,7 +490,9 @@ export function normalizeStudent(s) {
         denemeler: s.denemeler || [],
         studyPlan: s.studyPlan || {},
         errorResets: s.errorResets || {},
-        growthPlan: s.growthPlan || {}
+        growthPlan: s.growthPlan || {},
+        weeklyGoals: s.weeklyGoals || {},
+        weeklyGoalProgress: s.weeklyGoalProgress || {}
     };
 }
 
