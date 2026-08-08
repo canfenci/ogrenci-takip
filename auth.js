@@ -140,11 +140,9 @@ export async function handleLogin() {
         
         // Email Verification Check
         if (!user.emailVerified) {
+            await user.sendEmailVerification();
             await auth.signOut();
-            errDiv.innerHTML = `
-                Lütfen giriş yapmadan önce e-posta adresinizi doğrulayın.<br>
-                <button onclick="resendVerificationEmail('${email.replace(/'/g, "\\'")}', '${password.replace(/'/g, "\\'")}')" class="text-blue-500 dark:text-blue-400 underline font-bold mt-1.5 inline-block">Doğrulama E-postasını Tekrar Gönder</button>
-            `;
+            errDiv.textContent = "E-posta adresiniz henüz doğrulanmamış. Yeni doğrulama e-postası gönderildi.";
             errDiv.classList.remove("hidden");
             return;
         }
@@ -252,18 +250,6 @@ export async function handleRegister() {
     }
 }
 
-export async function resendVerificationEmail(email, password) {
-    try {
-        showSyncStatus("Doğrulama e-postası gönderiliyor...", false);
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        await userCredential.user.sendEmailVerification();
-        await auth.signOut();
-        alert("Doğrulama e-postası tekrar gönderildi. Lütfen e-posta kutunuzu (ve gereksiz/spam klasörünü) kontrol edin.");
-    } catch (err) {
-        alert("E-posta gönderilemedi: " + err.message);
-    }
-}
-
 export function continueOffline() {
     store.useFirestore = false;
     showSyncStatus("Yerel mod aktif.", false);
@@ -329,6 +315,4 @@ window.restoreNavigationLayout = restoreNavigationLayout;
 window.updateMobileNavActive = updateMobileNavActive;
 window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
-window.resendVerificationEmail = resendVerificationEmail;
 window.handleLogout = handleLogout;
-

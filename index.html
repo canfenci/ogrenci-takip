@@ -483,32 +483,13 @@
             const action = urlParams.get('action');
             
             if (action === 'parent-hw-entry') {
-                const hwId = urlParams.get('hwId');
-                if (window.isFirebaseActive && hwId && window.db) {
-                    if (window.showSyncStatus) window.showSyncStatus("Ödev bilgileri buluttan alınıyor...", false);
-                    window.db.collection("homeworks").doc(hwId).get().then(doc => {
-                        if (doc.exists) {
-                            const d = doc.data();
-                            if (window.renderParentHwPasscodeScreen) window.renderParentHwPasscodeScreen(d);
-                        } else {
-                            fallbackToLegacy();
-                        }
-                    }).catch(err => {
-                        console.error(err);
-                        fallbackToLegacy();
-                    });
-                } else {
-                    fallbackToLegacy();
-                }
-                function fallbackToLegacy() {
-                    const studentName = urlParams.get('studentName');
-                    const studentId = urlParams.get('studentId');
-                    const hwId = urlParams.get('hwId');
-                    const konu = urlParams.get('konu');
-                    const tur = urlParams.get('tur');
-                    const yayin = urlParams.get('yayin');
-                    if (window.renderParentHwEntry) window.renderParentHwEntry(studentName, studentId, hwId, konu, tur, yayin);
-                }
+                if (window.hideNavigationElements) window.hideNavigationElements();
+                document.getElementById("dynamic-content").innerHTML = `
+                    <div class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border mt-10 text-center">
+                        <div class="text-amber-500 text-5xl mb-4"><i class="fas fa-shield-alt"></i></div>
+                        <h2 class="text-xl font-bold mb-2">Bağlantı Devre Dışı</h2>
+                        <p class="text-gray-500 text-sm">Güvenliğiniz için herkese açık ödev sonuç bağlantıları kapatıldı. Sonucunuzu öğretmeninize doğrudan iletin.</p>
+                    </div>`;
             } else if (action === 'teacher-import-hw') {
                 const studentId = urlParams.get('studentId');
                 const hwId = urlParams.get('hwId');
