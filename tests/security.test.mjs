@@ -122,3 +122,13 @@ test('release hardening adds validation, keyboard navigation and fresh core asse
   assert.match(serviceWorker, /isFreshnessCritical/);
   assert.match(serviceWorker, /data-validation\.js/);
 });
+
+test('settings navigation owns the all-student reminder center', async () => {
+  const index = await readProjectFile('index.html');
+  const students = await readProjectFile('students.js');
+  const schedule = await readProjectFile('schedule.js');
+  assert.match(index, /sidebar-nav-general[^>]+>[\s\S]*Ayarlar/);
+  assert.match(students, /renderLessonReminderCenter/);
+  assert.match(students, /> Ayarlar/);
+  assert.doesNotMatch(schedule, /renderLessonReminderCenter/);
+});
