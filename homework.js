@@ -359,12 +359,7 @@ export function sendSingleHwReminder(studentId, hwId) {
     const o = odevler.find(x => x.id === hwId);
     if (!o) return;
     
-    const baseUrl = window.location.origin + window.location.pathname;
-    const parentLink = (store.useFirestore && isFirebaseActive)
-        ? `${baseUrl}?action=parent-hw-entry&hwId=${o.id}`
-        : `${baseUrl}?action=parent-hw-entry&studentId=${studentId}&hwId=${o.id}&studentName=${encodeURIComponent(student.adSoyad)}&konu=${encodeURIComponent(o.konu)}&tur=${encodeURIComponent(o.tur)}&yayin=${encodeURIComponent(o.yayin)}`;
-    
-    let message = `Merhaba Sayın Velimiz,\n\n*${student.adSoyad}* isimli öğrencimize atanan *${o.konu}* (${o.yayin} - ${o.tur}) ödevinin son teslim tarihi *${o.bitisTarihi}* dir.\n\nÖğrencimizin ödev sonucunu (Doğru ve Yanlış sayılarını) girmek için aşağıdaki güvenli bağlantıyı kullanabilirsiniz:\n🔗 ${parentLink}\n\nİyi çalışmalar dileriz.`;
+    let message = `Merhaba Sayın Velimiz,\n\n*${student.adSoyad}* isimli öğrencimize atanan *${o.konu}* (${o.yayin} - ${o.tur}) ödevinin son teslim tarihi *${o.bitisTarihi}* dir.\n\nÖdev sonucunu doğru ve yanlış sayılarıyla bu mesajı yanıtlayarak iletebilirsiniz.\n\nİyi çalışmalar dileriz.`;
     
     let phone = student.veliTel.replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '90' + phone.substring(1);
@@ -445,7 +440,6 @@ export function shareHomeworkWhatsApp(studentId) {
         alert("Atanmış ödev bulunmuyor.");
         return;
     }
-    const baseUrl = window.location.origin + window.location.pathname;
     let message = `Merhaba Sayın Velimiz,\n\n*${student.adSoyad}* isimli öğrencimizin aktif ödev takip raporu aşağıdaki gibidir:\n\n`;
     for (let o of odevler) {
         const isCompleted = o.durum === 'tamamlandi';
@@ -457,10 +451,7 @@ export function shareHomeworkWhatsApp(studentId) {
             message += `⏳ *${o.konu}* (${o.yayin} - ${o.tur})\n`;
             message += `  - Durum: Bekliyor\n`;
             message += `  - Son Teslim: ${o.bitisTarihi}\n`;
-            const parentLink = (store.useFirestore && isFirebaseActive)
-                ? `${baseUrl}?action=parent-hw-entry&hwId=${o.id}`
-                : `${baseUrl}?action=parent-hw-entry&studentId=${studentId}&hwId=${o.id}&studentName=${encodeURIComponent(student.adSoyad)}&konu=${encodeURIComponent(o.konu)}&tur=${encodeURIComponent(o.tur)}&yayin=${encodeURIComponent(o.yayin)}`;
-            message += `  - D/Y Sonuç Giriş Bağlantısı: ${parentLink}\n\n`;
+            message += `  - Sonucu doğru/yanlış sayılarıyla bu mesajı yanıtlayarak iletebilirsiniz.\n\n`;
         }
     }
     message += `İyi çalışmalar dileriz.`;
@@ -616,7 +607,6 @@ export function addOdevToGeciciList() {
         alert("Lütfen konu ve yayın bilgilerini eksiksiz doldurun.");
         return;
     }
-    const passcode = Math.floor(100000 + Math.random() * 900000).toString();
     const newHw = {
         id: "hw_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
         baslamaTarihi: baslama,
@@ -626,8 +616,7 @@ export function addOdevToGeciciList() {
         yayin: yayin,
         durum: "verildi",
         dogru: null,
-        yanlis: null,
-        passcode: passcode
+        yanlis: null
     };
     window._geciciOdevListesi.push(newHw);
     document.getElementById('geciciOdevListesiArea').classList.remove('hidden');

@@ -466,8 +466,14 @@ export function calculateNet(dogru, yanlis) {
 }
 
 export function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[character]));
 }
 
 export function normalizeStudent(s) {
@@ -573,4 +579,3 @@ window.getErrorColor = getErrorColor;
 window.loadGroupsData = loadGroupsData;
 window.saveGroupsData = saveGroupsData;
 window.deleteGroupData = deleteGroupData;
-

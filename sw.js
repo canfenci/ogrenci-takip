@@ -1,4 +1,4 @@
-const CACHE_NAME = "canfenci-cache-v23";
+const CACHE_NAME = "canfenci-cache-v24";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -18,12 +18,7 @@ const ASSETS_TO_CACHE = [
   "./schedule.js",
   "./finance.js",
   "./growth.js",
-  "./groups.js",
-  "https://cdn.tailwindcss.com",
-  "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css",
-  "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+  "./groups.js"
 ];
 
 // Install Service Worker
@@ -67,6 +62,8 @@ self.addEventListener("fetch", event => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.protocol !== 'http:' && requestUrl.protocol !== 'https:') return;
+  if (requestUrl.origin !== self.location.origin) return;
+  if (requestUrl.search) return;
 
   event.respondWith(
     caches.match(event.request)

@@ -130,10 +130,60 @@ export function setFilter(sinif) {
     renderHomeScreen();
 }
 
-export function deleteStudent(id) {
+export async function deleteStudent(id) {
     if (confirm("Öğrenciyi tamamen silmek istediğinize emin misiniz?")) {
-        let students = loadStudentsData().filter(s => s.id !== id);
-        saveStudentsData(students);
+        if (store.useFirestore && window.isFirebaseActive && window.db) {
+            const user = window.auth?.currentUser;
+            if (!user) {
+                alert("Silme işlemi için yeniden giriş yapmanız gerekiyor.");
+                return;
+            }
+
+            try {
+                if (window.showSyncStatus) window.showSyncStatus("Öğrenci ve bağlı kayıtlar siliniyor...", false);
+                const batch = window.db.batch();
+                batch.delete(window.db.collection("students").doc(id));
+                batch.delete(window.db.collection("schedules").doc(id));
+                batch.delete(window.db.collection("lessons").doc(id));
+
+                const homeworkSnapshot = await window.db.collection("homeworks")
+                    .where("userId", "==", user.uid)
+                    .where("studentId", "==", id)
+                    .get();
+                homeworkSnapshot.forEach(doc => batch.delete(doc.ref));
+
+                const affectedGroups = (store.globalGroups || []).filter(group =>
+                    Array.isArray(group.studentIds) && group.studentIds.includes(id)
+                );
+                affectedGroups.forEach(group => {
+                    batch.update(window.db.collection("groups").doc(group.id), {
+                        studentIds: group.studentIds.filter(studentId => studentId !== id)
+                    });
+                });
+
+                await batch.commit();
+                store.globalStudents = store.globalStudents.filter(student => student.id !== id);
+                store.globalHomeworks = store.globalHomeworks.filter(homework => homework.studentId !== id);
+                delete store.globalSchedules[id];
+                delete store.globalLessons[id];
+                store.globalGroups = store.globalGroups.map(group => ({
+                    ...group,
+                    studentIds: Array.isArray(group.studentIds)
+                        ? group.studentIds.filter(studentId => studentId !== id)
+                        : group.studentIds
+                }));
+                if (window.showSyncStatus) window.showSyncStatus("✅ Öğrenci ve bağlı kayıtlar silindi", false);
+                renderHomeScreen();
+            } catch (err) {
+                console.error("deleteStudent error", err);
+                if (window.handleFirebaseError) window.handleFirebaseError(err);
+                else alert("Öğrenci silinemedi: " + err.message);
+            }
+            return;
+        }
+
+        const students = loadStudentsData().filter(s => s.id !== id);
+        await saveStudentsData(students);
         renderHomeScreen();
     }
 }
@@ -1430,5 +1480,4 @@ window.renderGenelIslemler = renderGenelIslemler;
 window.updateTeacherBranches = updateTeacherBranches;
 window.updateTeacherName = updateTeacherName;
 window.updateTeacherSchool = updateTeacherSchool;
-
 
