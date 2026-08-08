@@ -69,3 +69,23 @@ test('student progress UI includes timeline and upcoming lesson surfaces', async
   assert.match(students, /Yaklaşan ders/);
   assert.match(serviceWorker, /student-insights\.js/);
 });
+
+test('student detail includes explainable smart exam analysis', async () => {
+  const students = await readProjectFile('students.js');
+
+  assert.match(students, /Akıllı Deneme Analizi/);
+  assert.match(students, /Ders Bazlı Son 5 Deneme/);
+  assert.match(students, /Öncelikli Konular/);
+  assert.match(students, /Veri tutarlılığı uyarıları/);
+});
+
+test('student pricing is presented as a per-lesson fee with legacy data fallback', async () => {
+  const students = await readProjectFile('students.js');
+  const finance = await readProjectFile('finance.js');
+  const store = await readProjectFile('store.js');
+
+  assert.doesNotMatch(students, /Aylık Ücret/);
+  assert.match(students, /Bir Ders Ücreti/);
+  assert.match(finance, /s\.dersUcreti/);
+  assert.match(store, /dersUcreti: s\.dersUcreti \|\| s\.aylikUcret \|\| s\.ucret/);
+});

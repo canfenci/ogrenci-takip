@@ -21,6 +21,15 @@ function safeNumber(value) {
     return Number.isFinite(number) ? number : 0;
 }
 
+function round(value, digits = 2) {
+    const factor = 10 ** digits;
+    return Math.round((value + Number.EPSILON) * factor) / factor;
+}
+
+function average(values) {
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
 export function formatTimelineDate(dateString) {
     const date = parseLocalDate(dateString);
     if (!date) return dateString || 'Tarih yok';
@@ -142,5 +151,124 @@ export function calculateStudentSummary(student, homeworks = [], lessonRecords =
         homeworkCount: homeworks.length,
         lastLesson,
         upcomingLesson: getUpcomingLesson(schedule, now)
+    };
+}
+
+export function calculateSmartExamAnalysis(student) {
+    const exams = student.denemeler || [];
+    const generalExams = exams
+        .filter(exam => exam.tip === 'genel')
+        .sort((a, b) => String(a.tarih || '').localeCompare(String(b.tarih || '')));
+    const branchExams = exams.filter(exam => exam.tip === 'branş');
+    const latestExam = generalExams.at(-1) || null;
+    const previousExam = generalExams.at(-2) || null;
+    const recentThree = generalExams.slice(-3);
+    const recentFive = generalExams.slice(-5);
+    const recentThreeAverage = average(recentThree.map(exam => safeNumber(exam.toplamNet)));
+    const recentFiveAverage = average(recentFive.map(exam => safeNumber(exam.toplamNet)));
+    const latestChange = latestExam && previousExam
+        ? round(safeNumber(latestExam.toplamNet) - safeNumber(previousExam.toplamNet))
+        : null;
+
+    const subjectAccumulator = {};
+    recentFive.forEach(exam => {
+        Object.entries(exam.dersSonuclari || {}).forEach(([subject, result]) => {
+            const correct = safeNumber(result.dogru);
+            const wrong = safeNumber(result.yanlis);
+            const blank = safeNumber(result.bos);
+            const questionCount = correct + wrong + blank;
+            if (!subjectAccumulator[subject]) {
+                subjectAccumulator[subject] = { subject, correct: 0, wrong: 0, blank: 0, questionCount: 0, examCount: 0 };
+            }
+            const accumulator = subjectAccumulator[subject];
+            accumulator.correct += correct;
+            accumulator.wrong += wrong;
+            accumulator.blank += blank;
+            accumulator.questionCount += questionCount;
+            accumulator.examCount += 1;
+        });
+    });
+
+    const subjectPerformance = Object.values(subjectAccumulator).map(subject => {
+        const latestResult = latestExam?.dersSonuclari?.[subject.subject];
+        const previousResult = previousExam?.dersSonuclari?.[subject.subject];
+        const resultNet = result => result ? safeNumber(result.dogru) - (safeNumber(result.yanlis) / 3) : null;
+        const latestSubjectNet = resultNet(latestResult);
+        const previousSubjectNet = resultNet(previousResult);
+        const trend = latestSubjectNet !== null && previousSubjectNet !== null
+            ? round(latestSubjectNet - previousSubjectNet)
+            : null;
+        return {
+            ...subject,
+            successRate: subject.questionCount ? round((subject.correct / subject.questionCount) * 100, 1) : null,
+            averageNet: subject.examCount ? round((subject.correct - (subject.wrong / 3)) / subject.examCount) : null,
+            trend
+        };
+    }).sort((a, b) => (b.successRate ?? -1) - (a.successRate ?? -1));
+
+    const topicAccumulator = {};
+    branchExams.forEach(exam => {
+        (exam.sorular || []).forEach(question => {
+            const topic = question.konuAdi?.trim();
+            if (!topic) return;
+            if (!topicAccumulator[topic]) topicAccumulator[topic] = { topic, attempts: 0, errors: 0 };
+            topicAccumulator[topic].attempts += 1;
+            if (question.durum === 'yanlis' || question.durum === 'bos') topicAccumulator[topic].errors += 1;
+        });
+    });
+
+    const priorityTopics = Object.values(topicAccumulator)
+        .filter(topic => topic.errors > 0)
+        .map(topic => ({ ...topic, errorRate: round((topic.errors / topic.attempts) * 100, 1) }))
+        .sort((a, b) => b.errors - a.errors || b.errorRate - a.errorRate)
+        .slice(0, 3);
+
+    const warnings = [];
+    const seenIds = new Set();
+    exams.forEach((exam, index) => {
+        const examLabel = exam.denemeAdi || `${index + 1}. deneme`;
+        if (!exam.tarih) warnings.push(`${examLabel}: tarih bilgisi eksik.`);
+        if (exam.id && seenIds.has(exam.id)) warnings.push(`${examLabel}: yinelenen deneme kimliği var.`);
+        if (exam.id) seenIds.add(exam.id);
+        const values = [exam.toplamDogru, exam.toplamYanlis, exam.toplamBos];
+        if (values.some(value => !Number.isFinite(Number(value)) || Number(value) < 0)) {
+            warnings.push(`${examLabel}: sonuç alanlarında geçersiz değer var.`);
+        }
+        const answeredTotal = values.reduce((sum, value) => sum + safeNumber(value), 0);
+        if (Number.isFinite(Number(exam.toplamSoru)) && answeredTotal !== Number(exam.toplamSoru)) {
+            warnings.push(`${examLabel}: doğru, yanlış ve boş toplamı soru sayısıyla uyuşmuyor.`);
+        }
+    });
+
+    const recommendations = [];
+    if (generalExams.length < 2) {
+        recommendations.push('Net eğilimi için en az 2 genel deneme sonucu girin.');
+    }
+    const weakestSubject = subjectPerformance.at(-1);
+    if (weakestSubject && weakestSubject.successRate !== null) {
+        recommendations.push(`${weakestSubject.subject} dersinde başarı %${weakestSubject.successRate}; haftalık tekrar ve hedefli soru çalışması planlayın.`);
+    }
+    if (priorityTopics[0]) {
+        recommendations.push(`${priorityTopics[0].topic} konusu ${priorityTopics[0].errors} hatayla ilk çalışma önceliği olmalı.`);
+    }
+    if (latestChange !== null && latestChange < 0) {
+        recommendations.push(`Son genel denemede ${Math.abs(latestChange).toFixed(2)} net düşüş var; son iki denemenin yanlışlarını karşılaştırın.`);
+    }
+    const targetNet = Number(student.hedefNet);
+    if (latestExam && Number.isFinite(targetNet) && targetNet > safeNumber(latestExam.toplamNet)) {
+        recommendations.push(`Hedefe ulaşmak için ${round(targetNet - safeNumber(latestExam.toplamNet)).toFixed(2)} netlik gelişim gerekiyor.`);
+    }
+
+    return {
+        generalExamCount: generalExams.length,
+        recentThreeAverage: recentThreeAverage === null ? null : round(recentThreeAverage),
+        recentFiveAverage: recentFiveAverage === null ? null : round(recentFiveAverage),
+        latestChange,
+        subjectPerformance,
+        strongestSubject: subjectPerformance[0] || null,
+        weakestSubject: subjectPerformance.at(-1) || null,
+        priorityTopics,
+        warnings,
+        recommendations
     };
 }

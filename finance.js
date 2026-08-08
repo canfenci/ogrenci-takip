@@ -14,7 +14,7 @@ export function renderFinanceReport() {
     let activeFeeStudentsCount = 0;
     
     const studentFinanceRows = students.map(s => {
-        const ucret = parseFloat(s.aylikUcret) || parseFloat(s.ucret) || 0; // Check both legacy and normalized fields
+        const ucret = parseFloat(s.dersUcreti) || parseFloat(s.aylikUcret) || parseFloat(s.ucret) || 0;
         if (ucret > 0) activeFeeStudentsCount++;
         
         const kayitlar = loadDersKayitlari(s.id);
@@ -148,8 +148,8 @@ export function renderDersKayitlari() {
     
     let cardsHtml = '<div class="grid md:grid-cols-2 gap-5">';
     for (let s of students) {
-        const aylikUcret = parseFloat(s.aylikUcret) || parseFloat(s.ucret) || 0;
-        const { toplamDers, odenenDersSayisi, toplamOdeme } = getDersOzet(s.id, aylikUcret);
+        const dersUcreti = parseFloat(s.dersUcreti) || parseFloat(s.aylikUcret) || parseFloat(s.ucret) || 0;
+        const { toplamDers, odenenDersSayisi, toplamOdeme } = getDersOzet(s.id, dersUcreti);
         cardsHtml += `
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 border border-gray-100/20 dark:border-gray-700/50 hover:-translate-y-1 hover:shadow-2xl transition duration-300 cursor-pointer" onclick="renderDersDetay('${s.id}')">
                 <div class="flex justify-between">
@@ -157,7 +157,7 @@ export function renderDersKayitlari() {
                     <i class="fas fa-chevron-right text-gray-400"></i>
                 </div>
                 <p class="text-base text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(s.okul)} | 📞 ${escapeHtml(s.veliTel || 'Belirtilmemiş')}</p>
-                <p class="text-base text-indigo-600 dark:text-indigo-400 font-semibold mt-1">💰 Ders Ücreti: ${aylikUcret} TL</p>
+                <p class="text-base text-indigo-600 dark:text-indigo-400 font-semibold mt-1">💰 Bir Ders Ücreti: ${dersUcreti} TL</p>
                 <div class="mt-3 flex flex-wrap gap-2 text-sm">
                     <span class="stat-badge text-base">📚 Ders: ${toplamDers}</span>
                     <span class="stat-badge text-base text-green-600 font-semibold">✅ Ödenen: ${odenenDersSayisi}</span>
@@ -399,4 +399,3 @@ window.addDersKayit = addDersKayit;
 window.editDersKayit = editDersKayit;
 window.deleteDersKayit = deleteDersKayit;
 window.onDersKayitSubjectChanged = onDersKayitSubjectChanged;
-

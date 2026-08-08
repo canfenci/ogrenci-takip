@@ -452,11 +452,11 @@ export function saveDersKayitlari(studentId, lessons) {
     }
 }
 
-export function getDersOzet(studentId, aylikUcret) {
+export function getDersOzet(studentId, dersUcreti) {
     const kayitlar = loadDersKayitlari(studentId);
     const toplamDers = kayitlar.length;
     const odenenDersSayisi = kayitlar.filter(k => k.odendi === true).length;
-    const toplamOdeme = odenenDersSayisi * (parseFloat(aylikUcret) || 0);
+    const toplamOdeme = odenenDersSayisi * (parseFloat(dersUcreti) || 0);
     return { toplamDers, odenenDersSayisi, toplamOdeme };
 }
 
@@ -484,7 +484,7 @@ export function normalizeStudent(s) {
         okul: s.okul || "",
         sinif: s.sinif || "8",
         veliTel: s.veliTel || "",
-        aylikUcret: s.aylikUcret || 0,
+        dersUcreti: s.dersUcreti || s.aylikUcret || s.ucret || 0,
         hedefLise: s.hedefLise || "",
         hedefNet: s.hedefNet || 0,
         denemeler: s.denemeler || [],
