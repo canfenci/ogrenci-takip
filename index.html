@@ -398,6 +398,7 @@
                 </div>
             </div>
             <div class="flex flex-col gap-2">
+                <button id="sidebar-nav-reminders" onclick="renderReminderHome()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-home sidebar-icon text-xl text-blue-500"></i> Ana Sayfa</button>
                 <button id="sidebar-nav-home" onclick="renderHomeScreen()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users sidebar-icon text-xl text-green-500"></i> Öğrenciler</button>
                 <button id="sidebar-nav-groups" onclick="renderGroupsPage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users-cog sidebar-icon text-xl text-purple-500"></i> Sınıf & Gruplar</button>
                 <button id="sidebar-nav-schedule" onclick="renderSchedulePage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-calendar-alt sidebar-icon text-xl text-indigo-500"></i> Ders Programı</button>
@@ -414,9 +415,9 @@
 
         <!-- Mobile Bottom Navigation Bar -->
         <div class="flex md:hidden items-center justify-around fixed bottom-0 left-0 right-0 z-40 shadow-lg pb-safe mobile-nav-bar">
-            <button onclick="renderGenelIslemler()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-blue-600 dark:text-blue-400 active" id="mobile-nav-general">
-                <i class="fas fa-cog text-xl"></i>
-                <span>Ayarlar</span>
+            <button onclick="renderReminderHome()" class="flex flex-col items-center gap-0.5 text-xs font-semibold mobile-nav-btn text-blue-600 dark:text-blue-400 active" id="mobile-nav-reminders">
+                <i class="fas fa-home text-xl"></i>
+                <span>Ana</span>
             </button>
             <button onclick="renderHomeScreen()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-home">
                 <i class="fas fa-users text-xl"></i>
@@ -433,6 +434,10 @@
             <button onclick="renderDersKayitlari()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-lessons">
                 <i class="fas fa-book-open text-xl"></i>
                 <span>Kayıtlar</span>
+            </button>
+            <button onclick="renderGenelIslemler()" class="flex flex-col items-center gap-0.5 text-xs font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-general">
+                <i class="fas fa-cog text-xl"></i>
+                <span>Ayarlar</span>
             </button>
         </div>
 
@@ -515,8 +520,8 @@
                                     const page = urlParams.get('page');
                                     if (page === 'odevler' && window.renderOdevTakibi) {
                                         window.renderOdevTakibi();
-                                    } else if (window.renderGenelIslemler) {
-                                        window.renderGenelIslemler();
+                                    } else if (window.renderReminderHome) {
+                                        window.renderReminderHome();
                                     }
                                 });
                             }
@@ -528,8 +533,8 @@
                     const page = urlParams.get('page');
                     if (page === 'odevler' && window.renderOdevTakibi) {
                         window.renderOdevTakibi();
-                    } else if (window.renderGenelIslemler) {
-                        window.renderGenelIslemler();
+                    } else if (window.renderReminderHome) {
+                        window.renderReminderHome();
                     }
                 }
             }
