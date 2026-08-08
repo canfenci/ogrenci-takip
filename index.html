@@ -471,6 +471,7 @@
         import './exams.js';
         import './homework.js';
         import './schedule.js';
+        import './lesson-reminders.js';
         import './finance.js';
         import './growth.js';
         import './groups.js';
@@ -481,6 +482,7 @@
             if (window.CLOUD_FEATURES_ENABLED !== true && window.showLocalDevelopmentBanner) {
                 window.showLocalDevelopmentBanner();
             }
+            if (window.initializeLessonReminders) window.initializeLessonReminders();
             
             const urlParams = new URLSearchParams(window.location.search);
             const action = urlParams.get('action');
