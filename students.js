@@ -6,6 +6,7 @@ import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { getBransOrtalamaNet, getGenelOrtalamaNet, getOrtalamaNet, getKonuBazliBasarilar, getBestWorstTopics, getMotivationMessage, getHataIstatistikleri, lgsPuanHesapla } from './exams.js';
 import { buildStudentTimeline, calculateSmartExamAnalysis, calculateStudentSummary, formatTimelineDate } from './student-insights.js';
+import { renderWeeklyGoalsDashboard } from './weekly-goals.js';
 
 export function onTargetSchoolChanged(selectEl, netInputId, customAreaId) {
     const customArea = document.getElementById(customAreaId);
@@ -484,7 +485,9 @@ export function importBackup() {
                         denemeler: s.denemeler || [],
                         studyPlan: s.studyPlan || {},
                         errorResets: s.errorResets || {},
-                        growthPlan: s.growthPlan || {}
+                        growthPlan: s.growthPlan || {},
+                        weeklyGoals: s.weeklyGoals || {},
+                        weeklyGoalProgress: s.weeklyGoalProgress || {}
                     };
                 });
                 saveStudentsData(normalized);
@@ -1454,6 +1457,8 @@ export function renderGenelIslemler() {
     ` : '';
     
     const html = `
+        <div class="space-y-6">
+            ${renderWeeklyGoalsDashboard()}
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl max-w-xl mx-auto border border-gray-100/20 dark:border-gray-700/50">
             <h2 class="page-heading text-gray-805 dark:text-white">
                 <i class="fas fa-home text-blue-500"></i> Ana Sayfa
@@ -1539,7 +1544,7 @@ export function renderGenelIslemler() {
             <div class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-400">
                 <i class="fas fa-flask"></i> Canfenci Öğrenci Takip Sistemi PWA v1.0
             </div>
-        </div>
+        </div></div>
     `;
     document.getElementById("dynamic-content").innerHTML = html;
 }
