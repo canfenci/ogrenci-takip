@@ -7,6 +7,7 @@ import { updateMobileNavActive } from './auth.js';
 import { getBransOrtalamaNet, getGenelOrtalamaNet, getOrtalamaNet, getKonuBazliBasarilar, getBestWorstTopics, getMotivationMessage, getHataIstatistikleri, lgsPuanHesapla } from './exams.js';
 import { buildStudentTimeline, calculateSmartExamAnalysis, calculateStudentSummary, formatTimelineDate } from './student-insights.js';
 import { renderWeeklyGoalsDashboard } from './weekly-goals.js';
+import { validateStudentInput } from './data-validation.js';
 
 export function onTargetSchoolChanged(selectEl, netInputId, customAreaId) {
     const customArea = document.getElementById(customAreaId);
@@ -234,15 +235,15 @@ export function editStudent(id) {
                 </div>
                 <div>
                     <label class="block text-xs font-semibold mb-1">Hedef Net</label>
-                    <input id="editTargetNet" class="student-form-input min-h-[44px]" value="${s.hedefNet}" placeholder="Hedef Net" ${isPopular ? 'readonly' : ''} required>
+                    <input type="number" min="0.01" max="90" step="0.01" id="editTargetNet" class="student-form-input min-h-[44px]" value="${s.hedefNet}" placeholder="Hedef Net" ${isPopular ? 'readonly' : ''} required>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold mb-1">Bir Ders Ücreti (TL)</label>
-                    <input id="editUcret" class="student-form-input min-h-[44px]" placeholder="Bir Ders Ücreti (TL)" value="${escapeHtml(s.dersUcreti || s.aylikUcret || s.ucret || '')}">
+                    <input type="number" min="0" step="0.01" id="editUcret" class="student-form-input min-h-[44px]" placeholder="Bir Ders Ücreti (TL)" value="${escapeHtml(s.dersUcreti || s.aylikUcret || s.ucret || '')}">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold mb-1">Veli Telefonu</label>
-                    <input id="editVeliTel" class="student-form-input min-h-[44px]" placeholder="Veli Telefonu" value="${escapeHtml(s.veliTel || '')}">
+                    <input type="tel" inputmode="tel" autocomplete="tel" id="editVeliTel" class="student-form-input min-h-[44px]" placeholder="05xx xxx xx xx" value="${escapeHtml(s.veliTel || '')}">
                 </div>
                 <button onclick="saveStudentEdit('${id}')" class="bg-blue-600 hover:bg-blue-700 text-white w-full py-2.5 rounded-xl font-bold mt-2 min-h-[44px]">Kaydet</button>
                 <button onclick="this.closest('.fixed').remove()" class="w-full border border-gray-300 dark:border-gray-600 py-2.5 rounded-xl mt-2 min-h-[44px]">İptal</button>
@@ -263,20 +264,18 @@ export function saveStudentEdit(id) {
     const net = document.getElementById('editTargetNet')?.value.trim();
     const ucret = document.getElementById('editUcret')?.value.trim();
     const veliTel = document.getElementById('editVeliTel')?.value.trim();
-    if (!name || !school || !sinif || !target || !net) {
-        alert("Ad, Okul, Sınıf, Hedef Lise ve Hedef Net alanları zorunludur");
-        return;
-    }
+    const validation = validateStudentInput({ name, school, grade: sinif, target, net, fee: ucret, phone: veliTel });
+    if (!validation.valid) return alert(validation.errors.join('\n'));
     const students = loadStudentsData();
     const sIdx = students.findIndex(s => s.id === id);
     if (sIdx !== -1) {
-        students[sIdx].adSoyad = name;
-        students[sIdx].okul = school;
-        students[sIdx].sinif = sinif;
-        students[sIdx].hedefLise = target;
-        students[sIdx].hedefNet = net;
-        students[sIdx].dersUcreti = ucret || "";
-        students[sIdx].veliTel = veliTel || "";
+        students[sIdx].adSoyad = validation.values.name;
+        students[sIdx].okul = validation.values.school;
+        students[sIdx].sinif = validation.values.grade;
+        students[sIdx].hedefLise = validation.values.target;
+        students[sIdx].hedefNet = validation.values.net;
+        students[sIdx].dersUcreti = validation.values.fee;
+        students[sIdx].veliTel = validation.values.phone;
         saveStudentsData(students);
         document.querySelector('.fixed')?.remove();
         renderHomeScreen();
@@ -320,15 +319,15 @@ export function showAddStudentModal() {
                     </div>
                     <div>
                         <label class="block text-xs font-semibold mb-1">Hedef Net</label>
-                        <input type="text" id="newTargetNet" placeholder="Hedef Net" class="student-form-input min-h-[44px]" required>
+                        <input type="number" min="0.01" max="90" step="0.01" id="newTargetNet" placeholder="Hedef Net" class="student-form-input min-h-[44px]" required>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold mb-1">Bir Ders Ücreti (TL)</label>
-                        <input type="text" id="newUcret" placeholder="Bir Ders Ücreti (TL)" class="student-form-input min-h-[44px]">
+                        <input type="number" min="0" step="0.01" id="newUcret" placeholder="Bir Ders Ücreti (TL)" class="student-form-input min-h-[44px]">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold mb-1">Veli Telefonu</label>
-                        <input type="text" id="newVeliTel" placeholder="Veli Telefonu" class="student-form-input min-h-[44px]">
+                        <input type="tel" inputmode="tel" autocomplete="tel" id="newVeliTel" placeholder="05xx xxx xx xx" class="student-form-input min-h-[44px]">
                     </div>
                     <button onclick="addStudentFromModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold mt-2 min-h-[44px]">Kaydet</button>
                     <button onclick="closeAddStudentModal()" class="w-full border border-gray-300 dark:border-gray-600 py-2.5 rounded-xl min-h-[44px]">İptal</button>
@@ -359,20 +358,18 @@ export function addStudentFromModal() {
     const net = document.getElementById('newTargetNet')?.value.trim();
     const ucret = document.getElementById('newUcret')?.value.trim();
     const veliTel = document.getElementById('newVeliTel')?.value.trim();
-    if (!name || !school || !sinif || !target || !net) {
-        alert("Ad, Okul, Sınıf, Hedef Lise ve Hedef Net alanları zorunludur");
-        return;
-    }
+    const validation = validateStudentInput({ name, school, grade: sinif, target, net, fee: ucret, phone: veliTel });
+    if (!validation.valid) return alert(validation.errors.join('\n'));
     const students = loadStudentsData();
     students.push({
         id: "std" + Date.now(),
-        adSoyad: name,
-        sinif: sinif,
-        okul: school,
-        hedefLise: target,
-        hedefNet: net,
-        dersUcreti: ucret || "",
-        veliTel: veliTel || "",
+        adSoyad: validation.values.name,
+        sinif: validation.values.grade,
+        okul: validation.values.school,
+        hedefLise: validation.values.target,
+        hedefNet: validation.values.net,
+        dersUcreti: validation.values.fee,
+        veliTel: validation.values.phone,
         denemeler: [],
         studyPlan: {},
         errorResets: {},

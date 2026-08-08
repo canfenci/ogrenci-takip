@@ -122,3 +122,14 @@ test('finance excludes cancelled and excused lessons from billing', async () => 
   assert.match(finance, /Ücret Yok/);
   assert.match(serviceWorker, /lesson-finance-insights\.js/);
 });
+
+test('release hardening adds validation, keyboard navigation and fresh core assets', async () => {
+  const index = await readProjectFile('index.html');
+  const students = await readProjectFile('students.js');
+  const serviceWorker = await readProjectFile('sw.js');
+  assert.match(index, /Ana içeriğe geç/);
+  assert.match(index, /<main id="dynamic-content"/);
+  assert.match(students, /validateStudentInput/);
+  assert.match(serviceWorker, /isFreshnessCritical/);
+  assert.match(serviceWorker, /data-validation\.js/);
+});

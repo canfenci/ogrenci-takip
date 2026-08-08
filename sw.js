@@ -1,4 +1,4 @@
-const CACHE_NAME = "canfenci-cache-v31";
+const CACHE_NAME = "canfenci-cache-v32";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const ASSETS_TO_CACHE = [
   "./icons/icon-192x192-maskable.png",
   "./firebase-config.js",
   "./store.js",
+  "./data-validation.js",
   "./ui-helpers.js",
   "./auth.js",
   "./students.js",
@@ -70,6 +71,19 @@ self.addEventListener("fetch", event => {
   if (requestUrl.protocol !== 'http:' && requestUrl.protocol !== 'https:') return;
   if (requestUrl.origin !== self.location.origin) return;
   if (requestUrl.search) return;
+
+  const isFreshnessCritical = event.request.mode === "navigate" || ['document', 'script', 'style'].includes(event.request.destination);
+  if (isFreshnessCritical) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html")))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request)
