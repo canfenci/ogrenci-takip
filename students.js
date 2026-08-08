@@ -1,10 +1,11 @@
 // ==================== STUDENTS MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM } from './store.js';
+import { store, loadStudentsData, saveStudentsData, loadSchedule, loadDersKayitlari, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { getBransOrtalamaNet, getGenelOrtalamaNet, getOrtalamaNet, getKonuBazliBasarilar, getBestWorstTopics, getMotivationMessage, getHataIstatistikleri, lgsPuanHesapla } from './exams.js';
+import { buildStudentTimeline, calculateStudentSummary, formatTimelineDate } from './student-insights.js';
 
 export function onTargetSchoolChanged(selectEl, netInputId, customAreaId) {
     const customArea = document.getElementById(customAreaId);
@@ -597,6 +598,56 @@ export async function renderStudentPanel(id) {
         const ekstraBilgiHtml = (aylikUcretDegeri || veliTelDegeri) 
             ? `<div class="flex flex-wrap gap-3 mt-2 text-sm">${aylikUcretDegeri ? `<span class="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full"><i class="fas fa-money-bill-wave"></i> Aylık Ücret: ${escapeHtml(aylikUcretDegeri)} TL</span>` : ''}${veliTelDegeri ? `<span class="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full"><i class="fas fa-phone-alt"></i> Veli: ${escapeHtml(veliTelDegeri)}</span>` : ''}</div>` 
             : '';
+
+        const studentHomeworks = getStudentOdevler(student);
+        const lessonRecords = loadDersKayitlari(id);
+        const studentSchedule = loadSchedule(id);
+        const studentSummary = calculateStudentSummary(student, studentHomeworks, lessonRecords, studentSchedule);
+        const timelineEvents = buildStudentTimeline(student, studentHomeworks, lessonRecords);
+        const timelineToneClasses = {
+            blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+            green: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800',
+            amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+            purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+            indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+        };
+        const timelineHtml = timelineEvents.length
+            ? timelineEvents.map((event, eventIndex) => `
+                <div class="relative pl-11 pb-5 last:pb-0">
+                    ${eventIndex < timelineEvents.length - 1 ? '<div class="absolute left-[15px] top-9 bottom-0 w-px bg-gray-200 dark:bg-gray-700"></div>' : ''}
+                    <div class="absolute left-0 top-0 w-8 h-8 rounded-full border flex items-center justify-center text-sm ${timelineToneClasses[event.tone] || timelineToneClasses.indigo}">${event.icon}</div>
+                    <div class="bg-gray-50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-700 rounded-xl p-3">
+                        <div class="flex justify-between items-start gap-3 flex-wrap">
+                            <h4 class="font-bold text-sm text-gray-800 dark:text-gray-100">${escapeHtml(event.title)}</h4>
+                            <span class="text-xs font-semibold text-gray-400">${escapeHtml(formatTimelineDate(event.date))}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">${escapeHtml(event.detail)}</p>
+                    </div>
+                </div>`).join('')
+            : `<div class="text-center py-8 text-gray-400">
+                    <div class="text-3xl mb-2">🕒</div>
+                    <p class="font-semibold">Zaman çizelgesinde henüz hareket yok.</p>
+                    <p class="text-xs mt-1">Deneme, ödev, ders veya soru kaydı eklendiğinde burada görünecek.</p>
+               </div>`;
+        const netChangeHtml = studentSummary.netChange === null
+            ? '<span class="text-xs text-gray-400">Karşılaştırma için 2 deneme gerekli</span>'
+            : `<span class="text-xs font-bold ${studentSummary.netChange >= 0 ? 'text-green-600' : 'text-red-600'}">${studentSummary.netChange >= 0 ? '▲' : '▼'} ${Math.abs(studentSummary.netChange).toFixed(2)} net</span>`;
+        const upcomingLessonHtml = studentSummary.upcomingLesson
+            ? (() => {
+                const upcoming = studentSummary.upcomingLesson;
+                const dateLabel = new Intl.DateTimeFormat('tr-TR', { weekday: 'long', day: '2-digit', month: 'long' }).format(upcoming.date);
+                const timeLabel = String(upcoming.saat || '').padStart(5, '0');
+                return `
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                            <p class="text-xs uppercase tracking-wide font-black text-teal-600 dark:text-teal-400">Yaklaşan ders</p>
+                            <h4 class="font-bold text-gray-800 dark:text-white mt-1">${escapeHtml(upcoming.dersAdi || 'Ders')}</h4>
+                            <p class="text-sm text-gray-500 mt-0.5">${escapeHtml(dateLabel)} · ${escapeHtml(timeLabel)}</p>
+                        </div>
+                        <span class="bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 px-3 py-1.5 rounded-full text-xs font-bold">⏰ Bildirim entegrasyonuna hazır</span>
+                    </div>`;
+            })()
+            : '<p class="text-sm text-gray-400 font-semibold">Yaklaşan ders bulunmuyor. Ders Programı bölümünden haftalık ders ekleyebilirsiniz.</p>';
             
         const genelExamsHtml = genelDenemeler.length === 0 
             ? '<p class="text-center text-gray-500 py-3">Henüz genel deneme yok.</p>' 
@@ -828,6 +879,54 @@ export async function renderStudentPanel(id) {
                 </div>
                 <div class="mt-4 p-3 rounded-xl text-center font-bold border motivation-card text-base bg-white dark:bg-gray-700 shadow-sm">${motivasyon}</div>
             </div>
+
+            <!-- Öğrenci Gelişim Özeti -->
+            <section class="space-y-4" aria-labelledby="studentProgressHeading">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <h3 id="studentProgressHeading" class="section-heading text-xl font-black text-gray-800 dark:text-white"><i class="fas fa-chart-line text-indigo-500"></i> Öğrenci Gelişim Merkezi</h3>
+                        <p class="text-sm text-gray-500 mt-1">Deneme, ödev ve ders hareketlerinin tek görünümü</p>
+                    </div>
+                    <span class="text-xs bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-3 py-1.5 rounded-full font-bold">${timelineEvents.length} hareket</span>
+                </div>
+
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm p-4">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Son genel net</p>
+                        <p class="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">${studentSummary.latestNet === null ? '—' : studentSummary.latestNet.toFixed(2)}</p>
+                        <div class="mt-1">${netChangeHtml}</div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm p-4">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Ödev tamamlama</p>
+                        <p class="text-2xl font-black text-green-600 dark:text-green-400 mt-1">${studentSummary.homeworkCompletionRate === null ? '—' : `%${studentSummary.homeworkCompletionRate}`}</p>
+                        <p class="text-xs text-gray-400 mt-1">${studentSummary.completedHomeworkCount} / ${studentSummary.homeworkCount} ödev</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm p-4">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Son ders</p>
+                        <p class="text-base font-black text-purple-600 dark:text-purple-400 mt-2">${studentSummary.lastLesson ? escapeHtml(formatTimelineDate(studentSummary.lastLesson.tarih)) : '—'}</p>
+                        <p class="text-xs text-gray-400 mt-1">${studentSummary.lastLesson ? escapeHtml(studentSummary.lastLesson.konu || studentSummary.lastLesson.ders || 'Konu belirtilmemiş') : 'Ders kaydı yok'}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm p-4">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Toplam hareket</p>
+                        <p class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${timelineEvents.length}</p>
+                        <p class="text-xs text-gray-400 mt-1">Tek zaman çizelgesinde</p>
+                    </div>
+                </div>
+
+                <div class="bg-teal-50 dark:bg-teal-950/20 rounded-2xl border border-teal-100 dark:border-teal-900/40 shadow-sm p-4">
+                    ${upcomingLessonHtml}
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow p-5">
+                    <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
+                        <h3 class="font-black text-lg text-gray-800 dark:text-white"><i class="fas fa-stream text-indigo-500"></i> Zaman Çizelgesi</h3>
+                        <span class="text-xs text-gray-400">En yeni hareket üstte</span>
+                    </div>
+                    <div class="max-h-[560px] overflow-y-auto pr-1">
+                        ${timelineHtml}
+                    </div>
+                </div>
+            </section>
             
             <!-- LGS Hedef Uyum Analizi -->
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 mt-4 border border-gray-105 dark:border-gray-700">
@@ -1480,4 +1579,3 @@ window.renderGenelIslemler = renderGenelIslemler;
 window.updateTeacherBranches = updateTeacherBranches;
 window.updateTeacherName = updateTeacherName;
 window.updateTeacherSchool = updateTeacherSchool;
-

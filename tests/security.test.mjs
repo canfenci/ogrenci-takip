@@ -57,3 +57,15 @@ test('development builds default to local-only storage', async () => {
   assert.match(firebaseConfig, /if \(!CLOUD_FEATURES_ENABLED \|\| store\.isSyncInitialized/);
   assert.match(store, /useFirestore: false/);
 });
+
+test('student progress UI includes timeline and upcoming lesson surfaces', async () => {
+  const [students, serviceWorker] = await Promise.all([
+    readProjectFile('students.js'),
+    readProjectFile('sw.js')
+  ]);
+
+  assert.match(students, /Öğrenci Gelişim Merkezi/);
+  assert.match(students, /Zaman Çizelgesi/);
+  assert.match(students, /Yaklaşan ders/);
+  assert.match(serviceWorker, /student-insights\.js/);
+});
