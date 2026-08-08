@@ -1435,6 +1435,13 @@ export async function renderStudentPanel(id) {
     }
 }
 
+export function renderReminderHome() {
+    store.currentPage = "reminderHome";
+    if (window.currentPage) window.currentPage = "reminderHome";
+    updateMobileNavActive('mobile-nav-reminders');
+    document.getElementById("dynamic-content").innerHTML = `<div class="space-y-6">${renderLessonReminderCenter()}</div>`;
+}
+
 export function renderGenelIslemler() {
     store.currentPage = "general";
     if (window.currentPage) window.currentPage = "general";
@@ -1454,8 +1461,6 @@ export function renderGenelIslemler() {
     ` : '';
     
     const html = `
-        <div class="space-y-6">
-            ${renderLessonReminderCenter()}
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl max-w-xl mx-auto border border-gray-100/20 dark:border-gray-700/50">
             <h2 class="page-heading text-gray-805 dark:text-white">
                 <i class="fas fa-cog text-slate-500"></i> Ayarlar
@@ -1541,7 +1546,7 @@ export function renderGenelIslemler() {
             <div class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-400">
                 <i class="fas fa-flask"></i> Canfenci Öğrenci Takip Sistemi PWA v1.0
             </div>
-        </div></div>
+        </div>
     `;
     document.getElementById("dynamic-content").innerHTML = html;
 }
@@ -1672,6 +1677,7 @@ window.importBackup = importBackup;
 window.selectStudent = async (id) => { await renderStudentPanel(id); };
 window.renderStudentPanel = renderStudentPanel;
 window.renderGenelIslemler = renderGenelIslemler;
+window.renderReminderHome = renderReminderHome;
 window.updateTeacherBranches = updateTeacherBranches;
 window.updateTeacherName = updateTeacherName;
 window.updateTeacherSchool = updateTeacherSchool;

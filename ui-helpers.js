@@ -66,7 +66,7 @@ export function toggleTheme() {
     else if (window.renderGenelIslemler && store.currentPage === 'general') window.renderGenelIslemler();
     else if (window.renderOdevTakibi && store.currentPage === 'odevTakibi') window.renderOdevTakibi();
     else if (window.renderStudentOdevDetay && store.currentPage === 'studentOdevDetay' && window._currentOdevStudentId) window.renderStudentOdevDetay(window._currentOdevStudentId);
-    else if (window.renderGenelIslemler) window.renderGenelIslemler();
+    else if (window.renderReminderHome) window.renderReminderHome();
 
     const themeBtn = document.getElementById('themeBtnText');
     if (themeBtn) themeBtn.textContent = store.darkMode ? 'Açık Mod' : 'Koyu Mod';

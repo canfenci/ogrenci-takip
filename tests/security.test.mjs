@@ -132,3 +132,13 @@ test('settings navigation owns the all-student reminder center', async () => {
   assert.match(students, /> Ayarlar/);
   assert.doesNotMatch(schedule, /renderLessonReminderCenter/);
 });
+
+test('home and settings are separate navigation destinations', async () => {
+  const index = await readProjectFile('index.html');
+  const students = await readProjectFile('students.js');
+  assert.match(index, /sidebar-nav-reminders[^>]+renderReminderHome/);
+  assert.match(index, /sidebar-nav-general[^>]+renderGenelIslemler/);
+  assert.match(students, /function renderReminderHome/);
+  assert.match(students, /mobile-nav-reminders/);
+  assert.match(students, /<i class="fas fa-cog text-slate-500"><\/i> Ayarlar/);
+});
