@@ -113,3 +113,12 @@ test('weekly goal dashboard combines progress and today items without automatic 
   assert.doesNotMatch(goals, /fetch\([^)]*api\.whatsapp/);
   assert.match(serviceWorker, /weekly-goals\.js/);
 });
+
+test('finance excludes cancelled and excused lessons from billing', async () => {
+  const finance = await readProjectFile('finance.js');
+  const serviceWorker = await readProjectFile('sw.js');
+  assert.match(finance, /calculateLessonFinance/);
+  assert.match(finance, /Katılım Durumu/);
+  assert.match(finance, /Ücret Yok/);
+  assert.match(serviceWorker, /lesson-finance-insights\.js/);
+});

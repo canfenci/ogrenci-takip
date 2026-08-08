@@ -455,9 +455,10 @@ export function saveDersKayitlari(studentId, lessons) {
 export function getDersOzet(studentId, dersUcreti) {
     const kayitlar = loadDersKayitlari(studentId);
     const toplamDers = kayitlar.length;
-    const odenenDersSayisi = kayitlar.filter(k => k.odendi === true).length;
+    const ucretlendirilenDersler = kayitlar.filter(k => !k.katilimDurumu || k.katilimDurumu === 'yapildi');
+    const odenenDersSayisi = ucretlendirilenDersler.filter(k => k.odendi === true).length;
     const toplamOdeme = odenenDersSayisi * (parseFloat(dersUcreti) || 0);
-    return { toplamDers, odenenDersSayisi, toplamOdeme };
+    return { toplamDers, ucretlendirilenDersSayisi: ucretlendirilenDersler.length, odenenDersSayisi, toplamOdeme };
 }
 
 export function calculateNet(dogru, yanlis) {

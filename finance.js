@@ -2,6 +2,7 @@
 
 import { store, loadStudentsData, loadDersKayitlari, saveDersKayitlari, getDersOzet, getKonuListesiBySinif, getKonuListesiBySinifAndDers, escapeHtml } from './store.js';
 import { updateMobileNavActive } from './auth.js';
+import { ATTENDANCE_LABELS, calculateLessonFinance, normalizeLessonStatus } from './lesson-finance-insights.js';
 
 export function renderFinanceReport() {
     store.currentPage = "finance";
@@ -18,12 +19,12 @@ export function renderFinanceReport() {
         if (ucret > 0) activeFeeStudentsCount++;
         
         const kayitlar = loadDersKayitlari(s.id);
-        const totalDersCount = kayitlar.length;
-        const paidDersCount = kayitlar.filter(k => k.odendi === true).length;
-        const pendingDersCount = totalDersCount - paidDersCount;
-        
-        const paidAmount = paidDersCount * ucret;
-        const pendingAmount = pendingDersCount * ucret;
+        const finance = calculateLessonFinance(kayitlar, ucret);
+        const totalDersCount = finance.totalCount;
+        const paidDersCount = finance.paidCount;
+        const pendingDersCount = finance.pendingCount;
+        const paidAmount = finance.paidAmount;
+        const pendingAmount = finance.pendingAmount;
         
         totalRevenueCollected += paidAmount;
         totalPendingRevenue += pendingAmount;
@@ -39,7 +40,8 @@ export function renderFinanceReport() {
             paidDersCount,
             pendingDersCount,
             paidAmount,
-            pendingAmount
+            pendingAmount,
+            statusCounts: finance.statusCounts
         };
     });
     
@@ -50,7 +52,7 @@ export function renderFinanceReport() {
         rowsHtml = studentFinanceRows.map(row => {
             const whMsg = `Merhaba Sayın Velimiz,\n\n*${row.adSoyad}* isimli öğrencimizin ders ödeme takip detayı aşağıdaki gibidir:\n\n` +
                           `- Birim Ders Ücreti: ${row.ucret} TL\n` +
-                          `- Yapılan Toplam Ders: ${row.totalDersCount} saat\n` +
+                          `- Ücretlendirilen Ders: ${row.paidDersCount + row.pendingDersCount} saat\n` +
                           `- Ödenen Ders: ${row.paidDersCount} saat\n` +
                           `- Ödeme Bekleyen Ders: ${row.pendingDersCount} saat\n` +
                           `💸 *Kalan Ödeme Tutarı:* *${row.pendingAmount} TL*\n\n` +
@@ -71,7 +73,7 @@ export function renderFinanceReport() {
                 <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/30">
                     <td class="p-4 text-base font-semibold">${escapeHtml(row.adSoyad)}</td>
                     <td class="p-4 text-base">${row.ucret} TL</td>
-                    <td class="p-4 text-base">${row.totalDersCount}</td>
+                    <td class="p-4 text-base">${row.paidDersCount + row.pendingDersCount}<br><span class="text-xs text-gray-400">${row.statusCounts.iptal + row.statusCounts.mazeretli + row.statusCounts.gelmedi} ücret dışı</span></td>
                     <td class="p-4 text-base text-green-600 font-bold">${row.paidDersCount} (${row.paidAmount} TL)</td>
                     <td class="p-4 text-base text-yellow-600 dark:text-yellow-400 font-bold">${row.pendingDersCount} (${row.pendingAmount} TL)</td>
                     <td class="p-4 text-base font-bold text-indigo-600 dark:text-indigo-400">${row.paidAmount + row.pendingAmount} TL</td>
@@ -149,7 +151,7 @@ export function renderDersKayitlari() {
     let cardsHtml = '<div class="grid md:grid-cols-2 gap-5">';
     for (let s of students) {
         const dersUcreti = parseFloat(s.dersUcreti) || parseFloat(s.aylikUcret) || parseFloat(s.ucret) || 0;
-        const { toplamDers, odenenDersSayisi, toplamOdeme } = getDersOzet(s.id, dersUcreti);
+        const { toplamDers, ucretlendirilenDersSayisi, odenenDersSayisi, toplamOdeme } = getDersOzet(s.id, dersUcreti);
         cardsHtml += `
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 border border-gray-100/20 dark:border-gray-700/50 hover:-translate-y-1 hover:shadow-2xl transition duration-300 cursor-pointer" onclick="renderDersDetay('${s.id}')">
                 <div class="flex justify-between">
@@ -160,6 +162,7 @@ export function renderDersKayitlari() {
                 <p class="text-base text-indigo-600 dark:text-indigo-400 font-semibold mt-1">💰 Bir Ders Ücreti: ${dersUcreti} TL</p>
                 <div class="mt-3 flex flex-wrap gap-2 text-sm">
                     <span class="stat-badge text-base">📚 Ders: ${toplamDers}</span>
+                    <span class="stat-badge text-base text-purple-600 font-semibold">🧾 Ücretli: ${ucretlendirilenDersSayisi}</span>
                     <span class="stat-badge text-base text-green-600 font-semibold">✅ Ödenen: ${odenenDersSayisi}</span>
                     <span class="stat-badge text-base text-blue-600 font-semibold">💵 Toplam: ${toplamOdeme} TL</span>
                 </div>
@@ -195,6 +198,7 @@ export function renderDersDetay(studentId) {
     
     let tableRows = '';
     for (let k of kayitlar) {
+        const katilimDurumu = normalizeLessonStatus(k);
         const odevList = Array.isArray(k.odev) ? k.odev : (k.odev ? [k.odev] : []);
         const odevHtml = odevList.map(od => `<div class="inline-block bg-gray-200 dark:bg-gray-700 rounded-full px-2.5 py-1 text-sm mr-1 mb-1 font-semibold">${escapeHtml(od)}</div>`).join('');
         
@@ -203,11 +207,12 @@ export function renderDersDetay(studentId) {
                 <td class="p-4 text-base">${k.dersNo}</td>
                 <td class="p-4 text-base">${k.tarih}</td>
                 <td class="p-4 text-base font-semibold text-indigo-600 dark:text-indigo-400">${k.konu}</td>
+                <td class="p-4 text-base"><span class="px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-300">${ATTENDANCE_LABELS[katilimDurumu]}</span></td>
                 <td class="p-4 text-base text-gray-600 dark:text-gray-300">${escapeHtml(k.icerik || '')}</td>
                 <td class="p-4 text-base"><div class="flex flex-wrap">${odevHtml || '—'}</div></td>
                 <td class="p-4 text-base">
-                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${k.odendi ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}">
-                        ${k.odendi ? 'Ödendi' : 'Bekliyor'}
+                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${katilimDurumu !== 'yapildi' ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' : k.odendi ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}">
+                        ${katilimDurumu !== 'yapildi' ? 'Ücret Yok' : k.odendi ? 'Ödendi' : 'Bekliyor'}
                     </span>
                 </td>
                 <td class="p-4 text-base">
@@ -248,7 +253,13 @@ export function renderDersDetay(studentId) {
                     </select>
                     <input type="text" id="kayitIcerik" placeholder="İçerik" class="student-form-input min-h-[44px]">
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">Katılım Durumu</label>
+                        <select id="kayitKatilim" class="student-form-input min-h-[44px]">
+                            ${Object.entries(ATTENDANCE_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
+                        </select>
+                    </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1">Ödevler</label>
                         <div class="flex gap-2">
@@ -277,6 +288,7 @@ export function renderDersDetay(studentId) {
                             <th class="border p-4 text-base font-bold">Ders No</th>
                             <th class="border p-4 text-base font-bold">Tarih</th>
                             <th class="border p-4 text-base font-bold">Konu</th>
+                            <th class="border p-4 text-base font-bold">Katılım</th>
                             <th class="border p-4 text-base font-bold">İçerik</th>
                             <th class="border p-4 text-base font-bold">Ödevler</th>
                             <th class="border p-4 text-base font-bold">Durum</th>
@@ -284,7 +296,7 @@ export function renderDersDetay(studentId) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${tableRows || '<tr><td colspan="7" class="text-center p-4 text-base">Henüz ders kaydı yok.</td></tr>'}
+                        ${tableRows || '<tr><td colspan="8" class="text-center p-4 text-base">Henüz ders kaydı yok.</td></tr>'}
                     </tbody>
                 </table>
             </div>
@@ -329,6 +341,7 @@ export function addDersKayit(studentId) {
     const konu = document.getElementById("kayitKonu").value;
     const icerik = document.getElementById("kayitIcerik").value;
     const odendi = document.getElementById("kayitOdendi").value === "true";
+    const katilimDurumu = document.getElementById("kayitKatilim")?.value || 'yapildi';
     const odevler = window._geciciOdevList || [];
     
     if (!tarih || !ders || !konu) {
@@ -338,7 +351,7 @@ export function addDersKayit(studentId) {
     
     let kayitlar = loadDersKayitlari(studentId);
     const yeniNo = kayitlar.length + 1;
-    kayitlar.push({ dersNo: yeniNo, tarih, ders, konu, icerik, odev: odevler, odendi });
+    kayitlar.push({ dersNo: yeniNo, tarih, ders, konu, icerik, odev: odevler, odendi: katilimDurumu === 'yapildi' ? odendi : false, katilimDurumu });
     saveDersKayitlari(studentId, kayitlar);
     renderDersDetay(studentId);
 }
@@ -357,10 +370,12 @@ export function editDersKayit(studentId, dersNo) {
     const yeniIcerik = prompt("İçerik:", k.icerik);
     const yeniOdevlerStr = prompt("Ödevler (virgülle ayırın):", odevStr);
     const yeniOdendi = confirm("Ödendi mi? (Tamam:Ödendi, İptal:Bekliyor)");
+    const yeniKatilim = prompt("Katılım durumu (yapildi, gelmedi, mazeretli, iptal):", normalizeLessonStatus(k));
     
     if (yeniTarih && yeniKonu) {
         const yeniOdevler = yeniOdevlerStr ? yeniOdevlerStr.split(",").map(s => s.trim()).filter(s => s) : [];
-        kayitlar[idx] = { ...k, tarih: yeniTarih, konu: yeniKonu, icerik: yeniIcerik || '', odev: yeniOdevler, odendi: yeniOdendi };
+        const katilimDurumu = ATTENDANCE_LABELS[yeniKatilim] ? yeniKatilim : normalizeLessonStatus(k);
+        kayitlar[idx] = { ...k, tarih: yeniTarih, konu: yeniKonu, icerik: yeniIcerik || '', odev: yeniOdevler, odendi: katilimDurumu === 'yapildi' ? yeniOdendi : false, katilimDurumu };
         saveDersKayitlari(studentId, kayitlar);
         renderDersDetay(studentId);
     }
