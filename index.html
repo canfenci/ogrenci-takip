@@ -398,7 +398,6 @@
                 </div>
             </div>
             <div class="flex flex-col gap-2">
-                <button id="sidebar-nav-general" onclick="renderGenelIslemler()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-home sidebar-icon text-xl text-blue-500"></i> Ana Sayfa</button>
                 <button id="sidebar-nav-home" onclick="renderHomeScreen()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users sidebar-icon text-xl text-green-500"></i> Öğrenciler</button>
                 <button id="sidebar-nav-groups" onclick="renderGroupsPage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users-cog sidebar-icon text-xl text-purple-500"></i> Sınıf & Gruplar</button>
                 <button id="sidebar-nav-schedule" onclick="renderSchedulePage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-calendar-alt sidebar-icon text-xl text-indigo-500"></i> Ders Programı</button>
@@ -406,6 +405,7 @@
                 <button id="sidebar-nav-lessons" onclick="renderDersKayitlari()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-book-open sidebar-icon text-xl text-pink-500"></i> Ders Kayıtları</button>
                 <button onclick="showDenemeAtaModal()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-copy sidebar-icon text-xl text-teal-500"></i> Deneme Ata</button>
                 <button onclick="toggleTheme()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-moon sidebar-icon text-xl text-amber-500"></i> <span id="themeBtnText">Koyu Mod</span></button>
+                <button id="sidebar-nav-general" onclick="renderGenelIslemler()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-cog sidebar-icon text-xl text-slate-500"></i> Ayarlar</button>
             </div>
             <div class="text-xs text-gray-400 dark:text-gray-555 mt-auto pt-4 text-center">
                 <i class="fas fa-flask"></i> PWA Standartlarında
@@ -415,8 +415,8 @@
         <!-- Mobile Bottom Navigation Bar -->
         <div class="flex md:hidden items-center justify-around fixed bottom-0 left-0 right-0 z-40 shadow-lg pb-safe mobile-nav-bar">
             <button onclick="renderGenelIslemler()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-blue-600 dark:text-blue-400 active" id="mobile-nav-general">
-                <i class="fas fa-home text-xl"></i>
-                <span>Ana Sayfa</span>
+                <i class="fas fa-cog text-xl"></i>
+                <span>Ayarlar</span>
             </button>
             <button onclick="renderHomeScreen()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-home">
                 <i class="fas fa-users text-xl"></i>

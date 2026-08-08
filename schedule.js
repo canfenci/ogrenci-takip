@@ -2,7 +2,6 @@
 
 import { store, loadStudentsData, loadSchedule, saveSchedule, escapeHtml } from './store.js';
 import { updateMobileNavActive } from './auth.js';
-import { renderLessonReminderCenter } from './lesson-reminders.js';
 
 export function renderSchedulePage() {
     store.currentPage = "schedule";
@@ -235,7 +234,6 @@ export function renderSchedulePage() {
         
         const html = `
             <div class="space-y-8">
-                ${renderLessonReminderCenter()}
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-100 dark:border-gray-700">
                     <div class="flex justify-between items-center mb-6 flex-wrap gap-4 border-b dark:border-gray-750 pb-3">
                         <div>
