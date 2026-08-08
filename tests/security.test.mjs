@@ -46,3 +46,14 @@ test('student deletion includes dependent cloud records', async () => {
   assert.match(students, /collection\("homeworks"\)/);
   assert.match(students, /await batch\.commit\(\)/);
 });
+
+test('development builds default to local-only storage', async () => {
+  const [firebaseConfig, store] = await Promise.all([
+    readProjectFile('firebase-config.js'),
+    readProjectFile('store.js')
+  ]);
+
+  assert.match(firebaseConfig, /const CLOUD_FEATURES_ENABLED = false/);
+  assert.match(firebaseConfig, /if \(!CLOUD_FEATURES_ENABLED \|\| store\.isSyncInitialized/);
+  assert.match(store, /useFirestore: false/);
+});

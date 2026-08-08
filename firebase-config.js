@@ -1,5 +1,9 @@
 // ==================== FIREBASE CONFIGURATION & INITIALIZATION ====================
 
+// Keep cloud features off while the product and data model are still evolving.
+// Switch this to true only when Firebase rules and the production data model are ready.
+const CLOUD_FEATURES_ENABLED = false;
+
 const firebaseConfig = {
   apiKey: "AIzaSyBga07O0BZ-xbEAOPGc10o3DnJXqtCADIY",
   authDomain: "canfenci-kocluk.firebaseapp.com",
@@ -16,7 +20,7 @@ let isFirebaseActive = false;
 
 try {
     // Check if firebase is loaded globally
-    if (typeof firebase !== 'undefined') {
+    if (CLOUD_FEATURES_ENABLED && typeof firebase !== 'undefined') {
         firebase.initializeApp(firebaseConfig);
         db = firebase.firestore();
         db.enablePersistence({ synchronizeTabs: true })
@@ -34,9 +38,11 @@ try {
         window.auth = auth;
         window.isFirebaseActive = true;
         console.log("Firebase initialized successfully");
-    } else {
+    } else if (CLOUD_FEATURES_ENABLED) {
         console.warn("Firebase SDK not found on window object.");
         window.isFirebaseActive = false;
+    } else {
+        console.info("Cloud features are disabled; running in local development mode.");
     }
 } catch (err) {
     console.warn("Firebase initialization failed:", err);
@@ -47,14 +53,15 @@ try {
 window.db = db;
 window.auth = auth;
 window.isFirebaseActive = isFirebaseActive;
+window.CLOUD_FEATURES_ENABLED = CLOUD_FEATURES_ENABLED;
 
-export { db, auth, isFirebaseActive };
+export { db, auth, isFirebaseActive, CLOUD_FEATURES_ENABLED };
 
 import { store, STORAGE_KEY, SCHEDULE_KEY, DERS_KAYITLARI_KEY } from './store.js';
 import { showSyncStatus, handleFirebaseError } from './ui-helpers.js';
 
 export async function initializeFirestoreSync() {
-    if (store.isSyncInitialized || !isFirebaseActive) return;
+    if (!CLOUD_FEATURES_ENABLED || store.isSyncInitialized || !isFirebaseActive) return;
     const user = auth.currentUser;
     if (!user) return;
     store.isSyncInitialized = true;
@@ -190,6 +197,7 @@ export async function initializeFirestoreSync() {
 }
 
 export async function runMigration() {
+    if (!CLOUD_FEATURES_ENABLED) return;
     try {
         const user = auth.currentUser;
         if (!user) return;
@@ -240,4 +248,3 @@ export async function runMigration() {
 // Bind to window for global access
 window.initializeFirestoreSync = initializeFirestoreSync;
 window.runMigration = runMigration;
-

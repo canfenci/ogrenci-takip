@@ -25,6 +25,26 @@ export function showFirebaseWarningBanner() {
     document.body.prepend(banner);
 }
 
+export function showLocalDevelopmentBanner() {
+    if (document.getElementById("localDevelopmentBanner")) return;
+
+    const banner = document.createElement("div");
+    banner.id = "localDevelopmentBanner";
+    banner.className = "bg-indigo-600 text-white text-center py-2 px-4 text-sm font-semibold sticky top-0 z-50 flex justify-between items-center gap-3";
+
+    const message = document.createElement("span");
+    message.textContent = "🛠️ Geliştirme modu: Bulut bağlantısı kapalıdır; veriler yalnızca bu tarayıcıda saklanır.";
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "bg-indigo-800 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-900 transition";
+    closeButton.textContent = "Kapat";
+    closeButton.addEventListener("click", () => banner.remove());
+
+    banner.append(message, closeButton);
+    document.body.prepend(banner);
+}
+
 export function handleFirebaseError(err) {
     console.error("Firebase error details:", err);
     if (err && (err.code === "unavailable" || err.message.includes("Failed to get document"))) {
@@ -143,6 +163,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 // Bind to window for global accessibility
 window.showSyncStatus = showSyncStatus;
 window.showFirebaseWarningBanner = showFirebaseWarningBanner;
+window.showLocalDevelopmentBanner = showLocalDevelopmentBanner;
 window.handleFirebaseError = handleFirebaseError;
 window.toggleTheme = toggleTheme;
 window.applyTheme = applyTheme;
@@ -150,4 +171,3 @@ window.registerPWA = registerPWA;
 window.triggerPWAInstall = triggerPWAInstall;
 window.dismissPWAInstall = dismissPWAInstall;
 window.updateOnlineStatus = updateOnlineStatus;
-
