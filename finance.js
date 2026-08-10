@@ -1,6 +1,6 @@
 // ==================== LESSON LOGS & FINANCE REPORT MODÜLÜ ====================
 
-import { store, loadStudentsData, loadDersKayitlari, saveDersKayitlari, getDersOzet, getKonuListesiBySinif, getKonuListesiBySinifAndDers, escapeHtml } from './store.js';
+import { store, loadStudentsData, loadDersKayitlari, saveDersKayitlari, getDersOzet, getKonuListesiBySinif, getKonuListesiBySinifAndDers, getStudentOdevler, escapeHtml } from './store.js';
 import { updateMobileNavActive } from './auth.js';
 import { ATTENDANCE_LABELS, calculateLessonFinance, normalizeLessonStatus } from './lesson-finance-insights.js';
 import { formatLessonDateForDisplay, formatLessonDateTyping, parseLessonDateInput } from './lesson-date-utils.js';
@@ -194,14 +194,26 @@ export function renderDersDetay(studentId) {
     const effectiveSinif = (String(student.sinif).trim() === "8" || (student.adSoyad && student.adSoyad.includes("(8)"))) ? "8" : student.sinif;
     
     let kayitlar = loadDersKayitlari(studentId);
-    kayitlar = kayitlar.map((k, idx) => ({ ...k, dersNo: idx + 1 }));
+    kayitlar = kayitlar.map((k, idx) => ({
+        ...k,
+        id: k.id || `lesson_${studentId}_${Date.now()}_${idx}`,
+        dersNo: idx + 1
+    }));
     saveDersKayitlari(studentId, kayitlar);
+    const studentHomeworks = getStudentOdevler(student);
     
     let tableRows = '';
     for (let k of kayitlar) {
         const katilimDurumu = normalizeLessonStatus(k);
-        const odevList = Array.isArray(k.odev) ? k.odev : (k.odev ? [k.odev] : []);
-        const odevHtml = odevList.map(od => `<div class="inline-block bg-gray-200 dark:bg-gray-700 rounded-full px-2.5 py-1 text-sm mr-1 mb-1 font-semibold">${escapeHtml(od)}</div>`).join('');
+        const legacyHomework = Array.isArray(k.odev) ? k.odev : (k.odev ? [k.odev] : []);
+        const linkedHomeworks = studentHomeworks.filter(homework => homework.kaynakDers?.lessonId === k.id);
+        const completedHomeworkCount = linkedHomeworks.filter(homework => homework.durum === 'tamamlandi').length;
+        const homeworkSummary = linkedHomeworks.length > 0
+            ? `<button onclick="renderStudentOdevDetay('${studentId}')" class="text-left text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">${linkedHomeworks.length} ödev · ${completedHomeworkCount} tamamlandı</button>`
+            : '<span class="text-sm text-gray-400">Ödev atanmadı</span>';
+        const legacyHomeworkHtml = legacyHomework.length > 0
+            ? `<div class="mt-1 text-xs text-amber-600 dark:text-amber-400" title="Eski ders kaydından korundu">Eski not: ${legacyHomework.map(escapeHtml).join(', ')}</div>`
+            : '';
         
         tableRows += `
             <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
@@ -210,14 +222,17 @@ export function renderDersDetay(studentId) {
                 <td class="p-4 text-base font-semibold text-indigo-600 dark:text-indigo-400">${k.konu}</td>
                 <td class="p-4 text-base"><span class="px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-300">${ATTENDANCE_LABELS[katilimDurumu]}</span></td>
                 <td class="p-4 text-base text-gray-600 dark:text-gray-300">${escapeHtml(k.icerik || '')}</td>
-                <td class="p-4 text-base"><div class="flex flex-wrap">${odevHtml || '—'}</div></td>
+                <td class="p-4 text-base">${homeworkSummary}${legacyHomeworkHtml}</td>
                 <td class="p-4 text-base">
                     <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${katilimDurumu !== 'yapildi' ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' : k.odendi ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}">
                         ${katilimDurumu !== 'yapildi' ? 'Ücret Yok' : k.odendi ? 'Ödendi' : 'Bekliyor'}
                     </span>
                 </td>
                 <td class="p-4 text-base">
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="text-indigo-600 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 text-sm font-semibold min-h-[44px] hover:bg-indigo-50 dark:hover:bg-indigo-950/20" title="Bu derse ödev ata">
+                            <i class="fas fa-tasks"></i> Ödev Ata
+                        </button>
                         <button onclick="editDersKayit('${studentId}', ${k.dersNo})" class="text-blue-500 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center hover:text-blue-750">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -254,20 +269,12 @@ export function renderDersDetay(studentId) {
                     </select>
                     <input type="text" id="kayitIcerik" placeholder="İçerik" class="student-form-input min-h-[44px]">
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
                     <div>
                         <label class="block text-sm font-semibold mb-1">Katılım Durumu</label>
                         <select id="kayitKatilim" class="student-form-input min-h-[44px]">
                             ${Object.entries(ATTENDANCE_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
                         </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold mb-1">Ödevler</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="yeniOdev" placeholder="Ödev metni" class="student-form-input flex-1 min-h-[44px]">
-                            <button onclick="addOdevToList()" class="bg-blue-500 text-white px-4 py-2 rounded-xl font-bold min-h-[44px]">Ekle</button>
-                        </div>
-                        <div id="odevListesi" class="flex flex-wrap gap-1 mt-2"></div>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1">Ödeme Durumu</label>
@@ -291,7 +298,7 @@ export function renderDersDetay(studentId) {
                             <th class="border p-4 text-base font-bold">Konu</th>
                             <th class="border p-4 text-base font-bold">Katılım</th>
                             <th class="border p-4 text-base font-bold">İçerik</th>
-                            <th class="border p-4 text-base font-bold">Ödevler</th>
+                            <th class="border p-4 text-base font-bold">Bağlantılı Ödev</th>
                             <th class="border p-4 text-base font-bold">Durum</th>
                             <th class="border p-4 text-base font-bold">İşlemler</th>
                         </tr>
@@ -304,36 +311,6 @@ export function renderDersDetay(studentId) {
         </div>`;
         
     document.getElementById("dynamic-content").innerHTML = html;
-    window._geciciOdevList = [];
-    
-    window.addOdevToList = () => {
-        const input = document.getElementById("yeniOdev");
-        const val = input ? input.value.trim() : "";
-        if (val) {
-            window._geciciOdevList.push(val);
-            input.value = "";
-            const container = document.getElementById("odevListesi");
-            if (container) {
-                container.innerHTML = window._geciciOdevList.map((od, idx) => `
-                    <div class="bg-gray-200 dark:bg-gray-700 rounded-full px-2.5 py-1 text-sm flex items-center gap-1 font-semibold">
-                        ${escapeHtml(od)}
-                        <button onclick="removeOdevFromList(${idx})" class="text-red-500 text-base"><i class="fas fa-times-circle"></i></button>
-                    </div>`).join('');
-            }
-        }
-    };
-    
-    window.removeOdevFromList = (idx) => {
-        window._geciciOdevList.splice(idx, 1);
-        const container = document.getElementById("odevListesi");
-        if (container) {
-            container.innerHTML = window._geciciOdevList.map((od, idx) => `
-                <div class="bg-gray-200 dark:bg-gray-700 rounded-full px-2.5 py-1 text-sm flex items-center gap-1 font-semibold">
-                    ${escapeHtml(od)}
-                    <button onclick="removeOdevFromList(${idx})" class="text-red-500 text-base"><i class="fas fa-times-circle"></i></button>
-                </div>`).join('');
-        }
-    };
 }
 
 export function addDersKayit(studentId) {
@@ -344,7 +321,6 @@ export function addDersKayit(studentId) {
     const icerik = document.getElementById("kayitIcerik").value;
     const odendi = document.getElementById("kayitOdendi").value === "true";
     const katilimDurumu = document.getElementById("kayitKatilim")?.value || 'yapildi';
-    const odevler = window._geciciOdevList || [];
     
     if (!tarih || !ders || !konu) {
         alert("Lütfen tarihi GG/AA/YYYY biçiminde, ders ve konu alanlarını eksiksiz giriniz.");
@@ -353,7 +329,7 @@ export function addDersKayit(studentId) {
     
     let kayitlar = loadDersKayitlari(studentId);
     const yeniNo = kayitlar.length + 1;
-    kayitlar.push({ dersNo: yeniNo, tarih, ders, konu, icerik, odev: odevler, odendi: katilimDurumu === 'yapildi' ? odendi : false, katilimDurumu });
+    kayitlar.push({ id: `lesson_${studentId}_${Date.now()}`, dersNo: yeniNo, tarih, ders, konu, icerik, odendi: katilimDurumu === 'yapildi' ? odendi : false, katilimDurumu });
     saveDersKayitlari(studentId, kayitlar);
     renderDersDetay(studentId);
 }
@@ -364,21 +340,16 @@ export function editDersKayit(studentId, dersNo) {
     if (idx === -1) return;
     
     const k = kayitlar[idx];
-    const odevList = Array.isArray(k.odev) ? k.odev : (k.odev ? [k.odev] : []);
-    const odevStr = odevList.join(", ");
-    
     const yeniTarihInput = prompt("Tarih (GG/AA/YYYY):", formatLessonDateForDisplay(k.tarih));
     const yeniTarih = parseLessonDateInput(yeniTarihInput);
     const yeniKonu = prompt("Konu:", k.konu);
     const yeniIcerik = prompt("İçerik:", k.icerik);
-    const yeniOdevlerStr = prompt("Ödevler (virgülle ayırın):", odevStr);
     const yeniOdendi = confirm("Ödendi mi? (Tamam:Ödendi, İptal:Bekliyor)");
     const yeniKatilim = prompt("Katılım durumu (yapildi, gelmedi, mazeretli, iptal):", normalizeLessonStatus(k));
     
     if (yeniTarih && yeniKonu) {
-        const yeniOdevler = yeniOdevlerStr ? yeniOdevlerStr.split(",").map(s => s.trim()).filter(s => s) : [];
         const katilimDurumu = ATTENDANCE_LABELS[yeniKatilim] ? yeniKatilim : normalizeLessonStatus(k);
-        kayitlar[idx] = { ...k, tarih: yeniTarih, konu: yeniKonu, icerik: yeniIcerik || '', odev: yeniOdevler, odendi: katilimDurumu === 'yapildi' ? yeniOdendi : false, katilimDurumu };
+        kayitlar[idx] = { ...k, tarih: yeniTarih, konu: yeniKonu, icerik: yeniIcerik || '', odendi: katilimDurumu === 'yapildi' ? yeniOdendi : false, katilimDurumu };
         saveDersKayitlari(studentId, kayitlar);
         renderDersDetay(studentId);
     }
@@ -409,6 +380,20 @@ export function onDersKayitSubjectChanged(sinif) {
     konuSelect.innerHTML = '<option value="">Konu Seç</option>' + konular.map(k => `<option value="${k}">${k}</option>`).join('');
 }
 
+export function openHomeworkForLesson(studentId, lessonId) {
+    const lesson = loadDersKayitlari(studentId).find(record => record.id === lessonId);
+    if (!lesson || !window.renderOdevAtaModal) return;
+
+    window._geciciOdevListesi = [];
+    window.renderOdevAtaModal([studentId], {
+        lessonId: lesson.id,
+        dersNo: lesson.dersNo,
+        tarih: lesson.tarih,
+        ders: lesson.ders,
+        konu: lesson.konu
+    });
+}
+
 // Bind to window for global accessibility
 window.renderFinanceReport = renderFinanceReport;
 window.renderDersKayitlari = renderDersKayitlari;
@@ -417,4 +402,5 @@ window.addDersKayit = addDersKayit;
 window.editDersKayit = editDersKayit;
 window.deleteDersKayit = deleteDersKayit;
 window.onDersKayitSubjectChanged = onDersKayitSubjectChanged;
+window.openHomeworkForLesson = openHomeworkForLesson;
 window.formatLessonDateTyping = formatLessonDateTyping;
