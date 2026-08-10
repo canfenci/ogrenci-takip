@@ -142,3 +142,19 @@ test('home and settings are separate navigation destinations', async () => {
   assert.match(students, /mobile-nav-reminders/);
   assert.match(students, /<i class="fas fa-cog text-slate-500"><\/i> Ayarlar/);
 });
+
+test('lesson records link to the canonical homework workflow without duplicate entry fields', async () => {
+  const [finance, homework, store] = await Promise.all([
+    readProjectFile('finance.js'),
+    readProjectFile('homework.js'),
+    readProjectFile('store.js')
+  ]);
+
+  assert.match(finance, /openHomeworkForLesson/);
+  assert.match(finance, /Bağlantılı Ödev/);
+  assert.doesNotMatch(finance, /id="yeniOdev"/);
+  assert.doesNotMatch(finance, /window\.addOdevToList/);
+  assert.match(homework, /kaynakDers/);
+  assert.match(homework, /Ders kaydına bağlı ödev/);
+  assert.match(store, /odevler: Array\.isArray\(s\.odevler\) \? s\.odevler : \[\]/);
+});

@@ -464,10 +464,17 @@ export function shareHomeworkWhatsApp(studentId) {
 
 export function showOdevAtaModal() {
     window._geciciOdevListesi = [];
-    renderOdevAtaModal();
+    renderOdevAtaModal(null, null);
 }
 
-export function renderOdevAtaModal(preSelectedStudentIds = null) {
+export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext = null) {
+    window._odevDersContext = lessonContext;
+    const lessonContextHtml = lessonContext ? `
+        <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-300">
+            <div class="font-bold"><i class="fas fa-link"></i> Ders kaydına bağlı ödev</div>
+            <div class="mt-1">${escapeHtml(lessonContext.ders)} · ${escapeHtml(lessonContext.konu)} · ${escapeHtml(lessonContext.tarih)}</div>
+        </div>
+    ` : '';
     const modalHtml = `
         <div id="odevAtaModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto p-4" onclick="if(event.target===this) closeOdevAtaModal()">
             <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl" onclick="event.stopPropagation()">
@@ -476,6 +483,7 @@ export function renderOdevAtaModal(preSelectedStudentIds = null) {
                     <button onclick="closeOdevAtaModal()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button>
                 </div>
                 <div class="space-y-4">
+                    ${lessonContextHtml}
                     <div>
                         <label class="block text-sm font-bold mb-1">Sınıf Seviyesi Seçin (Dinamik Filtreleme)</label>
                         <select id="odevGradeSelect" class="student-form-input min-h-[44px]">
@@ -562,12 +570,20 @@ export function renderOdevAtaModal(preSelectedStudentIds = null) {
             const grade = firstStudent.sinif;
             document.getElementById('odevGradeSelect').value = grade;
             onOdevGradeChanged(grade, preSelectedStudentIds);
+            if (lessonContext) {
+                document.getElementById('odevBaslamaTarihi').value = lessonContext.tarih;
+                const topicSelect = document.getElementById('odevKonuSelect');
+                const hasLessonTopic = Array.from(topicSelect.options).some(option => option.value === lessonContext.konu);
+                if (!hasLessonTopic) topicSelect.add(new Option(lessonContext.konu, lessonContext.konu));
+                topicSelect.value = lessonContext.konu;
+            }
         }
     }
 }
 
 export function closeOdevAtaModal() {
     document.getElementById('odevAtaModal')?.remove();
+    window._odevDersContext = null;
 }
 
 export function onOdevGradeChanged(grade, preSelectedStudentIds = null) {
@@ -616,7 +632,8 @@ export function addOdevToGeciciList() {
         yayin: yayin,
         durum: "verildi",
         dogru: null,
-        yanlis: null
+        yanlis: null,
+        ...(window._odevDersContext ? { kaynakDers: { ...window._odevDersContext } } : {})
     };
     window._geciciOdevListesi.push(newHw);
     document.getElementById('geciciOdevListesiArea').classList.remove('hidden');
@@ -691,9 +708,14 @@ export function submitBatchOdev() {
         }
         saveStudentsData(students);
     }
-    alert(`${selectedStudentIds.length} öğrenciye başarıyla ${window._geciciOdevListesi.length} ödev atandı.`);
+    const lessonContext = window._odevDersContext;
+    showSyncStatus(`✅ ${selectedStudentIds.length} öğrenciye ${window._geciciOdevListesi.length} ödev atandı`, false);
     closeOdevAtaModal();
-    renderOdevTakibi();
+    if (lessonContext && selectedStudentIds.length === 1 && window.renderDersDetay) {
+        window.renderDersDetay(selectedStudentIds[0]);
+    } else {
+        renderOdevTakibi();
+    }
 }
 
 // Global window mappings for compatibility
@@ -720,3 +742,4 @@ window.removeOdevFromGeciciList = removeOdevFromGeciciList;
 window.submitBatchOdev = submitBatchOdev;
 window._geciciOdevListesi = [];
 window._currentOdevStudentId = null;
+window._odevDersContext = null;

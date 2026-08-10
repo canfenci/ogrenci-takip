@@ -489,6 +489,7 @@ export function normalizeStudent(s) {
         hedefLise: s.hedefLise || "",
         hedefNet: s.hedefNet || 0,
         denemeler: s.denemeler || [],
+        odevler: Array.isArray(s.odevler) ? s.odevler : [],
         studyPlan: s.studyPlan || {},
         errorResets: s.errorResets || {},
         growthPlan: s.growthPlan || {},
