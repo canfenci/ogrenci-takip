@@ -3,6 +3,7 @@
 import { store, loadStudentsData, loadDersKayitlari, saveDersKayitlari, getDersOzet, getKonuListesiBySinif, getKonuListesiBySinifAndDers, escapeHtml } from './store.js';
 import { updateMobileNavActive } from './auth.js';
 import { ATTENDANCE_LABELS, calculateLessonFinance, normalizeLessonStatus } from './lesson-finance-insights.js';
+import { formatLessonDateForDisplay, formatLessonDateTyping, parseLessonDateInput } from './lesson-date-utils.js';
 
 export function renderFinanceReport() {
     store.currentPage = "finance";
@@ -205,7 +206,7 @@ export function renderDersDetay(studentId) {
         tableRows += `
             <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
                 <td class="p-4 text-base">${k.dersNo}</td>
-                <td class="p-4 text-base">${k.tarih}</td>
+                <td class="p-4 text-base">${formatLessonDateForDisplay(k.tarih)}</td>
                 <td class="p-4 text-base font-semibold text-indigo-600 dark:text-indigo-400">${k.konu}</td>
                 <td class="p-4 text-base"><span class="px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-300">${ATTENDANCE_LABELS[katilimDurumu]}</span></td>
                 <td class="p-4 text-base text-gray-600 dark:text-gray-300">${escapeHtml(k.icerik || '')}</td>
@@ -240,7 +241,7 @@ export function renderDersDetay(studentId) {
             <div class="mb-6 bg-gray-50 dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
                 <h3 class="font-bold mb-3 text-lg">➕ Yeni Ders Kaydı Ekle</h3>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <input type="date" id="kayitTarih" class="student-form-input min-h-[44px]">
+                    <input type="text" id="kayitTarih" inputmode="numeric" maxlength="10" placeholder="GG/AA/YYYY" aria-label="Ders tarihi (gün/ay/yıl)" oninput="formatLessonDateTyping(this)" class="student-form-input min-h-[44px]">
                     <select id="kayitDers" onchange="window.onDersKayitSubjectChanged('${effectiveSinif}')" class="student-form-input min-h-[44px]">
                         <option value="">Ders Seçin</option>
                         ${(store.teacherBranches || ["Türkçe", "Matematik", "Fen Bilimleri", "Sosyal Bilgiler"]).map(b => {
@@ -336,7 +337,8 @@ export function renderDersDetay(studentId) {
 }
 
 export function addDersKayit(studentId) {
-    const tarih = document.getElementById("kayitTarih").value;
+    const tarihInput = document.getElementById("kayitTarih").value;
+    const tarih = parseLessonDateInput(tarihInput);
     const ders = document.getElementById("kayitDers")?.value || "";
     const konu = document.getElementById("kayitKonu").value;
     const icerik = document.getElementById("kayitIcerik").value;
@@ -345,7 +347,7 @@ export function addDersKayit(studentId) {
     const odevler = window._geciciOdevList || [];
     
     if (!tarih || !ders || !konu) {
-        alert("Lütfen tarih, ders ve konu alanlarını seçiniz.");
+        alert("Lütfen tarihi GG/AA/YYYY biçiminde, ders ve konu alanlarını eksiksiz giriniz.");
         return;
     }
     
@@ -365,7 +367,8 @@ export function editDersKayit(studentId, dersNo) {
     const odevList = Array.isArray(k.odev) ? k.odev : (k.odev ? [k.odev] : []);
     const odevStr = odevList.join(", ");
     
-    const yeniTarih = prompt("Tarih (YYYY-MM-DD):", k.tarih);
+    const yeniTarihInput = prompt("Tarih (GG/AA/YYYY):", formatLessonDateForDisplay(k.tarih));
+    const yeniTarih = parseLessonDateInput(yeniTarihInput);
     const yeniKonu = prompt("Konu:", k.konu);
     const yeniIcerik = prompt("İçerik:", k.icerik);
     const yeniOdevlerStr = prompt("Ödevler (virgülle ayırın):", odevStr);
@@ -414,3 +417,4 @@ window.addDersKayit = addDersKayit;
 window.editDersKayit = editDersKayit;
 window.deleteDersKayit = deleteDersKayit;
 window.onDersKayitSubjectChanged = onDersKayitSubjectChanged;
+window.formatLessonDateTyping = formatLessonDateTyping;
