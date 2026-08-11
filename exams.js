@@ -373,7 +373,7 @@ export function editBransExam(studentId, examId, exam) {
             const showKonuHata = (durum !== "dogru");
             
             rows += `
-                <div class="border rounded-xl p-3 bg-white dark:bg-gray-800 soru-duzenleme-satiri" data-soru-index="${i}">
+                <div class="app-panel p-3 soru-duzenleme-satiri" data-soru-index="${i}">
                     <div class="font-bold mb-1 text-sm">${i + 1}. Soru</div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
                         <div>
@@ -389,14 +389,14 @@ export function editBransExam(studentId, examId, exam) {
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-400 mb-1">Yapılamayan Konu</label>
-                                    <select class="w-full border-2 rounded-xl p-1.5 konu-select min-h-[44px]" data-index="${i}">
+                                    <select class="student-form-input konu-select min-h-[44px]" data-index="${i}">
                                         <option value="">-- Seçin --</option>
                                         ${konuList.map(k => `<option value="${k}" ${konuAdi === k ? 'selected' : ''}>${k}</option>`).join('')}
                                     </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-400 mb-1">Hata Kodu</label>
-                                    <select class="w-full border-2 rounded-xl p-1.5 hata-select min-h-[44px]" data-index="${i}">
+                                    <select class="student-form-input hata-select min-h-[44px]" data-index="${i}">
                                         <option value="">-- Seçin --</option>
                                         ${HATA_KODLARI.map(h => `<option value="${h.kod}" ${hataKodu === h.kod ? 'selected' : ''}>${h.kod} - ${h.aciklama}</option>`).join('')}
                                     </select>
@@ -409,21 +409,18 @@ export function editBransExam(studentId, examId, exam) {
         }
         
         const html = `
-            <div>
-                <button onclick="renderStudentPanel('${studentId}')" class="text-blue-600 mb-2 inline-block font-semibold">← Geri</button>
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 border">
-                    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-                        <h2 class="text-xl font-bold text-gray-800 dark:text-white">Konu Denemesi Düzenle - ${escapeHtml(exam.denemeAdi)}</h2>
-                        <button onclick="setAllQuestionsCorrect()" class="btn-all-correct bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-405 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm min-h-[44px]"><i class="fas fa-check-double mr-1"></i> Tümünü Doğru Yap</button>
-                    </div>
+            <div class="app-page">
+                <header class="app-page-header"><div><button onclick="renderStudentPanel('${studentId}')" class="btn-secondary min-h-[44px] px-4 mb-3"><i class="fas fa-arrow-left mr-1"></i> Öğrenci Dosyasına Dön</button><h2 class="app-page-title">Konu Denemesi Sonucu</h2><p class="app-page-subtitle">${escapeHtml(exam.denemeAdi)} · Soruların durumunu ve hata nedenlerini düzenleyin.</p></div><button onclick="setAllQuestionsCorrect()" class="btn-secondary px-4 py-2.5 text-sm min-h-[44px]"><i class="fas fa-check-double mr-1"></i> Tümünü Doğru İşaretle</button></header>
+                <div class="app-panel p-5">
+                    <label for="editExamName" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Deneme adı</label>
                     <input id="editExamName" class="student-form-input min-h-[44px] mb-3" placeholder="Deneme Adı" value="${escapeHtml(exam.denemeAdi)}">
                     <div class="mb-2 text-sm text-gray-500">Her soru için durumu, konusunu ve hata kodunu girin.</div>
                     <div class="space-y-3 md:max-h-96 md:overflow-auto mb-3">${rows}</div>
-                    <div class="sticky-footer p-3.5 bg-gray-100 dark:bg-gray-700 rounded-xl flex justify-between font-bold text-sm" id="editFooter">
-                        <span>📊 Toplam: ${exam.toplamSoru} soru | D:${exam.toplamDogru} Y:${exam.toplamYanlis} B:${exam.toplamBos}</span>
-                        <span class="text-blue-600">Net: ${exam.toplamNet.toFixed(2)}</span>
+                    <div class="sticky-footer p-3.5 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl flex justify-between gap-3 flex-wrap font-bold text-sm" id="editFooter">
+                        <span>Toplam: ${exam.toplamSoru} soru · D:${exam.toplamDogru} · Y:${exam.toplamYanlis} · B:${exam.toplamBos}</span>
+                        <span class="text-indigo-600 dark:text-indigo-400">Net: ${exam.toplamNet.toFixed(2)}</span>
                     </div>
-                    <button onclick="saveBransExamEdit('${studentId}', '${examId}')" class="mt-4 w-full bg-blue-600 text-white py-3 rounded-xl font-bold min-h-[44px]">Güncelle</button>
+                    <button onclick="saveBransExamEdit('${studentId}', '${examId}')" class="btn-primary mt-4 w-full py-3 min-h-[44px]"><i class="fas fa-save mr-1"></i> Sonucu Kaydet</button>
                 </div>
             </div>
         `;
@@ -448,7 +445,7 @@ export function editBransExam(studentId, examId, exam) {
             }
             const net = calculateNet(totalDogru, totalYanlis);
             const footer = document.getElementById('editFooter');
-            if (footer) footer.innerHTML = `<span>📊 Toplam: ${soruSayisi} soru | D:${totalDogru} Y:${totalYanlis} B:${totalBos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span>`;
+            if (footer) footer.innerHTML = `<span>Toplam: ${soruSayisi} soru · D:${totalDogru} · Y:${totalYanlis} · B:${totalBos}</span><span class="text-indigo-600 dark:text-indigo-400">Net: ${net.toFixed(2)}</span>`;
         }
         
         document.querySelectorAll('.durum-select').forEach(sel => {
@@ -570,21 +567,21 @@ export function editGenelExam(studentId, examId, exam) {
         const sonuc = dersSonuclari[dersKey] || { dogru: 0, yanlis: 0, bos: toplamSoru };
         
         dersRows += `
-            <div class="border rounded-xl p-3 bg-white dark:bg-gray-800">
+            <div class="app-panel p-3">
                 <div class="font-bold mb-2 text-sm">${dersGorunum}</div>
                 <div class="text-xs text-gray-500 mb-2">Toplam Soru: ${toplamSoru}</div>
                 <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label class="block text-xs font-semibold mb-1">Doğru</label>
-                        <input type="number" min="0" max="${toplamSoru}" value="${sonuc.dogru}" class="w-full border-2 rounded-xl p-2.5 focus:ring-4 focus:ring-indigo-200 outline-none genel-dogru min-h-[44px]" data-ders="${dersKey}" data-toplam="${toplamSoru}">
+                        <input type="number" min="0" max="${toplamSoru}" value="${sonuc.dogru}" class="student-form-input genel-dogru min-h-[44px]" data-ders="${dersKey}" data-toplam="${toplamSoru}">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold mb-1">Yanlış</label>
-                        <input type="number" min="0" max="${toplamSoru}" value="${sonuc.yanlis}" class="w-full border-2 rounded-xl p-2.5 focus:ring-4 focus:ring-indigo-200 outline-none genel-yanlis" data-ders="${dersKey}" data-toplam="${toplamSoru}">
+                        <input type="number" min="0" max="${toplamSoru}" value="${sonuc.yanlis}" class="student-form-input genel-yanlis min-h-[44px]" data-ders="${dersKey}" data-toplam="${toplamSoru}">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold mb-1">Boş</label>
-                        <input type="number" min="0" max="${toplamSoru}" value="${sonuc.bos}" class="w-full border-2 rounded-xl p-2.5 focus:ring-4 focus:ring-indigo-200 outline-none genel-bos bg-gray-50 dark:bg-gray-900/50" data-ders="${dersKey}" data-toplam="${toplamSoru}" readonly>
+                        <input type="number" min="0" max="${toplamSoru}" value="${sonuc.bos}" class="student-form-input genel-bos min-h-[44px] bg-gray-50 dark:bg-gray-900/50" data-ders="${dersKey}" data-toplam="${toplamSoru}" readonly>
                     </div>
                 </div>
             </div>
@@ -592,18 +589,18 @@ export function editGenelExam(studentId, examId, exam) {
     }
     
     const html = `
-        <div>
-            <button onclick="renderStudentPanel('${studentId}')" class="text-blue-600 mb-2 inline-block font-semibold">← Geri</button>
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 border">
-                <h2 class="text-xl font-bold mb-3 text-gray-800 dark:text-white">Genel Deneme Düzenle - ${escapeHtml(exam.denemeAdi)}</h2>
+        <div class="app-page">
+            <header class="app-page-header"><div><button onclick="renderStudentPanel('${studentId}')" class="btn-secondary min-h-[44px] px-4 mb-3"><i class="fas fa-arrow-left mr-1"></i> Öğrenci Dosyasına Dön</button><h2 class="app-page-title">Genel Deneme Sonucu</h2><p class="app-page-subtitle">${escapeHtml(exam.denemeAdi)} · Ders bazında doğru ve yanlış sayılarını düzenleyin.</p></div></header>
+            <div class="app-panel p-5">
+                <label for="editExamName" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Deneme adı</label>
                 <input id="editExamName" class="student-form-input min-h-[44px] mb-3" placeholder="Deneme Adı" value="${escapeHtml(exam.denemeAdi)}">
                 <div class="mb-2 text-sm text-gray-500">Her ders için doğru, yanlış ve boş sayılarını girin. Boş sayısı otomatik hesaplanır.</div>
                 <div class="space-y-3 md:max-h-96 md:overflow-auto mb-3">${dersRows}</div>
-                <div class="sticky-footer p-3.5 bg-gray-100 dark:bg-gray-700 rounded-xl flex justify-between font-bold text-sm" id="editFooter">
-                    <span>📊 Toplam: ${exam.toplamSoru} soru | D:${exam.toplamDogru} Y:${exam.toplamYanlis} B:${exam.toplamBos}</span>
-                    <span class="text-blue-600">Net: ${exam.toplamNet.toFixed(2)}</span>
+                <div class="sticky-footer p-3.5 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl flex justify-between gap-3 flex-wrap font-bold text-sm" id="editFooter">
+                    <span>Toplam: ${exam.toplamSoru} soru · D:${exam.toplamDogru} · Y:${exam.toplamYanlis} · B:${exam.toplamBos}</span>
+                    <span class="text-indigo-600 dark:text-indigo-400">Net: ${exam.toplamNet.toFixed(2)}</span>
                 </div>
-                <button onclick="saveGenelExamEdit('${studentId}', '${examId}')" class="mt-4 w-full bg-blue-600 text-white py-3 rounded-xl font-bold min-h-[44px]">Güncelle</button>
+                <button onclick="saveGenelExamEdit('${studentId}', '${examId}')" class="btn-primary mt-4 w-full py-3 min-h-[44px]"><i class="fas fa-save mr-1"></i> Sonucu Kaydet</button>
             </div>
         </div>
     `;
@@ -636,7 +633,7 @@ export function editGenelExam(studentId, examId, exam) {
         });
         const net = calculateNet(totalDogru, totalYanlis);
         const footer = document.getElementById('editFooter');
-        if (footer) footer.innerHTML = `<span>📊 Toplam: ${exam.toplamSoru} soru | D:${totalDogru} Y:${totalYanlis} B:${totalBos}</span><span class="text-blue-600">Net: ${net.toFixed(2)}</span>`;
+        if (footer) footer.innerHTML = `<span>Toplam: ${exam.toplamSoru} soru · D:${totalDogru} · Y:${totalYanlis} · B:${totalBos}</span><span class="text-indigo-600 dark:text-indigo-400">Net: ${net.toFixed(2)}</span>`;
     }
     
     for (let i = 0; i < dogruInputs.length; i++) {
