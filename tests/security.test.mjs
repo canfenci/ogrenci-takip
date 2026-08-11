@@ -272,3 +272,10 @@ test('homework results capture main and optional subtopic errors', async () => {
   assert.match(students, /Alt Konu Hataları/);
   assert.match(serviceWorker, /homework-error-topics\.js/);
 });
+
+test('homework type separates activity from resource-book identity', async () => {
+  const homework = await readProjectFile('homework.js');
+  const typeSelect = homework.match(/<select id="odevTurSelect"[\s\S]*?<\/select>/)?.[0] || '';
+  assert.doesNotMatch(typeSelect, /Soru Bankası/);
+  assert.match(typeSelect, /<option value="Konu Tekrarı" selected>/);
+});

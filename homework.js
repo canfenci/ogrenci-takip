@@ -554,8 +554,7 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
                                     <option value="Konu Denemesi">Konu Denemesi</option>
                                     <option value="Yaprak Test">Yaprak Test</option>
                                     <option value="Örnek Sınavlar">Örnek Sınavlar</option>
-                                    <option value="Soru Bankası" selected>Soru Bankası</option>
-                                    <option value="Konu Tekrarı">Konu Tekrarı</option>
+                                    <option value="Konu Tekrarı" selected>Konu Tekrarı</option>
                                     <option value="Diğer">Diğer</option>
                                 </select>
                             </div>
