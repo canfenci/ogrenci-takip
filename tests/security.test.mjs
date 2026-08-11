@@ -248,3 +248,14 @@ test('weekly schedule prevents conflicts across different students', async () =>
   assert.match(schedule, /buildScheduleConflictMessage/);
   assert.match(serviceWorker, /schedule-conflicts\.js/);
 });
+
+test('grade-specific resource books are selectable with a manual fallback', async () => {
+  const [students, homework, exams, finance, serviceWorker] = await Promise.all([
+    readProjectFile('students.js'), readProjectFile('homework.js'), readProjectFile('exams.js'), readProjectFile('finance.js'), readProjectFile('sw.js')
+  ]);
+  assert.match(students, /Kaynak Kitaplar/);
+  assert.match(homework, /odevYayinSelect/);
+  assert.match(exams, /bransKaynak/);
+  assert.match(finance, /kayitKaynak/);
+  assert.match(serviceWorker, /resource-books\.js/);
+});

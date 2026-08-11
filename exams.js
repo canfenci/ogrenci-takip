@@ -1,8 +1,9 @@
 // ==================== EXAM ANALYSIS & MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, getKonuListesiBySinif, GENEL_DERSLER_GORUNUM, GENEL_DERSLER_KEY, HATA_KODLARI, POPULER_LISELER, getErrorColor, calculateNet, escapeHtml, loadSchedule, loadDersKayitlari, getStudentOdevler } from './store.js';
+import { store, loadStudentsData, saveStudentsData, getKonuListesiBySinif, getKonuListesiBySinifAndDers, GENEL_DERSLER_GORUNUM, GENEL_DERSLER_KEY, HATA_KODLARI, POPULER_LISELER, getErrorColor, calculateNet, escapeHtml, loadSchedule, loadDersKayitlari, getStudentOdevler } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
+import { MANUAL_RESOURCE_VALUE, readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
 
 // Global state for deneme assignment
 let denemeAtaMode = "branş";
@@ -127,7 +128,7 @@ export function renderDenemeAtaModal() {
     const students = loadStudentsData();
     const studentCheckboxes = students.map(s => `
         <label class="flex items-center gap-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer transition">
-            <input type="checkbox" value="${s.id}" class="studentCheck rounded border-gray-300 dark:border-gray-650 text-blue-600">
+            <input type="checkbox" value="${s.id}" data-grade="${escapeHtml(s.sinif || '')}" class="studentCheck rounded border-gray-300 dark:border-gray-650 text-blue-600">
             <span class="text-sm font-medium text-gray-805 dark:text-gray-200">${escapeHtml(s.adSoyad)} (${escapeHtml(s.okul)}${s.sinif ? ', ' + s.sinif + '. sınıf' : ''})</span>
         </label>
     `).join('');
@@ -136,14 +137,24 @@ export function renderDenemeAtaModal() {
         <div id="bransSecim" class="${denemeAtaMode === 'branş' ? '' : 'hidden'}">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 <div>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Sınıf</label>
+                    <select id="bransSinif" onchange="updateTopicExamOptions()" class="student-form-input min-h-[44px]"><option value="">Sınıf seçin</option>${['5','6','7','8'].map(grade => `<option value="${grade}">${grade}. Sınıf</option>`).join('')}</select>
+                </div>
+                <div>
                     <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Ders</label>
-                    <select id="bransDers" class="student-form-input min-h-[44px]">
+                    <select id="bransDers" onchange="updateTopicExamOptions()" class="student-form-input min-h-[44px]">
                         ${(store.teacherBranches || ['Türkçe', 'Matematik', 'Fen Bilimleri', 'Sosyal Bilgiler']).map(ders => `<option value="${escapeHtml(ders)}">${escapeHtml(ders)}</option>`).join('')}
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Konu</label>
-                    <input type="text" id="bransKonuAdi" placeholder="Örn: Basınç" class="student-form-input min-h-[44px]">
+                    <select id="bransKonuAdi" onchange="toggleTopicExamManualTopic()" class="student-form-input min-h-[44px]"><option value="">Önce sınıf seçin</option></select>
+                    <div id="bransKonuManualArea" class="hidden mt-2"><input type="text" id="bransKonuManual" placeholder="Konuyu manuel girin" class="student-form-input min-h-[44px]"></div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Kaynak Kitap / Yayın</label>
+                    <select id="bransKaynak" onchange="toggleTopicExamManualResource()" class="student-form-input min-h-[44px]"><option value="">Önce sınıf ve ders seçin</option></select>
+                    <div id="bransKaynakManualArea" class="hidden mt-2"><input type="text" id="bransKaynakManual" placeholder="Kaynağı manuel girin" class="student-form-input min-h-[44px]"></div>
                 </div>
             </div>
             <div class="mb-3">
@@ -217,6 +228,32 @@ export function renderDenemeAtaModal() {
         document.getElementById('tabBransBtn').className = "flex-1 py-2 text-center font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700";
     });
     document.getElementById('saveDenemeAtaBtn').addEventListener('click', () => saveDenemeAta());
+    updateTopicExamOptions();
+}
+
+export function updateTopicExamOptions() {
+    const grade = document.getElementById('bransSinif')?.value || '';
+    const subject = document.getElementById('bransDers')?.value || '';
+    const topicSelect = document.getElementById('bransKonuAdi');
+    if (topicSelect) topicSelect.innerHTML = '<option value="">Konu seçin</option>' + getKonuListesiBySinifAndDers(grade, subject).map(topic => `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`).join('') + `<option value="${MANUAL_RESOURCE_VALUE}">✍️ Manuel gir</option>`;
+    const resourceSelect = document.getElementById('bransKaynak');
+    if (resourceSelect) resourceSelect.innerHTML = resourceOptionsHtml(grade, subject, escapeHtml);
+    document.querySelectorAll('.studentCheck').forEach(checkbox => {
+        const matches = !grade || String(checkbox.dataset.grade) === String(grade);
+        checkbox.closest('label')?.classList.toggle('hidden', !matches);
+        if (!matches) checkbox.checked = false;
+    });
+    toggleTopicExamManualTopic();
+    toggleManualResource('bransKaynak', 'bransKaynakManualArea');
+}
+
+export function toggleTopicExamManualTopic() {
+    const isManual = document.getElementById('bransKonuAdi')?.value === MANUAL_RESOURCE_VALUE;
+    document.getElementById('bransKonuManualArea')?.classList.toggle('hidden', !isManual);
+}
+
+export function toggleTopicExamManualResource() {
+    toggleManualResource('bransKaynak', 'bransKaynakManualArea');
 }
 
 export function closeDenemeAtaModal() {
@@ -238,9 +275,12 @@ export function saveDenemeAta() {
     if (denemeAtaMode === 'branş') {
         const soruSayisi = parseInt(document.getElementById('bransSoruSayisi')?.value) || 0;
         const ders = document.getElementById('bransDers')?.value || '';
-        const konu = document.getElementById('bransKonuAdi')?.value.trim() || '';
-        if (!ders || !konu) {
-            alert("Konu denemesi için ders ve konu girin");
+        const grade = document.getElementById('bransSinif')?.value || '';
+        const selectedTopic = document.getElementById('bransKonuAdi')?.value || '';
+        const konu = selectedTopic === MANUAL_RESOURCE_VALUE ? document.getElementById('bransKonuManual')?.value.trim() || '' : selectedTopic;
+        const kaynak = readResourceSelection('bransKaynak', 'bransKaynakManual');
+        if (!grade || !ders || !konu || !kaynak) {
+            alert("Konu denemesi için sınıf, ders, konu ve kaynak bilgilerini girin");
             return;
         }
         if (soruSayisi < 1) {
@@ -285,7 +325,9 @@ export function saveDenemeAta() {
     };
     if (tip === 'branş') {
         newExam.ders = document.getElementById('bransDers')?.value || '';
-        newExam.konu = document.getElementById('bransKonuAdi')?.value.trim() || '';
+        newExam.sinif = document.getElementById('bransSinif')?.value || '';
+        newExam.konu = sorular[0]?.konuAdi || '';
+        newExam.kaynak = readResourceSelection('bransKaynak', 'bransKaynakManual');
     }
     
     if (tip === "genel") {
@@ -977,3 +1019,6 @@ window.getKonuBazliBasarilar = getKonuBazliBasarilar;
 window.getBestWorstTopics = getBestWorstTopics;
 window.getMotivationMessage = getMotivationMessage;
 window.getHataIstatistikleri = getHataIstatistikleri;
+window.updateTopicExamOptions = updateTopicExamOptions;
+window.toggleTopicExamManualTopic = toggleTopicExamManualTopic;
+window.toggleTopicExamManualResource = toggleTopicExamManualResource;

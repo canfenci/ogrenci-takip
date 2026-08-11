@@ -1,10 +1,11 @@
 // ==================== HOMEWORK MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, getStudentOdevler, getKonuListesiBySinif, escapeHtml } from './store.js';
+import { store, loadStudentsData, saveStudentsData, getStudentOdevler, getKonuListesiBySinifAndDers, escapeHtml } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { calculateTopicTestNet } from './topic-exam-insights.js';
+import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
 
 export function hideNavigationElements() {
     const sidebar = document.querySelector('#app-root > div.hidden.md\\:flex');
@@ -508,6 +509,13 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
                             </div>
                         </div>
                         <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Ders</label>
+                            <select id="odevDersSelect" onchange="onOdevSubjectChanged()" class="student-form-input min-h-[44px]">
+                                <option value="">Ders seçin</option>
+                                ${(store.teacherBranches || []).map(subject => `<option value="${escapeHtml(subject)}">${escapeHtml(subject)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
                             <label class="block text-xs font-semibold text-gray-500 mb-1">Ödev Konusu</label>
                             <select id="odevKonuSelect" class="student-form-input min-h-[44px]"></select>
                         </div>
@@ -524,8 +532,9 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Ödev Verilen Yayın (Kitap/Yazar)</label>
-                                <input type="text" id="odevYayinInput" placeholder="Örn: Karekök Yayınları" class="student-form-input min-h-[44px]">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Kaynak Kitap / Yayın</label>
+                                <select id="odevYayinSelect" onchange="toggleOdevManualResource()" class="student-form-input min-h-[44px]"><option value="">Önce sınıf ve ders seçin</option></select>
+                                <div id="odevYayinManualArea" class="hidden mt-2"><input type="text" id="odevYayinInput" placeholder="Kaynak adını manuel girin" class="student-form-input min-h-[44px]"></div>
                             </div>
                         </div>
                         <button onclick="addOdevToGeciciList()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-semibold transition text-sm flex items-center justify-center gap-1 min-h-[44px]">
@@ -574,6 +583,15 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
             if (lessonContext) {
                 document.getElementById('odevTurSelect').value = 'Konu Denemesi';
                 document.getElementById('odevBaslamaTarihi').value = lessonContext.tarih;
+                document.getElementById('odevDersSelect').value = lessonContext.ders;
+                onOdevSubjectChanged();
+                if (lessonContext.kaynak) {
+                    const resourceSelect = document.getElementById('odevYayinSelect');
+                    const hasResource = Array.from(resourceSelect.options).some(option => option.value === lessonContext.kaynak);
+                    resourceSelect.value = hasResource ? lessonContext.kaynak : '__manual__';
+                    if (!hasResource) document.getElementById('odevYayinInput').value = lessonContext.kaynak;
+                    toggleOdevManualResource();
+                }
                 const topicSelect = document.getElementById('odevKonuSelect');
                 const hasLessonTopic = Array.from(topicSelect.options).some(option => option.value === lessonContext.konu);
                 if (!hasLessonTopic) topicSelect.add(new Option(lessonContext.konu, lessonContext.konu));
@@ -593,9 +611,7 @@ export function onOdevGradeChanged(grade, preSelectedStudentIds = null) {
     document.getElementById('odevOgrenciSecimArea').classList.remove('hidden');
     document.getElementById('odevAtaSubmitBtn').classList.remove('hidden');
     
-    const topics = getKonuListesiBySinif(grade);
-    const topicSelect = document.getElementById('odevKonuSelect');
-    topicSelect.innerHTML = topics.map(t => `<option value="${t}">${t}</option>`).join('');
+    onOdevSubjectChanged();
     
     const students = loadStudentsData();
     const filtered = students.filter(s => s.sinif === grade);
@@ -615,14 +631,29 @@ export function onOdevGradeChanged(grade, preSelectedStudentIds = null) {
     }
 }
 
+export function onOdevSubjectChanged() {
+    const grade = document.getElementById('odevGradeSelect')?.value || '';
+    const subject = document.getElementById('odevDersSelect')?.value || '';
+    const topicSelect = document.getElementById('odevKonuSelect');
+    if (topicSelect) topicSelect.innerHTML = '<option value="">Konu seçin</option>' + getKonuListesiBySinifAndDers(grade, subject).map(topic => `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`).join('');
+    const resourceSelect = document.getElementById('odevYayinSelect');
+    if (resourceSelect) resourceSelect.innerHTML = resourceOptionsHtml(grade, subject, escapeHtml);
+    toggleManualResource('odevYayinSelect', 'odevYayinManualArea');
+}
+
+export function toggleOdevManualResource() {
+    toggleManualResource('odevYayinSelect', 'odevYayinManualArea');
+}
+
 export function addOdevToGeciciList() {
     const konu = document.getElementById('odevKonuSelect').value;
     const baslama = document.getElementById('odevBaslamaTarihi').value;
     const bitis = document.getElementById('odevBitisTarihi').value;
     const tur = document.getElementById('odevTurSelect').value;
-    const yayin = document.getElementById('odevYayinInput').value.trim();
-    if (!konu || !yayin) {
-        alert("Lütfen konu ve yayın bilgilerini eksiksiz doldurun.");
+    const ders = document.getElementById('odevDersSelect')?.value || '';
+    const yayin = readResourceSelection('odevYayinSelect', 'odevYayinInput');
+    if (!ders || !konu || !yayin) {
+        alert("Lütfen ders, konu ve kaynak bilgilerini eksiksiz doldurun.");
         return;
     }
     const newHw = {
@@ -630,6 +661,7 @@ export function addOdevToGeciciList() {
         baslamaTarihi: baslama,
         bitisTarihi: bitis,
         konu: konu,
+        ders,
         tur: tur,
         yayin: yayin,
         durum: "verildi",
@@ -663,7 +695,7 @@ export function removeOdevFromGeciciList(idx) {
 }
 
 export function submitBatchOdev() {
-    const yayin = document.getElementById('odevYayinInput').value.trim();
+    const yayin = readResourceSelection('odevYayinSelect', 'odevYayinInput');
     if (window._geciciOdevListesi.length === 0) {
         if (yayin) {
             addOdevToGeciciList();
@@ -738,6 +770,8 @@ window.showOdevAtaModal = showOdevAtaModal;
 window.renderOdevAtaModal = renderOdevAtaModal;
 window.closeOdevAtaModal = closeOdevAtaModal;
 window.onOdevGradeChanged = onOdevGradeChanged;
+window.onOdevSubjectChanged = onOdevSubjectChanged;
+window.toggleOdevManualResource = toggleOdevManualResource;
 window.addOdevToGeciciList = addOdevToGeciciList;
 window.renderGeciciOdevListUI = renderGeciciOdevListUI;
 window.removeOdevFromGeciciList = removeOdevFromGeciciList;
