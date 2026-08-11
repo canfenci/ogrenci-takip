@@ -266,6 +266,8 @@ test('homework results capture main and optional subtopic errors', async () => {
   ]);
   assert.match(homework, /Yanlış Yapılan Ana Konu/);
   assert.match(homework, /Alt Konu/);
+  assert.match(homework, /manualWrongSubtopicText/);
+  assert.doesNotMatch(homework, /id="manualWrongSubtopic"/);
   assert.match(homework, /yanlisKonular/);
   assert.match(students, /Alt Konu Hataları/);
   assert.match(serviceWorker, /homework-error-topics\.js/);
