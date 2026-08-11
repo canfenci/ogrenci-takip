@@ -50,6 +50,7 @@ export function renderLessonReminderCenter() {
     const reminders = getCurrentLessonReminders().slice(0, 8);
     const permission = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
     const cards = reminders.length ? reminders.map(reminder => {
+        const messagePreview = escapeHtml(buildLessonReminderMessage(reminder));
         const stateLabel = reminder.isSent
             ? '<span class="text-green-700 dark:text-green-400 font-bold"><i class="fas fa-check-circle"></i> Gönderildi</span>'
             : reminder.isDue
@@ -57,7 +58,7 @@ export function renderLessonReminderCenter() {
                 : `<span class="text-indigo-600 dark:text-indigo-400 font-bold">${formatRemaining(reminder)}</span>`;
         const whatsappButton = reminder.normalizedPhone
             ? `<div class="flex flex-wrap gap-2">
-                <button onclick="openLessonReminderWhatsApp('${encodeURIComponent(reminder.id)}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-bold min-h-[40px]" ${!reminder.isDue || reminder.isSent ? 'disabled aria-disabled="true" style="opacity:.55"' : ''}><i class="fab fa-whatsapp"></i> ${reminder.isDue ? 'Mesajı Aç' : 'Henüz Zamanı Değil'}</button>
+                <button onclick="openLessonReminderWhatsApp('${encodeURIComponent(reminder.id)}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-bold min-h-[40px]" ${!reminder.isDue || reminder.isSent ? 'disabled aria-disabled="true" style="opacity:.55"' : ''}><i class="fab fa-whatsapp"></i> ${reminder.isSent ? 'Gönderildi' : reminder.isDue ? 'WhatsApp’tan Gönder' : 'Henüz Zamanı Değil'}</button>
                 ${reminder.isDue && !reminder.isSent ? `<button onclick="markLessonReminderSent('${encodeURIComponent(reminder.id)}')" class="border border-green-600 text-green-700 dark:text-green-400 px-3 py-2 rounded-lg text-xs font-bold min-h-[40px]"><i class="fas fa-check"></i> Gönderildi</button>` : ''}
                </div>`
             : '<span class="text-xs text-amber-700 dark:text-amber-400 font-semibold">Geçerli veli telefonu gerekli</span>';
@@ -65,6 +66,7 @@ export function renderLessonReminderCenter() {
             <div>
                 <p class="font-black text-gray-800 dark:text-white">${escapeHtml(reminder.studentName)} · ${escapeHtml(reminder.lessonName)}</p>
                 <p class="text-xs text-gray-500 mt-1">${escapeHtml(reminder.day)} ${escapeHtml(reminder.time)} · ${stateLabel}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-300 mt-2 rounded-lg bg-white/70 dark:bg-gray-800/70 px-2 py-1.5"><span class="font-bold">Hazır mesaj:</span> ${messagePreview}</p>
             </div>
             ${whatsappButton}
         </div>`;
@@ -74,7 +76,7 @@ export function renderLessonReminderCenter() {
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
             <div>
                 <h2 id="lessonReminderHeading" class="text-xl font-black text-gray-800 dark:text-white"><i class="fas fa-bell text-amber-500"></i> Ders Hatırlatmaları</h2>
-                <p class="text-sm text-gray-500">Ders başlamadan 1 saat önce bildirim ve hazır veli mesajı</p>
+                <p class="text-sm text-gray-500">Ders başlamadan 1 saat önce otomatik bildirim ve hazır veli mesajı</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button onclick="toggleLessonReminders()" class="${settings.enabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'} text-white px-4 py-2 rounded-xl text-xs font-bold min-h-[44px]"><i class="fas fa-power-off"></i> ${settings.enabled ? 'Hatırlatmalar Açık' : 'Hatırlatmaları Aç'}</button>
@@ -83,7 +85,7 @@ export function renderLessonReminderCenter() {
         </div>
         ${permission === 'denied' ? '<p class="text-xs text-red-600 dark:text-red-400 mb-3">Tarayıcı bildirimleri engellenmiş. Tarayıcı site ayarlarından izin verebilirsiniz.</p>' : ''}
         <div class="space-y-2">${cards}</div>
-        <p class="text-[11px] text-gray-400 mt-3">Otomatik kontrol uygulama açıkken çalışır. WhatsApp mesajı sizin onayınızla açılır ve gönderilir.</p>
+        <p class="text-[11px] text-gray-400 mt-3">Otomatik kontrol uygulama açıkken çalışır. Güvenlik nedeniyle WhatsApp gönderimi “WhatsApp’tan Gönder” düğmesiyle sizin onayınızdan sonra tamamlanır.</p>
     </section>`;
 }
 
@@ -121,8 +123,8 @@ export function checkLessonReminders(now = new Date()) {
     const due = getCurrentLessonReminders(now).filter(reminder => reminder.isDue && !reminder.isSent && !reminder.isNotified);
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         due.forEach(reminder => {
-            new Notification(`${reminder.studentName} · ${reminder.lessonName}`, {
-                body: `Ders saat ${reminder.time}'de başlayacak. 1 saat kaldı.`,
+            new Notification('Ders hatırlatma mesajı hazır', {
+                body: buildLessonReminderMessage(reminder),
                 icon: './icons/icon-192x192.png',
                 tag: reminder.id
             });
