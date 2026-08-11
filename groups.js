@@ -24,15 +24,15 @@ export function renderGroupsPage() {
         let groupsHtml = '';
         if (groups.length === 0) {
             groupsHtml = `
-                <div class="col-span-full flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm text-center">
-                    <div class="w-16 h-16 bg-purple-50 dark:bg-purple-950/20 rounded-full flex items-center justify-center text-purple-500 mb-4 animate-bounce">
+                <div class="app-panel col-span-full flex flex-col items-center justify-center p-8 text-center">
+                    <div class="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/20 rounded-2xl flex items-center justify-center text-indigo-600 mb-4">
                         <i class="fas fa-users text-2xl"></i>
                     </div>
                     <h3 class="text-base font-bold text-gray-850 dark:text-white mb-1">Henüz Sınıf veya Grup Bulunmuyor</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-450 max-w-sm mb-4">
                         Öğrencilerinizi toplu olarak yönetmek, ortak ödev atamak ve grup içi başarı sıralamasını görmek için ilk grubunuzu oluşturun.
                     </p>
-                    <button onclick="showCreateGroupModal()" class="px-5 py-2.5 bg-gradient-to-r from-purple-650 to-indigo-650 text-white rounded-xl font-bold text-xs shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center gap-1.5 min-h-[44px]">
+                    <button onclick="showCreateGroupModal()" class="btn-primary px-5 py-2.5 text-xs flex items-center gap-1.5 min-h-[44px]">
                         <i class="fas fa-plus"></i> Yeni Grup Oluştur
                     </button>
                 </div>
@@ -68,7 +68,7 @@ export function renderGroupsPage() {
 
                 return `
                     <div class="bg-white dark:bg-gray-805 rounded-2xl p-5 border border-gray-150 dark:border-gray-700/50 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between group relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-purple-500 to-indigo-650"></div>
+                        <div class="absolute top-0 left-0 w-1 h-full bg-indigo-600"></div>
                         <div>
                             <div class="flex justify-between items-start mb-3 pl-2">
                                 <div>
@@ -100,10 +100,10 @@ export function renderGroupsPage() {
                         </div>
 
                         <div class="grid grid-cols-2 gap-2 mt-2">
-                            <button onclick="showGroupLeaderboard('${group.id}')" class="w-full bg-gradient-to-r from-amber-500 to-orange-550 hover:from-amber-600 hover:to-orange-600 text-white py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-md shadow-amber-500/10 min-h-[40px]">
+                            <button onclick="showGroupLeaderboard('${group.id}')" class="btn-secondary w-full py-2 text-xs flex items-center justify-center gap-1 min-h-[40px]">
                                 <i class="fas fa-trophy"></i> Liderlik Tablosu
                             </button>
-                            <button onclick="showGroupOdevAtaModal('${group.id}')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-605 hover:from-purple-700 hover:to-indigo-700 text-white py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-md shadow-purple-500/10 min-h-[40px]">
+                            <button onclick="showGroupOdevAtaModal('${group.id}')" class="btn-primary w-full py-2 text-xs flex items-center justify-center gap-1 min-h-[40px]">
                                 <i class="fas fa-tasks"></i> Ödev Ata
                             </button>
                         </div>
@@ -113,22 +113,20 @@ export function renderGroupsPage() {
         }
 
         const html = `
-            <div class="space-y-6 max-w-5xl mx-auto px-1">
-                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+            <div class="app-page">
+                <header class="app-page-header">
                     <div>
-                        <h2 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent flex items-center gap-2">
-                            <i class="fas fa-users-cog text-purple-600"></i> Sınıf & Grup Yönetimi
-                        </h2>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 font-semibold">
+                        <h2 class="app-page-title">Sınıf & Gruplar</h2>
+                        <p class="app-page-subtitle">
                             Grup oluşturup üyeleri ekleyebilir, liderlik panosunu izleyebilir ve tüm gruba tek tıklamayla ödev tanımlayabilirsiniz.
                         </p>
                     </div>
                     <div>
-                        <button onclick="showCreateGroupModal()" class="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-650 hover:from-purple-700 hover:to-indigo-750 text-white rounded-xl font-bold text-xs shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition flex items-center justify-center gap-1.5 min-h-[44px]">
+                        <button onclick="showCreateGroupModal()" class="btn-primary w-full sm:w-auto px-5 py-2.5 text-xs flex items-center justify-center gap-1.5 min-h-[44px]">
                             <i class="fas fa-plus"></i> Yeni Grup Oluştur
                         </button>
                     </div>
-                </div>
+                </header>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     ${groupsHtml}

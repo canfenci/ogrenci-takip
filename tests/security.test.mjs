@@ -152,7 +152,7 @@ test('settings navigation owns the all-student reminder center', async () => {
   const schedule = await readProjectFile('schedule.js');
   assert.match(index, /sidebar-nav-general[^>]+>[\s\S]*Ayarlar/);
   assert.match(students, /renderLessonReminderCenter/);
-  assert.match(students, /> Ayarlar/);
+  assert.match(students, /app-page-title">Ayarlar/);
   assert.doesNotMatch(schedule, /renderLessonReminderCenter/);
 });
 
@@ -163,7 +163,7 @@ test('home and settings are separate navigation destinations', async () => {
   assert.match(index, /sidebar-nav-general[^>]+renderGenelIslemler/);
   assert.match(students, /function renderReminderHome/);
   assert.match(students, /mobile-nav-reminders/);
-  assert.match(students, /<i class="fas fa-cog text-slate-500"><\/i> Ayarlar/);
+  assert.match(students, /app-page-title">Ayarlar/);
 });
 
 test('lesson records link to the canonical homework workflow without duplicate entry fields', async () => {
@@ -322,7 +322,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v55/);
+  assert.match(serviceWorker, /canfenci-cache-v56/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -334,7 +334,19 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v55/);
+  assert.match(serviceWorker, /canfenci-cache-v56/);
+});
+
+test('schedule groups and settings use the unified workspace design', async () => {
+  const [schedule, groups, students, serviceWorker] = await Promise.all([
+    readProjectFile('schedule.js'), readProjectFile('groups.js'), readProjectFile('students.js'), readProjectFile('sw.js')
+  ]);
+  assert.match(schedule, /app-page-title">Ders Programı/);
+  assert.match(schedule, /Haftalık Çizelge/);
+  assert.doesNotMatch(schedule, /Excel Çizelgesi/);
+  assert.match(groups, /app-page-title">Sınıf & Gruplar/);
+  assert.match(students, /app-page-title">Ayarlar/);
+  assert.match(serviceWorker, /canfenci-cache-v56/);
 });
 
 test('students guidance and homework share the unified application surfaces', async () => {

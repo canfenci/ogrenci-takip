@@ -43,7 +43,7 @@ export function renderSchedulePage() {
             if (uniqueHoursSelected.length === 0) {
                 studentScheduleHtml = `
                     <div class="overflow-x-auto rounded-xl border border-gray-300 dark:border-gray-700 shadow-inner">
-                        <table class="w-full border-collapse border-spacing-0 text-left">
+                        <table class="app-data-table w-full text-left">
                             <thead>
                                 <tr class="bg-indigo-700 text-white text-base">
                                     <th class="border border-gray-300 dark:border-gray-600 p-3 text-center w-[100px] font-bold text-base">Saat</th>
@@ -96,7 +96,7 @@ export function renderSchedulePage() {
                 
                 studentScheduleHtml = `
                     <div class="overflow-x-auto rounded-xl border border-gray-400 dark:border-gray-600 shadow-lg">
-                        <table class="w-full border-collapse border-spacing-0 text-left weekly-schedule-table">
+                        <table class="app-data-table w-full text-left weekly-schedule-table">
                             <thead class="bg-gray-800 dark:bg-gray-900 text-white">
                                 <tr class="text-white text-base">
                                     <th class="border border-gray-400 dark:border-gray-600 p-3.5 text-center font-bold w-[100px] text-base">Saat</th>
@@ -238,19 +238,18 @@ export function renderSchedulePage() {
         }
         
         const html = `
-            <div class="space-y-8">
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-100 dark:border-gray-700">
-                    <div class="flex justify-between items-center mb-6 flex-wrap gap-4 border-b dark:border-gray-750 pb-3">
+            <div class="app-page">
+                <header class="app-page-header"><div><h2 class="app-page-title">Ders Programı</h2><p class="app-page-subtitle">Haftalık dersleri düzenleyin ve program yoğunluğunu izleyin.</p></div></header>
+                <div class="app-panel p-5">
+                    <div class="flex justify-between items-center mb-5 flex-wrap gap-4 border-b dark:border-gray-700 pb-4">
                         <div>
-                            <h2 class="text-2xl font-black text-gray-850 dark:text-white flex items-center gap-2">
-                                <i class="fas fa-calendar-alt text-indigo-600 dark:text-indigo-400"></i> Ders Programı Düzenle
-                            </h2>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 font-semibold">Öğrencinin haftalık ders çizelgesini görüntüleyin, ekleyin ve düzenleyin.</p>
+                            <h3 class="font-black text-gray-850 dark:text-white">Öğrenci Programı</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Seçili öğrencinin haftalık çizelgesi</p>
                         </div>
                         <div class="flex items-center gap-3 flex-wrap">
                             <div class="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-xl border dark:border-gray-700">
                                 <button onclick="setScheduleViewMode('excel')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${viewMode === 'excel' ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-750 dark:hover:text-gray-300'}">
-                                    <i class="fas fa-table"></i> Excel Çizelgesi
+                                    <i class="fas fa-calendar-week"></i> Haftalık Çizelge
                                 </button>
                                 <button onclick="setScheduleViewMode('agenda')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${viewMode === 'agenda' ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-750 dark:hover:text-gray-300'}">
                                     <i class="fas fa-th-list"></i> Ajanda (Kart)
@@ -262,7 +261,7 @@ export function renderSchedulePage() {
                                     ${students.map(s => `<option value="${s.id}" ${s.id === selectedStudentId ? 'selected' : ''}>${escapeHtml(s.adSoyad)}</option>`).join('')}
                                 </select>
                             </div>
-                            <button onclick="showAddScheduleModal('${selectedStudentId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow min-h-[44px]">
+                            <button onclick="showAddScheduleModal('${selectedStudentId}')" class="btn-primary px-4 py-2.5 text-xs flex items-center gap-1.5 min-h-[44px]">
                                 <i class="fas fa-plus-circle"></i> Ders Ekle
                             </button>
                         </div>
@@ -271,16 +270,14 @@ export function renderSchedulePage() {
                     ${studentScheduleHtml}
                 </div>
                 
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-100 dark:border-gray-700">
+                <div class="app-panel p-5">
                     <div class="mb-6 border-b dark:border-gray-750 pb-3">
-                        <h2 class="text-2xl font-black text-gray-850 dark:text-white flex items-center gap-2">
-                            <i class="fas fa-users text-purple-600 dark:text-purple-400"></i> Tüm Öğrencilerin Haftalık Ders Programı
-                        </h2>
+                        <h3 class="font-black text-gray-850 dark:text-white">Tüm Öğrencilerin Haftalık Programı</h3>
                         <p class="text-sm text-gray-500 dark:text-gray-400 font-semibold">Tüm öğrencilerin haftalık program yoğunluğunu tek bir çizelgede takip edin.</p>
                     </div>
                     
                     <div class="overflow-x-auto rounded-xl border border-gray-400 dark:border-gray-650 shadow-lg">
-                        <table class="w-full border-collapse border-spacing-0 text-left">
+                        <table class="app-data-table w-full text-left">
                             <thead>
                                 <tr class="bg-purple-700 text-white text-sm">
                                     <th class="border border-gray-400 dark:border-gray-650 p-3.5 text-center font-bold w-[100px]">Saat</th>
@@ -385,7 +382,7 @@ export function showAddScheduleModal(studentId, defaultDay = "Pazartesi") {
                             }).join('')}
                         </select>
                     </div>
-                    <button onclick="addScheduleFromModal('${studentId}')" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white py-3 rounded-xl font-bold mt-2 shadow-md min-h-[44px]">Ekle</button>
+                    <button onclick="addScheduleFromModal('${studentId}')" class="btn-primary w-full py-3 mt-2 min-h-[44px]">Dersi Programa Ekle</button>
                     <button onclick="closeAddScheduleModal()" class="w-full border border-gray-300 dark:border-gray-600 py-3 rounded-xl font-semibold min-h-[44px]">İptal</button>
                 </div>
             </div>
