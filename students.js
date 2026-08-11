@@ -216,11 +216,13 @@ export function editStudent(id) {
     const schoolDropdownOptions = POPULER_LISELER.map(l => `<option value="${l.ad}" data-net="${l.net}" ${s.hedefLise === l.ad ? 'selected' : ''}>${l.ad} (Taban: ${l.tabanPuan}, Net: ${l.net})</option>`).join('');
     
     const modal = document.createElement('div');
-    modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4";
+    modal.id = "editStudentModal";
+    modal.className = "app-modal-backdrop";
+    modal.addEventListener('click', event => { if (event.target === modal) modal.remove(); });
     modal.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-xl border">
-            <h2 class="text-xl font-bold mb-4">✏️ Öğrenci Düzenle</h2>
-            <div class="space-y-3">
+        <div class="app-modal max-w-md" onclick="event.stopPropagation()">
+            <div class="app-modal-header"><div><h2 class="app-page-title text-xl">Öğrenci Bilgilerini Düzenle</h2><p class="app-page-subtitle">İletişim, hedef ve ders ücreti bilgilerini güncelleyin.</p></div><button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Pencereyi kapat"><i class="fas fa-times"></i></button></div>
+            <div class="app-modal-body space-y-3">
                 <div>
                     <label class="block text-xs font-semibold mb-1">Ad Soyad</label>
                     <input id="editName" class="student-form-input min-h-[44px]" value="${escapeHtml(s.adSoyad)}" placeholder="Ad Soyad" required>
@@ -259,8 +261,7 @@ export function editStudent(id) {
                     <label class="block text-xs font-semibold mb-1">Veli Telefonu</label>
                     <input type="tel" inputmode="tel" autocomplete="tel" id="editVeliTel" class="student-form-input min-h-[44px]" placeholder="05xx xxx xx xx" value="${escapeHtml(s.veliTel || '')}">
                 </div>
-                <button onclick="saveStudentEdit('${id}')" class="bg-blue-600 hover:bg-blue-700 text-white w-full py-2.5 rounded-xl font-bold mt-2 min-h-[44px]">Kaydet</button>
-                <button onclick="this.closest('.fixed').remove()" class="w-full border border-gray-300 dark:border-gray-600 py-2.5 rounded-xl mt-2 min-h-[44px]">İptal</button>
+                <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2"><button onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary flex-1 py-2.5 min-h-[44px]">İptal</button><button onclick="saveStudentEdit('${id}')" class="btn-primary flex-1 py-2.5 min-h-[44px]"><i class="fas fa-save mr-1"></i> Değişiklikleri Kaydet</button></div>
             </div>
         </div>
     `;
@@ -291,7 +292,7 @@ export function saveStudentEdit(id) {
         students[sIdx].dersUcreti = validation.values.fee;
         students[sIdx].veliTel = validation.values.phone;
         saveStudentsData(students);
-        document.querySelector('.fixed')?.remove();
+        document.getElementById('editStudentModal')?.remove();
         renderHomeScreen();
     }
 }
@@ -301,10 +302,10 @@ export function showAddStudentModal() {
     const schoolDropdownOptions = POPULER_LISELER.map(l => `<option value="${l.ad}" data-net="${l.net}">${l.ad} (Taban: ${l.tabanPuan}, Net: ${l.net})</option>`).join('');
     
     const modalHtml = `
-        <div id="addStudentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="if(event.target===this) closeAddStudentModal()">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-xl border" onclick="event.stopPropagation()">
-                <h2 class="text-xl font-bold mb-4">➕ Yeni Öğrenci Ekle</h2>
-                <div class="space-y-3">
+        <div id="addStudentModal" class="app-modal-backdrop" onclick="if(event.target===this) closeAddStudentModal()">
+            <div class="app-modal max-w-md" onclick="event.stopPropagation()">
+                <div class="app-modal-header"><div><h2 class="app-page-title text-xl">Yeni Öğrenci</h2><p class="app-page-subtitle">Takip edilecek öğrenci ve hedef bilgilerini ekleyin.</p></div><button onclick="closeAddStudentModal()" class="app-modal-close" aria-label="Pencereyi kapat"><i class="fas fa-times"></i></button></div>
+                <div class="app-modal-body space-y-3">
                     <div>
                         <label class="block text-xs font-semibold mb-1">Ad Soyad</label>
                         <input type="text" id="newName" placeholder="Ad Soyad" class="student-form-input min-h-[44px]" required>
@@ -343,8 +344,7 @@ export function showAddStudentModal() {
                         <label class="block text-xs font-semibold mb-1">Veli Telefonu</label>
                         <input type="tel" inputmode="tel" autocomplete="tel" id="newVeliTel" placeholder="05xx xxx xx xx" class="student-form-input min-h-[44px]">
                     </div>
-                    <button onclick="addStudentFromModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold mt-2 min-h-[44px]">Kaydet</button>
-                    <button onclick="closeAddStudentModal()" class="w-full border border-gray-300 dark:border-gray-600 py-2.5 rounded-xl min-h-[44px]">İptal</button>
+                    <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2"><button onclick="closeAddStudentModal()" class="btn-secondary flex-1 py-2.5 min-h-[44px]">İptal</button><button onclick="addStudentFromModal()" class="btn-primary flex-1 py-2.5 min-h-[44px]"><i class="fas fa-user-plus mr-1"></i> Öğrenciyi Kaydet</button></div>
                 </div>
             </div>
         </div>

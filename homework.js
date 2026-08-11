@@ -414,12 +414,13 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     const availableTopics = getKonuListesiBySinifAndDers(student.sinif, odev.ders || odev.kaynakDers?.ders || '');
     const topicOptions = availableTopics.includes(odev.konu) ? availableTopics : [odev.konu, ...availableTopics].filter(Boolean);
     const modal = document.createElement('div');
-    modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4";
+    modal.id = "homeworkResultModal";
+    modal.className = "app-modal-backdrop";
+    modal.addEventListener('click', event => { if (event.target === modal) modal.remove(); });
     modal.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-xl">
-            <h2 class="text-xl font-bold mb-1">📝 Ödev Sonucu Gir</h2>
-            <p class="text-xs text-gray-500 mb-4">${escapeHtml(odev.konu)} (${escapeHtml(odev.yayin)})</p>
-            <div class="space-y-3">
+        <div class="app-modal max-w-md" onclick="event.stopPropagation()">
+            <div class="app-modal-header"><div><h2 class="app-page-title text-xl">Ödev Sonucu Gir</h2><p class="app-page-subtitle">${escapeHtml(odev.konu)} · ${escapeHtml(odev.yayin)}</p></div><button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Pencereyi kapat"><i class="fas fa-times"></i></button></div>
+            <div class="app-modal-body space-y-3">
                 <div>
                     <label class="text-sm font-semibold">Doğru Sayısı</label>
                     <input type="number" id="manualCorrect" min="0" value="0" class="student-form-input min-h-[44px]">
@@ -440,8 +441,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                         <input id="manualWrongSubtopicText" class="student-form-input min-h-[44px] mt-1" placeholder="Boş bırakabilir veya örn. Eksen Eğikliği yazabilirsiniz">
                     </div>
                 </div>
-                <button onclick="saveManualOdevResult('${studentId}', '${hwId}')" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-semibold mt-2 min-h-[44px]">Kaydet</button>
-                <button onclick="this.closest('.fixed').remove()" class="w-full border py-2.5 rounded-xl min-h-[44px]">İptal</button>
+                <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2"><button onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary flex-1 py-2.5 min-h-[44px]">İptal</button><button onclick="saveManualOdevResult('${studentId}', '${hwId}')" class="btn-primary flex-1 py-2.5 min-h-[44px]"><i class="fas fa-check mr-1"></i> Sonucu Kaydet</button></div>
             </div>
         </div>
     `;
@@ -468,7 +468,7 @@ export function saveManualOdevResult(studentId, hwId) {
             yanlis: wrong,
             yanlisKonular: errorTopics
         }).then(() => {
-            document.querySelector('.fixed')?.remove();
+            document.getElementById('homeworkResultModal')?.remove();
             renderStudentOdevDetay(studentId);
         }).catch(err => console.error(err));
     } else {
@@ -484,7 +484,7 @@ export function saveManualOdevResult(studentId, hwId) {
                 saveStudentsData(students);
             }
         }
-        document.querySelector('.fixed')?.remove();
+        document.getElementById('homeworkResultModal')?.remove();
         renderStudentOdevDetay(studentId);
     }
 }
@@ -539,13 +539,10 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
         </div>
     ` : '';
     const modalHtml = `
-        <div id="odevAtaModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto p-4" onclick="if(event.target===this) closeOdevAtaModal()">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl" onclick="event.stopPropagation()">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-xl font-bold">📋 Ödev Ata</h2>
-                    <button onclick="closeOdevAtaModal()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button>
-                </div>
-                <div class="space-y-4">
+        <div id="odevAtaModal" class="app-modal-backdrop" onclick="if(event.target===this) closeOdevAtaModal()">
+            <div class="app-modal max-w-2xl" onclick="event.stopPropagation()">
+                <div class="app-modal-header"><div><h2 class="app-page-title text-xl">Ödev Ata</h2><p class="app-page-subtitle">Ödev ayrıntılarını belirleyip öğrencilere toplu olarak atayın.</p></div><button onclick="closeOdevAtaModal()" class="app-modal-close" aria-label="Pencereyi kapat"><i class="fas fa-times"></i></button></div>
+                <div class="app-modal-body space-y-4">
                     ${lessonContextHtml}
                     <div>
                         <label class="block text-sm font-bold mb-1">Sınıf Seviyesi Seçin (Dinamik Filtreleme)</label>
@@ -602,7 +599,7 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
                             <input type="text" id="odevCalismaDetayi" maxlength="120" placeholder="Örn: 1. Deneme, Test 24-25 veya Sayfa 40-45" class="student-form-input min-h-[44px]">
                             <p class="text-xs text-gray-400 mt-1">Kaynakta öğrencinin çözeceği bölümü belirtin.</p>
                         </div>
-                        <button onclick="addOdevToGeciciList()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-semibold transition text-sm flex items-center justify-center gap-1 min-h-[44px]">
+                        <button onclick="addOdevToGeciciList()" class="btn-secondary w-full py-2.5 text-sm flex items-center justify-center gap-1 min-h-[44px]">
                             <i class="fas fa-plus"></i> Listeye Ödev Ekle
                         </button>
                     </div>
@@ -614,8 +611,8 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
                         <label class="block text-sm font-bold mb-1">Öğrenci Seçimi:</label>
                         <div id="odevOgrenciChecklist" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto border p-3 rounded-xl bg-gray-50 dark:bg-gray-900/30"></div>
                     </div>
-                    <button id="odevAtaSubmitBtn" class="hidden w-full bg-green-650 hover:bg-green-755 text-white py-3 rounded-xl font-bold transition shadow-lg mt-3 min-h-[44px]">
-                        📌 Seçilen Öğrencilere Ata
+                    <button id="odevAtaSubmitBtn" class="btn-primary hidden w-full py-3 mt-3 min-h-[44px]">
+                        <i class="fas fa-check mr-1"></i> Seçilen Öğrencilere Ata
                     </button>
                 </div>
             </div>
