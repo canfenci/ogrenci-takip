@@ -1501,18 +1501,15 @@ export function renderGenelIslemler() {
             <button type="button" onclick="removeResourceBook('${book.id}')" class="min-w-[44px] min-h-[44px] text-red-500" aria-label="${escapeHtml(book.name)} kaynağını sil"><i class="fas fa-trash"></i></button>
         </div>`).join('') : '<p class="text-sm text-gray-500">Henüz kaynak kitap eklenmedi.</p>';
     const html = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl max-w-xl mx-auto border border-gray-100/20 dark:border-gray-700/50">
-            <h2 class="page-heading text-gray-805 dark:text-white">
-                <i class="fas fa-cog text-slate-500"></i> Ayarlar
-            </h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 font-semibold">
+        <div class="app-page max-w-3xl">
+            <header class="app-page-header"><div><h2 class="app-page-title">Ayarlar</h2><p class="app-page-subtitle">
                 Uygulama genel özelliklerini, finans durumunu, veri yedeklerini ve toplu işlemlerinizi buradan yönetebilirsiniz.
-            </p>
+            </p></div></header>
 
             <!-- Öğretmen Bilgi Kartı & Branş Seçimi -->
-            <div class="mb-6 p-4 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-xl border border-indigo-100/30 dark:border-indigo-900/30 flex flex-col gap-4">
+            <div class="app-panel p-5 flex flex-col gap-4">
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-indigo-650 flex items-center justify-center text-white text-xl font-black shadow-sm">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-xl font-black">
                         <i class="fas fa-chalkboard-teacher"></i>
                     </div>
                     <div class="flex-1 min-w-0">
@@ -1548,21 +1545,21 @@ export function renderGenelIslemler() {
                     <div id="branchSettingsFeedback" class="text-xs text-green-600 dark:text-green-400 mt-2 font-semibold hidden flex items-center gap-1">
                         <i class="fas fa-check-circle"></i> Branş ayarlarınız güncellendi.
                     </div>
-                    <button type="button" onclick="saveTeacherProfileFromSettings()" class="mt-3 w-full sm:w-auto px-5 min-h-[44px] rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition">
+                    <button type="button" onclick="saveTeacherProfileFromSettings()" class="btn-primary mt-3 w-full sm:w-auto px-5 min-h-[44px] text-sm">
                         <i class="fas fa-save mr-1"></i> Öğretmen Profilini Kaydet
                     </button>
                 </div>
             </div>
 
-            <div class="mb-6 p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/10">
-                <h3 class="font-black text-gray-800 dark:text-white"><i class="fas fa-book text-emerald-600"></i> Kaynak Kitaplar</h3>
+            <div class="app-panel p-5">
+                <h3 class="font-black text-gray-800 dark:text-white"><i class="fas fa-book text-indigo-600"></i> Kaynak Kitaplar</h3>
                 <p class="text-xs text-gray-500 mt-1 mb-3">Kaynakları sınıf ve ders düzeyine göre tanımlayın; ödev, ders kaydı ve konu denemelerinde listeden seçin.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <select id="resourceGrade" class="student-form-input min-h-[44px]"><option value="">Sınıf seçin</option>${['5','6','7','8'].map(grade => `<option value="${grade}">${grade}. Sınıf</option>`).join('')}</select>
                     <select id="resourceSubject" class="student-form-input min-h-[44px]"><option value="">Ders seçin</option>${(store.teacherBranches || []).map(subject => `<option value="${escapeHtml(subject)}">${escapeHtml(subject)}</option>`).join('')}</select>
                     <input id="resourceName" maxlength="120" class="student-form-input min-h-[44px]" placeholder="Kitap / yayın adı">
                 </div>
-                <button type="button" onclick="saveNewResourceBook()" class="mt-3 w-full min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"><i class="fas fa-plus mr-1"></i> Kaynak Kitap Ekle</button>
+                <button type="button" onclick="saveNewResourceBook()" class="btn-primary mt-3 w-full min-h-[44px]"><i class="fas fa-plus mr-1"></i> Kaynak Kitap Ekle</button>
                 <div class="mt-4 space-y-2">${resourceBookRows}</div>
             </div>
 
@@ -1575,21 +1572,21 @@ export function renderGenelIslemler() {
                     </div>
                 </button>
                 <button onclick="renderFinanceReport()" class="flex items-center gap-3 p-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition font-medium text-left">
-                    <i class="fas fa-wallet text-amber-500 text-xl w-8 text-center"></i>
+                    <i class="fas fa-wallet text-indigo-500 text-xl w-8 text-center"></i>
                     <div>
                         <div class="text-sm font-bold">Finans / Ödeme Raporu</div>
                         <div class="text-sm text-gray-450">Genel Muhasebe Takibi</div>
                     </div>
                 </button>
                 <button onclick="showDenemeAtaModal()" class="flex items-center gap-3 p-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition font-medium text-left">
-                    <i class="fas fa-copy text-teal-500 text-xl w-8 text-center"></i>
+                    <i class="fas fa-copy text-indigo-500 text-xl w-8 text-center"></i>
                     <div>
                         <div class="text-sm font-bold">Toplu Deneme Ata</div>
                         <div class="text-sm text-gray-450">Çoklu Öğrenci Seçimi</div>
                     </div>
                 </button>
                 <button onclick="renderGroupsPage()" class="flex items-center gap-3 p-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition font-medium text-left">
-                    <i class="fas fa-users-cog text-purple-500 text-xl w-8 text-center"></i>
+                    <i class="fas fa-users-cog text-indigo-500 text-xl w-8 text-center"></i>
                     <div>
                         <div class="text-sm font-bold">Sınıf & Grup Yönetimi</div>
                         <div class="text-sm text-gray-450">Gruplar, Ödevler ve Liderlik</div>
