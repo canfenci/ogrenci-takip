@@ -297,3 +297,18 @@ test('homework tracking includes unified test and topic-exam performance chart',
   assert.match(homework, /Ort\. Net/);
   assert.match(serviceWorker, /work-performance-insights\.js/);
 });
+
+test('student list opens a concise summary and guidance owns the full student file', async () => {
+  const [index, students, guidance, serviceWorker] = await Promise.all([
+    readProjectFile('index.html'), readProjectFile('students.js'), readProjectFile('guidance.js'), readProjectFile('sw.js')
+  ]);
+  assert.match(index, /sidebar-nav-guidance/);
+  assert.match(index, /Rehberlik/);
+  assert.match(students, /renderStudentSummaryPanel/);
+  assert.match(students, /Öğrenci özetini aç/);
+  assert.match(students, /Rehberlik Dosyasını Aç/);
+  assert.match(students, /Rehberlik Planı/);
+  assert.match(students, /window\.selectStudent = \(id\) => renderStudentSummaryPanel/);
+  assert.match(guidance, /openGuidanceStudent/);
+  assert.match(serviceWorker, /guidance\.js/);
+});

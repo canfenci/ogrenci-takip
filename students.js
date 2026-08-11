@@ -63,28 +63,19 @@ export function renderHomeScreen() {
     const studentsHtml = sorted.length === 0 
         ? '<div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 text-center text-gray-500">Kayıtlı öğrenci bulunmuyor.</div>' 
         : sorted.map(s => {
-            const son = s.denemeler?.length ? s.denemeler[s.denemeler.length - 1].toplamNet : null;
-            const bransOrt = getBransOrtalamaNet(s);
-            const genelOrt = getGenelOrtalamaNet(s);
             const sinifGoster = s.sinif ? `${s.sinif}. Sınıf` : "Sınıf belirtilmemiş";
             
             return `
                 <div onclick="selectStudent('${s.id}')" class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5 relative cursor-pointer hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
                     <div class="pr-16">
                         <h3 class="text-xl font-bold">${escapeHtml(s.adSoyad)}</h3>
-                        <p class="text-base text-gray-600 dark:text-gray-300">${escapeHtml(s.okul)} | ${sinifGoster}</p>
-                        <p class="text-blue-600 dark:text-blue-400 font-semibold text-base">🎯 ${s.hedefNet} Net Hedefi</p>
-                        <div class="flex flex-wrap gap-2 mt-2">
-                            ${bransOrt !== null ? `<span class="stat-badge text-base">🔬 Konu Ort: ${bransOrt}</span>` : ''}
-                            ${genelOrt !== null ? `<span class="stat-badge text-base">📘 Genel Ort: ${genelOrt}</span>` : ''}
-                            ${son !== null ? `<span class="stat-badge text-base">📈 Son Net: ${son}</span>` : ''}
-                        </div>
+                        <p class="text-base text-gray-600 dark:text-gray-300">${escapeHtml(s.okul || 'Okul belirtilmemiş')} · ${escapeHtml(sinifGoster)}</p>
                     </div>
                     <div class="absolute top-2 right-2 flex gap-1">
                         <button onclick="event.stopPropagation(); editStudent('${s.id}')" class="text-blue-500 hover:text-blue-700 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center" title="Düzenle">✏️</button>
                         <button onclick="event.stopPropagation(); deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center" title="Sil">🗑️</button>
                     </div>
-                    <div class="text-sm text-gray-400 dark:text-gray-550 mt-3">📌 ${s.denemeler?.length || 0} deneme</div>
+                    <div class="text-sm font-bold text-indigo-600 dark:text-indigo-300 mt-4"><i class="fas fa-arrow-right mr-1"></i> Öğrenci özetini aç</div>
                 </div>
             `;
         }).join('');
@@ -115,6 +106,34 @@ export function renderHomeScreen() {
         ${sortHtml}
         <div class="grid md:grid-cols-2 gap-5">${studentsHtml}</div>
     `;
+}
+
+export function renderStudentSummaryPanel(id) {
+    store.currentPage = 'student-summary';
+    updateMobileNavActive('mobile-nav-home');
+    const student = loadStudentsData().find(item => item.id === id);
+    if (!student) return renderHomeScreen();
+    const homeworks = getStudentOdevler(student);
+    const lessons = loadDersKayitlari(id);
+    const schedule = loadSchedule(id);
+    const summary = calculateStudentSummary(student, homeworks, lessons, schedule);
+    const activeHomeworkCount = homeworks.filter(homework => homework.durum !== 'tamamlandi').length;
+    const latestHomework = homeworks.slice().sort((a, b) => String(b.bitisTarihi || '').localeCompare(String(a.bitisTarihi || '')))[0];
+    const latestExam = (student.denemeler || []).slice().sort((a, b) => String(b.tarih || '').localeCompare(String(a.tarih || '')))[0];
+    document.getElementById('dynamic-content').innerHTML = `
+        <div class="max-w-4xl mx-auto space-y-4">
+            <button onclick="renderHomeScreen()" class="min-h-[44px] px-4 rounded-xl bg-gray-200 dark:bg-gray-700 font-bold"><i class="fas fa-arrow-left mr-1"></i> Öğrenci Listesi</button>
+            <div class="rounded-2xl bg-white dark:bg-gray-800 border shadow p-6">
+                <div class="flex items-start justify-between gap-4 flex-wrap"><div><h2 class="text-2xl font-black">${escapeHtml(student.adSoyad)}</h2><p class="text-sm text-gray-500 mt-1">${escapeHtml(student.okul || 'Okul belirtilmemiş')} · ${escapeHtml(student.sinif || '—')}. Sınıf</p><p class="text-sm font-bold text-blue-600 mt-2">🎯 ${escapeHtml(student.hedefNet || '—')} net hedefi</p></div><button onclick="editStudent('${id}')" class="min-h-[44px] px-4 rounded-xl border font-bold text-blue-600"><i class="fas fa-edit mr-1"></i> Bilgileri Düzenle</button></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="rounded-2xl bg-white dark:bg-gray-800 border p-4"><span class="text-xs font-bold text-gray-500">Yaklaşan Ders</span><p class="font-black mt-1">${summary.upcomingLesson ? `${escapeHtml(summary.upcomingLesson.gun)} · ${escapeHtml(summary.upcomingLesson.saat)} · ${escapeHtml(summary.upcomingLesson.dersAdi)}` : 'Planlanmış ders yok'}</p></div>
+                <div class="rounded-2xl bg-white dark:bg-gray-800 border p-4"><span class="text-xs font-bold text-gray-500">Aktif Ödev</span><p class="font-black mt-1">${activeHomeworkCount}</p><p class="text-xs text-gray-500">${latestHomework ? `${escapeHtml(latestHomework.konu)} · ${escapeHtml(latestHomework.calismaDetayi || latestHomework.tur)}` : 'Ödev kaydı yok'}</p></div>
+                <div class="rounded-2xl bg-white dark:bg-gray-800 border p-4"><span class="text-xs font-bold text-gray-500">Son Deneme</span><p class="font-black mt-1">${latestExam ? `${Number(latestExam.toplamNet || 0).toFixed(2)} net` : 'Deneme kaydı yok'}</p><p class="text-xs text-gray-500">${latestExam ? escapeHtml(latestExam.denemeAdi) : ''}</p></div>
+                <div class="rounded-2xl bg-white dark:bg-gray-800 border p-4"><span class="text-xs font-bold text-gray-500">Son Ders</span><p class="font-black mt-1">${summary.lastLesson ? escapeHtml(summary.lastLesson.konu || summary.lastLesson.ders || 'Ders') : 'Ders kaydı yok'}</p><p class="text-xs text-gray-500">${summary.lastLesson ? escapeHtml(summary.lastLesson.tarih || '') : ''}</p></div>
+            </div>
+            <button onclick="openGuidanceStudent('${id}')" class="w-full min-h-[56px] rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black shadow-lg"><i class="fas fa-compass mr-2"></i> Rehberlik Dosyasını Aç</button>
+        </div>`;
 }
 
 export function getSortedStudents(students, order) {
@@ -503,11 +522,12 @@ export function importBackup() {
     reader.readAsText(file);
 }
 
-export async function renderStudentPanel(id) {
+export async function renderStudentPanel(id, origin = store.studentPanelOrigin || 'guidance') {
     try {
         store.currentPage = "student";
         if (window.currentPage) window.currentPage = "student";
-        updateMobileNavActive('mobile-nav-home');
+        store.studentPanelOrigin = origin;
+        updateMobileNavActive(origin === 'guidance' ? 'mobile-nav-guidance' : 'mobile-nav-home');
         const students = loadStudentsData();
         const student = students.find(s => s.id === id);
         if (!student) {
@@ -916,7 +936,7 @@ export async function renderStudentPanel(id) {
         const html = `
             <div class="pb-28 sm:pb-8 space-y-6">
                 <div class="flex flex-wrap justify-between gap-3 mb-4">
-                <button onclick="renderHomeScreen()" class="bg-gray-200 dark:bg-gray-700 px-4 py-2.5 rounded-xl min-h-[44px] font-semibold"><i class="fas fa-arrow-left"></i> Öğrenci Listesi</button>
+                <button onclick="${origin === 'guidance' ? 'renderGuidancePage()' : 'renderHomeScreen()'}" class="bg-gray-200 dark:bg-gray-700 px-4 py-2.5 rounded-xl min-h-[44px] font-semibold"><i class="fas fa-arrow-left"></i> ${origin === 'guidance' ? 'Rehberlik' : 'Öğrenci Listesi'}</button>
                 <div class="flex gap-2">
                     <button onclick="shareReportWhatsApp('${id}')" class="bg-green-600 text-white px-5 py-2.5 rounded-xl shadow font-semibold flex items-center gap-2 min-h-[44px] hover:bg-green-700 transition"><i class="fab fa-whatsapp text-lg"></i> Veli Raporu</button>
                     <div class="relative inline-block">
@@ -1076,7 +1096,7 @@ export async function renderStudentPanel(id) {
                     🔬 Konu Denemeleri
                 </button>
                 <button onclick="switchStudentTab('calisma')" id="tabStudentCalismaBtn" class="flex-1 py-2.5 text-center font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-705 transition-all duration-200 text-sm sm:text-base">
-                    🎯 Çalışma & Gelişim Planı
+                    🎯 Rehberlik Planı
                 </button>
             </div>
             
@@ -1732,7 +1752,8 @@ window.switchStudentTab = switchStudentTab;
 window.exportBackup = exportBackup;
 window.showImportModal = showImportModal;
 window.importBackup = importBackup;
-window.selectStudent = async (id) => { await renderStudentPanel(id); };
+window.renderStudentSummaryPanel = renderStudentSummaryPanel;
+window.selectStudent = (id) => renderStudentSummaryPanel(id);
 window.renderStudentPanel = renderStudentPanel;
 window.renderGenelIslemler = renderGenelIslemler;
 window.renderReminderHome = renderReminderHome;
