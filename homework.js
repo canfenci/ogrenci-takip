@@ -206,7 +206,7 @@ export function renderOdevTakibi() {
         return;
     }
     const todayStr = new Date().toISOString().slice(0, 10);
-    let cardsHtml = '<div class="grid md:grid-cols-2 gap-5">';
+    let cardsHtml = '<div class="grid md:grid-cols-2 gap-4">';
     for (let s of students) {
         const odevler = getStudentOdevler(s);
         const bekleyenCount = odevler.filter(o => o.durum === 'verildi').length;
@@ -214,16 +214,16 @@ export function renderOdevTakibi() {
         const gecikenCount = odevler.filter(o => o.durum === 'verildi' && todayStr > o.bitisTarihi).length;
         
         cardsHtml += `
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5 hover:shadow-lg transition cursor-pointer hover:-translate-y-1" onclick="renderStudentOdevDetay('${s.id}')">
+            <div class="app-panel p-5 transition cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700" onclick="renderStudentOdevDetay('${s.id}')">
                 <div class="flex justify-between items-center mb-1">
                     <h3 class="text-xl font-bold">${escapeHtml(s.adSoyad)}</h3>
                     <i class="fas fa-chevron-right text-gray-400"></i>
                 </div>
                 <p class="text-sm text-gray-500 mb-3">${escapeHtml(s.okul)} | ${s.sinif ? s.sinif + '. Sınıf' : 'Sınıf belirtilmemiş'}</p>
                 <div class="flex gap-2 flex-wrap">
-                    <span class="stat-badge text-base bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">⏳ Bekleyen: ${bekleyenCount}</span>
-                    <span class="stat-badge text-base bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">✅ Tamamlanan: ${tamamlananCount}</span>
-                    ${gecikenCount > 0 ? `<span class="stat-badge text-base bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 font-bold animate-pulse">🚨 Geciken: ${gecikenCount}</span>` : ''}
+                    <span class="status-pill status-pill-warning"><i class="fas fa-clock"></i> ${bekleyenCount} bekleyen</span>
+                    <span class="status-pill status-pill-success"><i class="fas fa-check"></i> ${tamamlananCount} tamamlanan</span>
+                    ${gecikenCount > 0 ? `<span class="status-pill status-pill-danger"><i class="fas fa-triangle-exclamation"></i> ${gecikenCount} geciken</span>` : ''}
                 </div>
             </div>
         `;
@@ -231,16 +231,10 @@ export function renderOdevTakibi() {
     cardsHtml += '</div>';
     
     const html = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow mb-4 flex justify-between items-center flex-wrap gap-3">
-            <div>
-                <h2 class="page-heading text-2xl font-bold text-gray-800 dark:text-white">📝 Ödev Takibi</h2>
-                <p class="text-sm text-gray-500">Öğrencilerin ödevlerini atayın ve tamamlanma durumlarını takip edin.</p>
-            </div>
-            <button onclick="showOdevAtaModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow font-semibold transition flex items-center gap-2 min-h-[44px]">
+        <div class="app-page"><header class="app-page-header"><div><h2 class="app-page-title">Ödev Takibi</h2><p class="app-page-subtitle">Ödevleri atayın ve tamamlanma durumlarını takip edin.</p></div>
+            <button onclick="showOdevAtaModal()" class="btn-primary px-5 py-2.5 flex items-center gap-2 min-h-[44px]">
                 <i class="fas fa-plus"></i> Ödev Ata
-            </button>
-        </div>
-        ${cardsHtml}
+            </button></header>${cardsHtml}</div>
     `;
     document.getElementById("dynamic-content").innerHTML = html;
 }
