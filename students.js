@@ -1476,8 +1476,8 @@ export function renderGenelIslemler() {
                         <i class="fas fa-chalkboard-teacher"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <input type="text" id="teacherNameInput" value="${store.teacherName || 'Öğretmen Adı'}" onchange="updateTeacherName()" placeholder="Adınız Soyadınız" class="bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-indigo-500 focus:outline-none text-base font-bold text-gray-800 dark:text-gray-150 py-0.5 px-1 rounded transition w-full">
-                        <input type="text" id="teacherSchoolInput" value="${store.teacherSchool || ''}" onchange="updateTeacherSchool()" placeholder="Çalıştığınız Okul / Kurum" class="bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-indigo-500 focus:outline-none text-xs font-semibold text-gray-500 dark:text-gray-400 py-0.5 px-1 rounded transition w-full mt-0.5">
+                        <input type="text" id="teacherNameInput" value="${escapeHtml(store.teacherName || '')}" maxlength="80" placeholder="Adınız Soyadınız" class="bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-indigo-500 focus:outline-none text-base font-bold text-gray-800 dark:text-gray-150 py-0.5 px-1 rounded transition w-full">
+                        <input type="text" id="teacherSchoolInput" value="${escapeHtml(store.teacherSchool || '')}" maxlength="120" placeholder="Çalıştığınız Okul / Kurum" class="bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-indigo-500 focus:outline-none text-xs font-semibold text-gray-500 dark:text-gray-400 py-0.5 px-1 rounded transition w-full mt-0.5">
                         <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1.5 mt-1 px-1">
                             <i class="fas fa-envelope"></i> ${window.auth && window.auth.currentUser ? window.auth.currentUser.email : 'Yerel Çevrimdışı Hesap'}
                         </div>
@@ -1489,25 +1489,28 @@ export function renderGenelIslemler() {
                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2.5 uppercase tracking-wider">📚 Vereceğiniz Dersler (Çoklu Seçim)</label>
                     <div class="flex flex-wrap gap-2">
                         <label class="flex items-center gap-1.5 cursor-pointer bg-white dark:bg-gray-850 px-3 py-1.5 rounded-xl shadow-sm border border-gray-150/30 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-900 transition">
-                            <input type="checkbox" id="settingsBranchTur" value="Türkçe" ${store.teacherBranches.includes("Türkçe") ? "checked" : ""} onchange="updateTeacherBranches()" class="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4">
+                            <input type="checkbox" name="settingsTeacherBranch" id="settingsBranchTur" value="Türkçe" ${store.teacherBranches.includes("Türkçe") ? "checked" : ""} class="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4">
                             <span class="text-xs font-bold text-gray-800 dark:text-gray-200">Türkçe</span>
                         </label>
                         <label class="flex items-center gap-1.5 cursor-pointer bg-white dark:bg-gray-850 px-3 py-1.5 rounded-xl shadow-sm border border-gray-150/30 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-900 transition">
-                            <input type="checkbox" id="settingsBranchMath" value="Matematik" ${store.teacherBranches.includes("Matematik") ? "checked" : ""} onchange="updateTeacherBranches()" class="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4">
+                            <input type="checkbox" name="settingsTeacherBranch" id="settingsBranchMath" value="Matematik" ${store.teacherBranches.includes("Matematik") ? "checked" : ""} class="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4">
                             <span class="text-xs font-bold text-gray-800 dark:text-gray-200">Matematik</span>
                         </label>
                         <label class="flex items-center gap-1.5 cursor-pointer bg-white dark:bg-gray-850 px-3 py-1.5 rounded-xl shadow-sm border border-gray-150/30 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-900 transition">
-                            <input type="checkbox" id="settingsBranchScience" value="Fen Bilimleri" ${store.teacherBranches.includes("Fen Bilimleri") ? "checked" : ""} onchange="updateTeacherBranches()" class="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4">
+                            <input type="checkbox" name="settingsTeacherBranch" id="settingsBranchScience" value="Fen Bilimleri" ${store.teacherBranches.includes("Fen Bilimleri") ? "checked" : ""} class="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4">
                             <span class="text-xs font-bold text-gray-800 dark:text-gray-200">Fen</span>
                         </label>
                         <label class="flex items-center gap-1.5 cursor-pointer bg-white dark:bg-gray-850 px-3 py-1.5 rounded-xl shadow-sm border border-gray-150/30 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-900 transition">
-                            <input type="checkbox" id="settingsBranchSoc" value="Sosyal Bilgiler" ${store.teacherBranches.includes("Sosyal Bilgiler") ? "checked" : ""} onchange="updateTeacherBranches()" class="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4">
+                            <input type="checkbox" name="settingsTeacherBranch" id="settingsBranchSoc" value="Sosyal Bilgiler" ${store.teacherBranches.includes("Sosyal Bilgiler") ? "checked" : ""} class="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4">
                             <span class="text-xs font-bold text-gray-800 dark:text-gray-200">Sosyal Bilgiler</span>
                         </label>
                     </div>
                     <div id="branchSettingsFeedback" class="text-xs text-green-600 dark:text-green-400 mt-2 font-semibold hidden flex items-center gap-1">
                         <i class="fas fa-check-circle"></i> Branş ayarlarınız güncellendi.
                     </div>
+                    <button type="button" onclick="saveTeacherProfileFromSettings()" class="mt-3 w-full sm:w-auto px-5 min-h-[44px] rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition">
+                        <i class="fas fa-save mr-1"></i> Öğretmen Profilini Kaydet
+                    </button>
                 </div>
             </div>
 

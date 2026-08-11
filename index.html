@@ -476,6 +476,7 @@
         import './store.js';
         import './ui-helpers.js';
         import './auth.js';
+        import './teacher-profile.js';
         import './students.js';
         import './exams.js';
         import './homework.js';
@@ -517,6 +518,7 @@
                         if (user) {
                             if (window.initializeFirestoreSync) {
                                 window.initializeFirestoreSync().then(() => {
+                                    if (window.ensureTeacherProfile && !window.ensureTeacherProfile()) return;
                                     const page = urlParams.get('page');
                                     if (page === 'odevler' && window.renderOdevTakibi) {
                                         window.renderOdevTakibi();
@@ -530,6 +532,7 @@
                         }
                     });
                 } else {
+                    if (window.ensureTeacherProfile && !window.ensureTeacherProfile()) return;
                     const page = urlParams.get('page');
                     if (page === 'odevler' && window.renderOdevTakibi) {
                         window.renderOdevTakibi();
