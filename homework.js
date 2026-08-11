@@ -285,6 +285,7 @@ export function renderStudentOdevDetay(studentId) {
                         ${statusBadge}
                     </div>
                     <div class="text-base text-gray-500 dark:text-gray-400 mt-1">📚 Yayın: <span class="font-medium">${escapeHtml(o.yayin)}</span> | Tür: <span class="font-medium">${escapeHtml(o.tur)}</span></div>
+                    ${o.calismaDetayi ? `<div class="text-sm text-indigo-600 dark:text-indigo-300 mt-1">📌 Çalışma: <span class="font-bold">${escapeHtml(o.calismaDetayi)}</span></div>` : ''}
                     <div class="text-base ${dateTextClass} mt-0.5">📅 Süre: ${o.baslamaTarihi} / <span>${o.bitisTarihi}</span></div>
                     ${resultText}
                 </div>
@@ -362,7 +363,7 @@ export function sendSingleHwReminder(studentId, hwId) {
     const o = odevler.find(x => x.id === hwId);
     if (!o) return;
     
-    let message = `Merhaba Sayın Velimiz,\n\n*${student.adSoyad}* isimli öğrencimize atanan *${o.konu}* (${o.yayin} - ${o.tur}) ödevinin son teslim tarihi *${o.bitisTarihi}* dir.\n\nÖdev sonucunu doğru ve yanlış sayılarıyla bu mesajı yanıtlayarak iletebilirsiniz.\n\nİyi çalışmalar dileriz.`;
+    let message = `Merhaba Sayın Velimiz,\n\n*${student.adSoyad}* isimli öğrencimize atanan *${o.konu}* (${o.yayin}${o.calismaDetayi ? ` · ${o.calismaDetayi}` : ''} - ${o.tur}) ödevinin son teslim tarihi *${o.bitisTarihi}* dir.\n\nÖdev sonucunu doğru ve yanlış sayılarıyla bu mesajı yanıtlayarak iletebilirsiniz.\n\nİyi çalışmalar dileriz.`;
     
     let phone = student.veliTel.replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '90' + phone.substring(1);
@@ -474,11 +475,11 @@ export function shareHomeworkWhatsApp(studentId) {
     for (let o of odevler) {
         const isCompleted = o.durum === 'tamamlandi';
         if (isCompleted) {
-            message += `✅ *${o.konu}* (${o.yayin} - ${o.tur})\n`;
+            message += `✅ *${o.konu}* (${o.yayin}${o.calismaDetayi ? ` · ${o.calismaDetayi}` : ''} - ${o.tur})\n`;
             message += `  - Durum: Tamamlandı\n`;
             message += `  - Sonuç: ${o.dogru} Doğru, ${o.yanlis} Yanlış\n\n`;
         } else {
-            message += `⏳ *${o.konu}* (${o.yayin} - ${o.tur})\n`;
+            message += `⏳ *${o.konu}* (${o.yayin}${o.calismaDetayi ? ` · ${o.calismaDetayi}` : ''} - ${o.tur})\n`;
             message += `  - Durum: Bekliyor\n`;
             message += `  - Son Teslim: ${o.bitisTarihi}\n`;
             message += `  - Sonucu doğru/yanlış sayılarıyla bu mesajı yanıtlayarak iletebilirsiniz.\n\n`;
@@ -563,6 +564,11 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
                                 <select id="odevYayinSelect" onchange="toggleOdevManualResource()" class="student-form-input min-h-[44px]"><option value="">Önce sınıf ve ders seçin</option></select>
                                 <div id="odevYayinManualArea" class="hidden mt-2"><input type="text" id="odevYayinInput" placeholder="Kaynak adını manuel girin" class="student-form-input min-h-[44px]"></div>
                             </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Çalışma Detayı</label>
+                            <input type="text" id="odevCalismaDetayi" maxlength="120" placeholder="Örn: 1. Deneme, Test 24-25 veya Sayfa 40-45" class="student-form-input min-h-[44px]">
+                            <p class="text-xs text-gray-400 mt-1">Kaynakta öğrencinin çözeceği bölümü belirtin.</p>
                         </div>
                         <button onclick="addOdevToGeciciList()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-semibold transition text-sm flex items-center justify-center gap-1 min-h-[44px]">
                             <i class="fas fa-plus"></i> Listeye Ödev Ekle
@@ -679,8 +685,9 @@ export function addOdevToGeciciList() {
     const tur = document.getElementById('odevTurSelect').value;
     const ders = document.getElementById('odevDersSelect')?.value || '';
     const yayin = readResourceSelection('odevYayinSelect', 'odevYayinInput');
-    if (!ders || !konu || !yayin) {
-        alert("Lütfen ders, konu ve kaynak bilgilerini eksiksiz doldurun.");
+    const calismaDetayi = document.getElementById('odevCalismaDetayi')?.value.trim() || '';
+    if (!ders || !konu || !yayin || !calismaDetayi) {
+        alert("Lütfen ders, konu, kaynak ve çalışma detayı bilgilerini eksiksiz doldurun.");
         return;
     }
     const newHw = {
@@ -691,6 +698,7 @@ export function addOdevToGeciciList() {
         ders,
         tur: tur,
         yayin: yayin,
+        calismaDetayi,
         durum: "verildi",
         dogru: null,
         yanlis: null,
@@ -700,6 +708,7 @@ export function addOdevToGeciciList() {
     document.getElementById('geciciOdevListesiArea').classList.remove('hidden');
     renderGeciciOdevListUI();
     document.getElementById('odevYayinInput').value = '';
+    document.getElementById('odevCalismaDetayi').value = '';
     showSyncStatus("✅ Ödev listeye eklendi", false);
 }
 
@@ -707,7 +716,7 @@ export function renderGeciciOdevListUI() {
     const container = document.getElementById('geciciOdevListContainer');
     container.innerHTML = window._geciciOdevListesi.map((o, idx) => `
         <div class="flex justify-between items-center text-xs border-b pb-1">
-            <span class="font-medium text-gray-800 dark:text-gray-200">${escapeHtml(o.konu)} (${escapeHtml(o.yayin)} - ${escapeHtml(o.tur)})</span>
+            <span class="font-medium text-gray-800 dark:text-gray-200">${escapeHtml(o.konu)} (${escapeHtml(o.yayin)} · ${escapeHtml(o.calismaDetayi)} - ${escapeHtml(o.tur)})</span>
             <button onclick="removeOdevFromGeciciList(${idx})" class="text-red-500"><i class="fas fa-times-circle"></i></button>
         </div>
     `).join('');

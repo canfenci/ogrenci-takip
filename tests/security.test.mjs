@@ -279,3 +279,11 @@ test('homework type separates activity from resource-book identity', async () =>
   assert.doesNotMatch(typeSelect, /Soru Bankası/);
   assert.match(typeSelect, /<option value="Konu Tekrarı" selected>/);
 });
+
+test('homework assignment requires a resource work detail', async () => {
+  const homework = await readProjectFile('homework.js');
+  assert.match(homework, /id="odevCalismaDetayi"/);
+  assert.match(homework, /1\. Deneme, Test 24-25 veya Sayfa 40-45/);
+  assert.match(homework, /calismaDetayi,/);
+  assert.match(homework, /kaynak ve çalışma detayı/);
+});
