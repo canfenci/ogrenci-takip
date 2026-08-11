@@ -2,7 +2,7 @@
 
 import { store, loadStudentsData, loadDersKayitlari, saveDersKayitlari, getDersOzet, getKonuListesiBySinif, getKonuListesiBySinifAndDers, getStudentOdevler, escapeHtml } from './store.js';
 import { updateMobileNavActive } from './auth.js';
-import { ATTENDANCE_LABELS, calculateLessonFinance, normalizeLessonStatus } from './lesson-finance-insights.js';
+import { ATTENDANCE_LABELS, calculateLessonFinance, normalizeLessonStatus, updateLessonAttendanceState, updateLessonPaymentState } from './lesson-finance-insights.js';
 import { formatLessonDateForDisplay, formatLessonDateTyping, parseLessonDateInput } from './lesson-date-utils.js';
 
 export function renderFinanceReport() {
@@ -220,13 +220,21 @@ export function renderDersDetay(studentId) {
                 <td class="p-4 text-base">${k.dersNo}</td>
                 <td class="p-4 text-base">${formatLessonDateForDisplay(k.tarih)}</td>
                 <td class="p-4 text-base font-semibold text-indigo-600 dark:text-indigo-400">${k.konu}</td>
-                <td class="p-4 text-base"><span class="px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-300">${ATTENDANCE_LABELS[katilimDurumu]}</span></td>
+                <td class="p-3 min-w-[210px]">
+                    <label class="sr-only" for="attendance-${k.id}">Katılım durumu</label>
+                    <select id="attendance-${k.id}" aria-label="${escapeHtml(k.konu)} katılım durumu" onchange="updateDersKatilimDurumu('${studentId}', '${k.id}', this.value)" class="w-full min-h-[44px] rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 text-sm font-bold text-blue-800 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        ${Object.entries(ATTENDANCE_LABELS).map(([value, label]) => `<option value="${value}" ${katilimDurumu === value ? 'selected' : ''}>${label}</option>`).join('')}
+                    </select>
+                </td>
                 <td class="p-4 text-base text-gray-600 dark:text-gray-300">${escapeHtml(k.icerik || '')}</td>
                 <td class="p-4 text-base">${homeworkSummary}${legacyHomeworkHtml}</td>
-                <td class="p-4 text-base">
-                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${katilimDurumu !== 'yapildi' ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' : k.odendi ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}">
-                        ${katilimDurumu !== 'yapildi' ? 'Ücret Yok' : k.odendi ? 'Ödendi' : 'Bekliyor'}
-                    </span>
+                <td class="p-3 min-w-[155px]">
+                    <label class="sr-only" for="payment-${k.id}">Ücret durumu</label>
+                    <select id="payment-${k.id}" aria-label="${escapeHtml(k.konu)} ücret durumu" onchange="updateDersUcretDurumu('${studentId}', '${k.id}', this.value)" ${katilimDurumu !== 'yapildi' ? 'disabled' : ''} class="w-full min-h-[44px] rounded-xl border px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 transition ${katilimDurumu !== 'yapildi' ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed' : k.odendi ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-300 focus:ring-green-500' : 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 focus:ring-amber-500'}">
+                        ${katilimDurumu !== 'yapildi'
+                            ? '<option value="not-billable">Ücret Yok</option>'
+                            : `<option value="pending" ${!k.odendi ? 'selected' : ''}>Bekliyor</option><option value="paid" ${k.odendi ? 'selected' : ''}>Ödendi</option>`}
+                    </select>
                 </td>
                 <td class="p-4 text-base">
                     <div class="flex gap-2 flex-wrap">
@@ -300,7 +308,7 @@ export function renderDersDetay(studentId) {
                             <th class="border p-4 text-base font-bold">Katılım</th>
                             <th class="border p-4 text-base font-bold">İçerik</th>
                             <th class="border p-4 text-base font-bold">Bağlantılı Ödev</th>
-                            <th class="border p-4 text-base font-bold">Durum</th>
+                            <th class="border p-4 text-base font-bold">Durum (Ücret)</th>
                             <th class="border p-4 text-base font-bold">İşlemler</th>
                         </tr>
                     </thead>
@@ -345,15 +353,30 @@ export function editDersKayit(studentId, dersNo) {
     const yeniTarih = parseLessonDateInput(yeniTarihInput);
     const yeniKonu = prompt("Konu:", k.konu);
     const yeniIcerik = prompt("İçerik:", k.icerik);
-    const yeniOdendi = confirm("Ödendi mi? (Tamam:Ödendi, İptal:Bekliyor)");
-    const yeniKatilim = prompt("Katılım durumu (planlandi, yapildi, gelmedi, mazeretli, iptal):", normalizeLessonStatus(k));
     
     if (yeniTarih && yeniKonu) {
-        const katilimDurumu = ATTENDANCE_LABELS[yeniKatilim] ? yeniKatilim : normalizeLessonStatus(k);
-        kayitlar[idx] = { ...k, tarih: yeniTarih, konu: yeniKonu, icerik: yeniIcerik || '', odendi: katilimDurumu === 'yapildi' ? yeniOdendi : false, katilimDurumu };
+        kayitlar[idx] = { ...k, tarih: yeniTarih, konu: yeniKonu, icerik: yeniIcerik || '' };
         saveDersKayitlari(studentId, kayitlar);
         renderDersDetay(studentId);
     }
+}
+
+export function updateDersKatilimDurumu(studentId, lessonId, attendanceStatus) {
+    const kayitlar = loadDersKayitlari(studentId);
+    const idx = kayitlar.findIndex(lesson => lesson.id === lessonId);
+    if (idx === -1) return;
+    kayitlar[idx] = updateLessonAttendanceState(kayitlar[idx], attendanceStatus);
+    saveDersKayitlari(studentId, kayitlar);
+    renderDersDetay(studentId);
+}
+
+export function updateDersUcretDurumu(studentId, lessonId, paymentStatus) {
+    const kayitlar = loadDersKayitlari(studentId);
+    const idx = kayitlar.findIndex(lesson => lesson.id === lessonId);
+    if (idx === -1) return;
+    kayitlar[idx] = updateLessonPaymentState(kayitlar[idx], paymentStatus === 'paid');
+    saveDersKayitlari(studentId, kayitlar);
+    renderDersDetay(studentId);
 }
 
 export function deleteDersKayit(studentId, dersNo) {
@@ -402,6 +425,8 @@ window.renderDersDetay = renderDersDetay;
 window.addDersKayit = addDersKayit;
 window.editDersKayit = editDersKayit;
 window.deleteDersKayit = deleteDersKayit;
+window.updateDersKatilimDurumu = updateDersKatilimDurumu;
+window.updateDersUcretDurumu = updateDersUcretDurumu;
 window.onDersKayitSubjectChanged = onDersKayitSubjectChanged;
 window.openHomeworkForLesson = openHomeworkForLesson;
 window.formatLessonDateTyping = formatLessonDateTyping;

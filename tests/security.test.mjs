@@ -193,3 +193,15 @@ test('future lesson records default to planned attendance and schedule labels om
   assert.match(finance, /Ders önceden giriliyorsa “Planlandı” olarak bırakın/);
   assert.doesNotMatch(schedule, /escapeHtml\(s\.adSoyad\)\} \(\$\{escapeHtml\(s\.okul\)\}\)/);
 });
+
+test('lesson attendance and payment statuses are editable with inline dropdowns', async () => {
+  const finance = await readProjectFile('finance.js');
+  assert.match(finance, /updateDersKatilimDurumu/);
+  assert.match(finance, /updateDersUcretDurumu/);
+  assert.match(finance, /<select id="attendance-/);
+  assert.match(finance, /<select id="payment-/);
+  assert.match(finance, /Durum \(Ücret\)/);
+  assert.match(finance, />Bekliyor<\/option>/);
+  assert.match(finance, />Ödendi<\/option>/);
+  assert.doesNotMatch(finance, /confirm\("Ödendi mi\?/);
+});

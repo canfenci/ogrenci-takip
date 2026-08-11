@@ -14,6 +14,24 @@ export function isBillableLesson(lesson) {
     return normalizeLessonStatus(lesson) === 'yapildi';
 }
 
+export function updateLessonAttendanceState(lesson, attendanceStatus) {
+    const katilimDurumu = ATTENDANCE_LABELS[attendanceStatus]
+        ? attendanceStatus
+        : normalizeLessonStatus(lesson);
+    return {
+        ...lesson,
+        katilimDurumu,
+        odendi: katilimDurumu === 'yapildi' ? lesson?.odendi === true : false
+    };
+}
+
+export function updateLessonPaymentState(lesson, isPaid) {
+    return {
+        ...lesson,
+        odendi: isBillableLesson(lesson) ? isPaid === true : false
+    };
+}
+
 export function calculateLessonFinance(lessons = [], lessonFee = 0) {
     const fee = Number(lessonFee) || 0;
     const billable = lessons.filter(isBillableLesson);
