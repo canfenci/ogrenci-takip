@@ -150,34 +150,27 @@ export function renderDersKayitlari() {
         return;
     }
     
-    let cardsHtml = '<div class="grid md:grid-cols-2 gap-5">';
+    let cardsHtml = '<div class="grid md:grid-cols-2 gap-4">';
     for (let s of students) {
         const dersUcreti = parseFloat(s.dersUcreti) || parseFloat(s.aylikUcret) || parseFloat(s.ucret) || 0;
         const { toplamDers, ucretlendirilenDersSayisi, odenenDersSayisi, toplamOdeme } = getDersOzet(s.id, dersUcreti);
         cardsHtml += `
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 border border-gray-100/20 dark:border-gray-700/50 hover:-translate-y-1 hover:shadow-2xl transition duration-300 cursor-pointer" onclick="renderDersDetay('${s.id}')">
-                <div class="flex justify-between">
-                    <h3 class="text-xl font-bold">${escapeHtml(s.adSoyad)}</h3>
-                    <i class="fas fa-chevron-right text-gray-400"></i>
+            <div class="app-panel p-5 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700 transition" onclick="renderDersDetay('${s.id}')">
+                <div class="flex justify-between items-start gap-3">
+                    <div><h3 class="text-lg font-black">${escapeHtml(s.adSoyad)}</h3><p class="text-sm text-gray-500 mt-1">Bir ders ücreti · ${dersUcreti} TL</p></div>
+                    <span class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 flex items-center justify-center"><i class="fas fa-chevron-right"></i></span>
                 </div>
-                <p class="text-base text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(s.okul)} | 📞 ${escapeHtml(s.veliTel || 'Belirtilmemiş')}</p>
-                <p class="text-base text-indigo-600 dark:text-indigo-400 font-semibold mt-1">💰 Bir Ders Ücreti: ${dersUcreti} TL</p>
-                <div class="mt-3 flex flex-wrap gap-2 text-sm">
-                    <span class="stat-badge text-base">📚 Ders: ${toplamDers}</span>
-                    <span class="stat-badge text-base text-purple-600 font-semibold">🧾 Ücretli: ${ucretlendirilenDersSayisi}</span>
-                    <span class="stat-badge text-base text-green-600 font-semibold">✅ Ödenen: ${odenenDersSayisi}</span>
-                    <span class="stat-badge text-base text-blue-600 font-semibold">💵 Toplam: ${toplamOdeme} TL</span>
+                <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t dark:border-gray-700 text-center">
+                    <div><p class="text-xs text-gray-500">Ders</p><p class="font-black">${toplamDers}</p></div>
+                    <div><p class="text-xs text-gray-500">Ödenen</p><p class="font-black text-emerald-600">${odenenDersSayisi}/${ucretlendirilenDersSayisi}</p></div>
+                    <div><p class="text-xs text-gray-500">Toplam</p><p class="font-black text-indigo-600">${toplamOdeme} TL</p></div>
                 </div>
             </div>`;
     }
     cardsHtml += '</div>';
     
     document.getElementById("dynamic-content").innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-xl mb-4 border border-gray-100/20 dark:border-gray-700/50">
-            <h2 class="text-2xl font-black text-gray-800 dark:text-white border-b-2 border-primary/20 pb-2 mb-1">📖 Ders Kayıtları</h2>
-            <p class="text-sm text-gray-500">Öğrenci kartına tıklayarak ders kayıtlarını yönetin.</p>
-        </div>
-        ${cardsHtml}
+        <div class="app-page"><header class="app-page-header"><div><h2 class="app-page-title">Ders Kayıtları</h2><p class="app-page-subtitle">Ders geçmişi, katılım ve ücret durumlarını tek yerden yönetin.</p></div></header>${cardsHtml}</div>
     `;
 }
 
@@ -204,6 +197,7 @@ export function renderDersDetay(studentId) {
     const studentHomeworks = getStudentOdevler(student);
     
     let tableRows = '';
+    let mobileCards = '';
     for (let k of kayitlar) {
         const katilimDurumu = normalizeLessonStatus(k);
         const legacyHomework = Array.isArray(k.odev) ? k.odev : (k.odev ? [k.odev] : []);
@@ -294,19 +288,34 @@ export function renderDersDetay(studentId) {
                     </div>
                 </td>
             </tr>`;
+        mobileCards += `
+            <article class="app-panel p-4 space-y-3">
+                <div class="flex items-start justify-between gap-3"><div><p class="text-xs font-bold text-gray-500">${formatLessonDateForDisplay(k.tarih)} · ${escapeHtml(k.ders || 'Ders')}</p><h4 class="font-black mt-1">${escapeHtml(k.konu)}</h4><p class="text-sm text-gray-500 mt-1">${escapeHtml(k.icerik || 'İçerik notu bulunmuyor')}</p></div><span class="text-xs font-black text-gray-400">#${k.dersNo}</span></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs font-bold text-gray-500" for="mobile-attendance-${k.id}">Katılım</label><select id="mobile-attendance-${k.id}" onchange="updateDersKatilimDurumu('${studentId}', '${k.id}', this.value)" class="student-form-input min-h-[44px] mt-1">${Object.entries(ATTENDANCE_LABELS).map(([value, label]) => `<option value="${value}" ${katilimDurumu === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+                    <div><label class="text-xs font-bold text-gray-500" for="mobile-payment-${k.id}">Ücret</label><select id="mobile-payment-${k.id}" onchange="updateDersUcretDurumu('${studentId}', '${k.id}', this.value)" ${katilimDurumu !== 'yapildi' ? 'disabled' : ''} class="student-form-input min-h-[44px] mt-1">${katilimDurumu !== 'yapildi' ? '<option value="not-billable">Ücret Yok</option>' : `<option value="pending" ${!k.odendi ? 'selected' : ''}>Bekliyor</option><option value="paid" ${k.odendi ? 'selected' : ''}>Ödendi</option>`}</select></div>
+                </div>
+                <div class="rounded-xl bg-gray-50 dark:bg-gray-900/40 p-3">${homeworkSummary}${legacyHomeworkHtml}</div>
+                <div class="flex gap-2"><button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="flex-1 min-h-[44px] rounded-xl border border-indigo-200 text-indigo-600 font-bold"><i class="fas fa-tasks mr-1"></i> Ödev</button><button onclick="toggleDersKayitEditor('${k.id}')" class="flex-1 min-h-[44px] rounded-xl border border-blue-200 text-blue-600 font-bold"><i class="fas fa-edit mr-1"></i> Düzenle</button><button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="min-w-[44px] min-h-[44px] rounded-xl border border-red-200 text-red-500" aria-label="Ders kaydını sil"><i class="fas fa-trash"></i></button></div>
+            </article>`;
     }
+
+    const dersUcreti = parseFloat(student.dersUcreti) || parseFloat(student.aylikUcret) || parseFloat(student.ucret) || 0;
+    const lessonSummary = getDersOzet(studentId, dersUcreti);
     
     const html = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-5 border border-gray-100/20 dark:border-gray-700/50">
-            <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-                <h2 class="text-2xl font-black text-gray-800 dark:text-white border-b-2 border-primary/20 pb-2 mb-1">📖 Ders Kayıtları - ${escapeHtml(student.adSoyad)}</h2>
+        <div class="app-page">
+            <header class="app-page-header">
+                <div><h2 class="app-page-title">${escapeHtml(student.adSoyad)}</h2><p class="app-page-subtitle">Ders kayıtları ve ödeme durumu</p></div>
                 <button onclick="renderDersKayitlari()" class="bg-gray-500 text-white px-4 py-2.5 rounded-xl flex items-center gap-1 font-semibold min-h-[44px]">
                     <i class="fas fa-arrow-left"></i> Geri
                 </button>
-            </div>
+            </header>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3"><div class="app-metric"><p class="app-metric-label">Toplam Ders</p><p class="app-metric-value">${lessonSummary.toplamDers}</p></div><div class="app-metric"><p class="app-metric-label">Ücretli Ders</p><p class="app-metric-value">${lessonSummary.ucretlendirilenDersSayisi}</p></div><div class="app-metric"><p class="app-metric-label">Ödenen</p><p class="app-metric-value text-emerald-600">${lessonSummary.odenenDersSayisi}</p></div><div class="app-metric"><p class="app-metric-label">Tahsilat</p><p class="app-metric-value text-indigo-600">${lessonSummary.toplamOdeme} TL</p></div></div>
             
-            <div class="mb-6 bg-gray-50 dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
-                <h3 class="font-bold mb-3 text-lg">➕ Yeni Ders Kaydı Ekle</h3>
+            <details class="app-panel app-disclosure">
+                <summary class="app-panel-header flex items-center justify-between gap-3"><div><h3 class="font-black"><i class="fas fa-plus-circle text-indigo-600 mr-1"></i> Yeni Ders Kaydı</h3><p class="text-xs text-gray-500 mt-1">Formu açmak için tıklayın</p></div><i class="fas fa-chevron-down disclosure-chevron text-gray-400"></i></summary>
+                <div class="p-5">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <input type="text" id="kayitTarih" inputmode="numeric" maxlength="10" placeholder="GG/AA/YYYY" aria-label="Ders tarihi (gün/ay/yıl)" oninput="formatLessonDateTyping(this)" class="student-form-input min-h-[44px]">
                     <select id="kayitDers" onchange="window.onDersKayitSubjectChanged('${effectiveSinif}')" class="student-form-input min-h-[44px]">
@@ -345,20 +354,14 @@ export function renderDersDetay(studentId) {
                         <button onclick="addDersKayit('${studentId}')" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-5 py-3 rounded-xl font-bold min-h-[44px] shadow-lg">Kaydet</button>
                     </div>
                 </div>
-            </div>
+                </div>
+            </details>
             
-            <div class="overflow-x-auto">
-                <table class="w-full border-collapse border border-gray-300 dark:border-gray-700 ders-kayitlari-table rounded-xl overflow-hidden">
-                    <thead class="bg-gray-800 dark:bg-gray-900 text-white">
+            <div class="hidden md:block app-panel overflow-x-auto">
+                <table class="app-data-table ders-kayitlari-table">
+                    <thead>
                         <tr>
-                            <th class="border p-4 text-base font-bold">Ders No</th>
-                            <th class="border p-4 text-base font-bold">Tarih</th>
-                            <th class="border p-4 text-base font-bold">Konu</th>
-                            <th class="border p-4 text-base font-bold">Katılım</th>
-                            <th class="border p-4 text-base font-bold">İçerik</th>
-                            <th class="border p-4 text-base font-bold">Bağlantılı Ödev</th>
-                            <th class="border p-4 text-base font-bold">Durum (Ücret)</th>
-                            <th class="border p-4 text-base font-bold">İşlemler</th>
+                            <th>Ders</th><th>Tarih</th><th>Konu</th><th>Katılım</th><th>İçerik</th><th>Bağlantılı Ödev</th><th>Durum (Ücret)</th><th>İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -366,6 +369,7 @@ export function renderDersDetay(studentId) {
                     </tbody>
                 </table>
             </div>
+            <div class="md:hidden space-y-3">${mobileCards || '<div class="app-panel p-6 text-center text-gray-500">Henüz ders kaydı yok.</div>'}</div>
         </div>`;
         
     document.getElementById("dynamic-content").innerHTML = html;
