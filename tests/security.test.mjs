@@ -287,3 +287,13 @@ test('homework assignment requires a resource work detail', async () => {
   assert.match(homework, /calismaDetayi,/);
   assert.match(homework, /kaynak ve çalışma detayı/);
 });
+
+test('homework tracking includes unified test and topic-exam performance chart', async () => {
+  const [homework, serviceWorker] = await Promise.all([readProjectFile('homework.js'), readProjectFile('sw.js')]);
+  assert.match(homework, /Çalışma Performansı/);
+  assert.match(homework, /workPerformanceChart/);
+  assert.match(homework, /Ort\. Doğru/);
+  assert.match(homework, /Ort\. Yanlış/);
+  assert.match(homework, /Ort\. Net/);
+  assert.match(serviceWorker, /work-performance-insights\.js/);
+});
