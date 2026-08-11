@@ -322,7 +322,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v57/);
+  assert.match(serviceWorker, /canfenci-cache-v58/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -334,7 +334,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v57/);
+  assert.match(serviceWorker, /canfenci-cache-v58/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -346,7 +346,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v57/);
+  assert.match(serviceWorker, /canfenci-cache-v58/);
 });
 
 test('exam assignment modal and student summary use shared professional surfaces', async () => {
@@ -359,6 +359,16 @@ test('exam assignment modal and student summary use shared professional surfaces
   assert.match(exams, /classList\.add\('is-active'\)/);
   assert.match(students, /Öğrenci özeti ve güncel çalışma durumu/);
   assert.match(students, /app-panel p-4/);
+});
+
+test('topic and general exam result editors use the shared workspace design', async () => {
+  const exams = await readProjectFile('exams.js');
+  assert.match(exams, /app-page-title">Konu Denemesi Sonucu/);
+  assert.match(exams, /app-page-title">Genel Deneme Sonucu/);
+  assert.match(exams, /Öğrenci Dosyasına Dön/);
+  assert.match(exams, /Sonucu Kaydet/);
+  assert.match(exams, /student-form-input genel-dogru/);
+  assert.doesNotMatch(exams, /Genel Deneme Düzenle -/);
 });
 
 test('students guidance and homework share the unified application surfaces', async () => {
