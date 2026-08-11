@@ -87,7 +87,7 @@ export function buildStudentTimeline(student, homeworks = [], lessonRecords = []
             category: 'homework',
             icon: completed ? '✅' : '📝',
             title: completed ? 'Ödev tamamlandı' : 'Ödev teslim tarihi',
-            detail: `${homework.konu || 'Konu belirtilmemiş'}${homework.yayin ? ` · ${homework.yayin}` : ''}${result}`,
+            detail: `${homework.konu || 'Konu belirtilmemiş'}${homework.yayin ? ` · ${homework.yayin}` : ''}${homework.calismaDetayi ? ` · ${homework.calismaDetayi}` : ''}${result}`,
             tone: completed ? 'green' : 'amber'
         });
     });
