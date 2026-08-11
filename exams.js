@@ -181,15 +181,16 @@ export function renderDenemeAtaModal() {
     genelDersHtml += `</div>`;
     
     const modalHtml = `
-        <div id="denemeAtaModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto p-4" onclick="if(event.target===this) closeDenemeAtaModal()">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl border" onclick="event.stopPropagation()">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-xl font-bold">📋 Deneme Ata</h2>
-                    <button onclick="closeDenemeAtaModal()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button>
+        <div id="denemeAtaModal" class="app-modal-backdrop" onclick="if(event.target===this) closeDenemeAtaModal()">
+            <div class="app-modal max-w-2xl" onclick="event.stopPropagation()">
+                <div class="app-modal-header">
+                    <div><h2 class="app-page-title text-xl">Deneme Ata</h2><p class="app-page-subtitle">Konu veya genel denemeyi birden fazla öğrenciye tek işlemde atayın.</p></div>
+                    <button onclick="closeDenemeAtaModal()" class="app-modal-close" aria-label="Pencereyi kapat"><i class="fas fa-times text-lg"></i></button>
                 </div>
-                <div class="mb-4 flex border-b">
-                    <button id="tabBransBtn" class="flex-1 py-2 text-center font-bold border-b-2 ${denemeAtaMode === 'branş' ? 'border-blue-600 text-blue-605' : 'border-transparent text-gray-500 hover:text-gray-700'}">🔬 Konu Denemesi</button>
-                    <button id="tabGenelBtn" class="flex-1 py-2 text-center font-bold border-b-2 ${denemeAtaMode === 'genel' ? 'border-blue-600 text-blue-605' : 'border-transparent text-gray-500 hover:text-gray-700'}">📘 Genel Deneme (Tüm Dersler)</button>
+                <div class="app-modal-body">
+                <div class="app-segmented mb-5">
+                    <button id="tabBransBtn" class="${denemeAtaMode === 'branş' ? 'is-active' : ''}"><i class="fas fa-flask mr-1"></i> Konu Denemesi</button>
+                    <button id="tabGenelBtn" class="${denemeAtaMode === 'genel' ? 'is-active' : ''}"><i class="fas fa-layer-group mr-1"></i> Genel Deneme</button>
                 </div>
                 <div class="mb-3">
                     <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Deneme Adı</label>
@@ -198,10 +199,11 @@ export function renderDenemeAtaModal() {
                 ${bransHtml}
                 ${genelDersHtml}
                 <div class="mt-3">
-                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">👥 Öğrencileri Seç:</label>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Öğrencileri seç</label>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-auto border p-3 rounded-xl bg-gray-50 dark:bg-gray-900">${studentCheckboxes}</div>
                 </div>
-                <button id="saveDenemeAtaBtn" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition shadow-lg min-h-[44px]">📌 Seçilen Öğrencilere Ata</button>
+                <button id="saveDenemeAtaBtn" class="btn-primary mt-4 w-full py-3 min-h-[44px]"><i class="fas fa-check mr-1"></i> Seçilen Öğrencilere Ata</button>
+                </div>
             </div>
         </div>
     `;
@@ -217,15 +219,15 @@ export function renderDenemeAtaModal() {
         denemeAtaMode = 'branş';
         document.getElementById('bransSecim').classList.remove('hidden');
         document.getElementById('genelSecim').classList.add('hidden');
-        document.getElementById('tabBransBtn').className = "flex-1 py-2 text-center font-bold border-b-2 border-blue-600 text-blue-605";
-        document.getElementById('tabGenelBtn').className = "flex-1 py-2 text-center font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700";
+        document.getElementById('tabBransBtn').classList.add('is-active');
+        document.getElementById('tabGenelBtn').classList.remove('is-active');
     });
     document.getElementById('tabGenelBtn').addEventListener('click', () => {
         denemeAtaMode = 'genel';
         document.getElementById('bransSecim').classList.add('hidden');
         document.getElementById('genelSecim').classList.remove('hidden');
-        document.getElementById('tabGenelBtn').className = "flex-1 py-2 text-center font-bold border-b-2 border-blue-600 text-blue-605";
-        document.getElementById('tabBransBtn').className = "flex-1 py-2 text-center font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700";
+        document.getElementById('tabGenelBtn').classList.add('is-active');
+        document.getElementById('tabBransBtn').classList.remove('is-active');
     });
     document.getElementById('saveDenemeAtaBtn').addEventListener('click', () => saveDenemeAta());
     updateTopicExamOptions();

@@ -229,7 +229,7 @@ test('lesson-linked topic homework results feed topic exam progress', async () =
   ]);
   assert.match(homework, /odevTurSelect'\)\.value = 'Konu Denemesi'/);
   assert.match(homework, /calculateTopicTestNet/);
-  assert.match(exams, />🔬 Konu Denemesi<\/button>/);
+  assert.match(exams, /Konu Denemesi<\/button>/);
   assert.match(exams, /bransKonuAdi/);
   assert.match(students, /calculateTopicExamProgress/);
   assert.match(students, /Ort\. Doğru/);
@@ -322,7 +322,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v56/);
+  assert.match(serviceWorker, /canfenci-cache-v57/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -334,7 +334,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v56/);
+  assert.match(serviceWorker, /canfenci-cache-v57/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -346,7 +346,19 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v56/);
+  assert.match(serviceWorker, /canfenci-cache-v57/);
+});
+
+test('exam assignment modal and student summary use shared professional surfaces', async () => {
+  const [index, exams, students] = await Promise.all([
+    readProjectFile('index.html'), readProjectFile('exams.js'), readProjectFile('students.js')
+  ]);
+  assert.match(index, /\.app-modal-backdrop/);
+  assert.match(index, /\.app-segmented/);
+  assert.match(exams, /app-modal max-w-2xl/);
+  assert.match(exams, /classList\.add\('is-active'\)/);
+  assert.match(students, /Öğrenci özeti ve güncel çalışma durumu/);
+  assert.match(students, /app-panel p-4/);
 });
 
 test('students guidance and homework share the unified application surfaces', async () => {
