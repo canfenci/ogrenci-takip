@@ -4,6 +4,7 @@ import { store, loadStudentsData, loadDersKayitlari, saveDersKayitlari, getDersO
 import { updateMobileNavActive } from './auth.js';
 import { ATTENDANCE_LABELS, calculateLessonFinance, normalizeLessonStatus, updateLessonAttendanceState, updateLessonPaymentState } from './lesson-finance-insights.js';
 import { formatLessonDateForDisplay, formatLessonDateTyping, parseLessonDateInput } from './lesson-date-utils.js';
+import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
 
 export function renderFinanceReport() {
     store.currentPage = "finance";
@@ -318,7 +319,12 @@ export function renderDersDetay(studentId) {
                     <select id="kayitKonu" class="student-form-input min-h-[44px]">
                         <option value="">Konu Seç (Önce Ders Seçin)</option>
                     </select>
-                    <input type="text" id="kayitIcerik" placeholder="İçerik" class="student-form-input min-h-[44px]">
+                    <input type="text" id="kayitIcerik" placeholder="Ders içeriği / kısa not" class="student-form-input min-h-[44px]">
+                </div>
+                <div class="mt-3">
+                    <label class="block text-sm font-semibold mb-1">Kaynak Kitap / Yayın</label>
+                    <select id="kayitKaynak" onchange="toggleDersKayitManualResource()" class="student-form-input min-h-[44px]"><option value="">Önce ders seçin</option></select>
+                    <div id="kayitKaynakManualArea" class="hidden mt-2"><input id="kayitKaynakManual" class="student-form-input min-h-[44px]" placeholder="Kaynağı manuel girin"></div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
                     <div>
@@ -371,6 +377,7 @@ export function addDersKayit(studentId) {
     const ders = document.getElementById("kayitDers")?.value || "";
     const konu = document.getElementById("kayitKonu").value;
     const icerik = document.getElementById("kayitIcerik").value;
+    const kaynak = readResourceSelection('kayitKaynak', 'kayitKaynakManual');
     const odendi = document.getElementById("kayitOdendi").value === "true";
     const katilimDurumu = document.getElementById("kayitKatilim")?.value || 'yapildi';
     
@@ -381,7 +388,7 @@ export function addDersKayit(studentId) {
     
     let kayitlar = loadDersKayitlari(studentId);
     const yeniNo = kayitlar.length + 1;
-    kayitlar.push({ id: `lesson_${studentId}_${Date.now()}`, dersNo: yeniNo, tarih, ders, konu, icerik, odendi: katilimDurumu === 'yapildi' ? odendi : false, katilimDurumu });
+    kayitlar.push({ id: `lesson_${studentId}_${Date.now()}`, dersNo: yeniNo, tarih, ders, konu, icerik, kaynak, odendi: katilimDurumu === 'yapildi' ? odendi : false, katilimDurumu });
     saveDersKayitlari(studentId, kayitlar);
     renderDersDetay(studentId);
 }
@@ -478,6 +485,13 @@ export function onDersKayitSubjectChanged(sinif) {
     
     const konular = getKonuListesiBySinifAndDers(sinif, selectedDers);
     konuSelect.innerHTML = '<option value="">Konu Seç</option>' + konular.map(k => `<option value="${k}">${k}</option>`).join('');
+    const resourceSelect = document.getElementById('kayitKaynak');
+    if (resourceSelect) resourceSelect.innerHTML = resourceOptionsHtml(sinif, selectedDers, escapeHtml);
+    toggleManualResource('kayitKaynak', 'kayitKaynakManualArea');
+}
+
+export function toggleDersKayitManualResource() {
+    toggleManualResource('kayitKaynak', 'kayitKaynakManualArea');
 }
 
 export function openHomeworkForLesson(studentId, lessonId) {
@@ -490,7 +504,8 @@ export function openHomeworkForLesson(studentId, lessonId) {
         dersNo: lesson.dersNo,
         tarih: lesson.tarih,
         ders: lesson.ders,
-        konu: lesson.konu
+        konu: lesson.konu,
+        kaynak: lesson.kaynak || ''
     });
 }
 
@@ -506,5 +521,6 @@ window.deleteDersKayit = deleteDersKayit;
 window.updateDersKatilimDurumu = updateDersKatilimDurumu;
 window.updateDersUcretDurumu = updateDersUcretDurumu;
 window.onDersKayitSubjectChanged = onDersKayitSubjectChanged;
+window.toggleDersKayitManualResource = toggleDersKayitManualResource;
 window.openHomeworkForLesson = openHomeworkForLesson;
 window.formatLessonDateTyping = formatLessonDateTyping;

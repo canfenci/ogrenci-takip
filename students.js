@@ -9,6 +9,7 @@ import { buildStudentTimeline, calculateSmartExamAnalysis, calculateStudentSumma
 import { validateStudentInput } from './data-validation.js';
 import { renderLessonReminderCenter } from './lesson-reminders.js';
 import { calculateTopicExamProgress } from './topic-exam-insights.js';
+import { addResourceBook, deleteResourceBook, loadResourceBooks } from './resource-books.js';
 
 export function onTargetSchoolChanged(selectEl, netInputId, customAreaId) {
     const customArea = document.getElementById(customAreaId);
@@ -1479,6 +1480,12 @@ export function renderGenelIslemler() {
         </button>
     ` : '';
     
+    const resourceBooks = loadResourceBooks();
+    const resourceBookRows = resourceBooks.length ? resourceBooks.map(book => `
+        <div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 px-3 py-2">
+            <div><span class="font-bold text-sm">${escapeHtml(book.name)}</span><p class="text-xs text-gray-500">${escapeHtml(book.grade)}. Sınıf · ${escapeHtml(book.subject)}</p></div>
+            <button type="button" onclick="removeResourceBook('${book.id}')" class="min-w-[44px] min-h-[44px] text-red-500" aria-label="${escapeHtml(book.name)} kaynağını sil"><i class="fas fa-trash"></i></button>
+        </div>`).join('') : '<p class="text-sm text-gray-500">Henüz kaynak kitap eklenmedi.</p>';
     const html = `
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl max-w-xl mx-auto border border-gray-100/20 dark:border-gray-700/50">
             <h2 class="page-heading text-gray-805 dark:text-white">
@@ -1533,6 +1540,18 @@ export function renderGenelIslemler() {
                 </div>
             </div>
 
+            <div class="mb-6 p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/10">
+                <h3 class="font-black text-gray-800 dark:text-white"><i class="fas fa-book text-emerald-600"></i> Kaynak Kitaplar</h3>
+                <p class="text-xs text-gray-500 mt-1 mb-3">Kaynakları sınıf ve ders düzeyine göre tanımlayın; ödev, ders kaydı ve konu denemelerinde listeden seçin.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <select id="resourceGrade" class="student-form-input min-h-[44px]"><option value="">Sınıf seçin</option>${['5','6','7','8'].map(grade => `<option value="${grade}">${grade}. Sınıf</option>`).join('')}</select>
+                    <select id="resourceSubject" class="student-form-input min-h-[44px]"><option value="">Ders seçin</option>${(store.teacherBranches || []).map(subject => `<option value="${escapeHtml(subject)}">${escapeHtml(subject)}</option>`).join('')}</select>
+                    <input id="resourceName" maxlength="120" class="student-form-input min-h-[44px]" placeholder="Kitap / yayın adı">
+                </div>
+                <button type="button" onclick="saveNewResourceBook()" class="mt-3 w-full min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"><i class="fas fa-plus mr-1"></i> Kaynak Kitap Ekle</button>
+                <div class="mt-4 space-y-2">${resourceBookRows}</div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button onclick="toggleTheme()" class="flex items-center gap-3 p-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition font-medium text-left">
                     <i class="fas ${themeIcon} text-indigo-500 text-xl w-8 text-center"></i>
@@ -1571,6 +1590,22 @@ export function renderGenelIslemler() {
         </div>
     `;
     document.getElementById("dynamic-content").innerHTML = html;
+}
+
+export function saveNewResourceBook() {
+    const result = addResourceBook({
+        grade: document.getElementById('resourceGrade')?.value,
+        subject: document.getElementById('resourceSubject')?.value,
+        name: document.getElementById('resourceName')?.value
+    });
+    if (!result.ok) return alert(result.error);
+    renderGenelIslemler();
+}
+
+export function removeResourceBook(id) {
+    if (!confirm('Bu kaynak kitabı silmek istediğinize emin misiniz?')) return;
+    deleteResourceBook(id);
+    renderGenelIslemler();
 }
 
 export async function updateTeacherName() {
@@ -1703,3 +1738,5 @@ window.renderReminderHome = renderReminderHome;
 window.updateTeacherBranches = updateTeacherBranches;
 window.updateTeacherName = updateTeacherName;
 window.updateTeacherSchool = updateTeacherSchool;
+window.saveNewResourceBook = saveNewResourceBook;
+window.removeResourceBook = removeResourceBook;
