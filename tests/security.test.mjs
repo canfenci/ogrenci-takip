@@ -158,3 +158,15 @@ test('lesson records link to the canonical homework workflow without duplicate e
   assert.match(homework, /Ders kaydına bağlı ödev/);
   assert.match(store, /odevler: Array\.isArray\(s\.odevler\) \? s\.odevler : \[\]/);
 });
+
+test('future lesson records default to planned attendance and schedule labels omit school names', async () => {
+  const [finance, attendance, schedule] = await Promise.all([
+    readProjectFile('finance.js'),
+    readProjectFile('lesson-finance-insights.js'),
+    readProjectFile('schedule.js')
+  ]);
+
+  assert.match(attendance, /planlandi: 'Planlandı \/ Henüz İşlenmedi'/);
+  assert.match(finance, /Ders önceden giriliyorsa “Planlandı” olarak bırakın/);
+  assert.doesNotMatch(schedule, /escapeHtml\(s\.adSoyad\)\} \(\$\{escapeHtml\(s\.okul\)\}\)/);
+});

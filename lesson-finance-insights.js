@@ -1,4 +1,5 @@
 export const ATTENDANCE_LABELS = {
+    planlandi: 'Planlandı / Henüz İşlenmedi',
     yapildi: 'Ders Yapıldı',
     gelmedi: 'Öğrenci Katılmadı',
     mazeretli: 'Mazeretli',
