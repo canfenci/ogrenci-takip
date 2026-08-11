@@ -39,7 +39,7 @@ export function normalizePhone(phone) {
 }
 
 export function buildLessonReminderMessage(reminder) {
-    return `Merhaba Sayın Velimiz,\n\n${reminder.studentName} öğrencimizin ${reminder.lessonName} dersi bugün saat ${reminder.time}'de başlayacaktır. Dersimize 1 saat kaldığını hatırlatmak isteriz.\n\nİyi çalışmalar dileriz.`;
+    return `Değerli velimiz; “${reminder.studentName}” ile dersimizin bugün saat ${reminder.time}'de olduğunu hatırlatırız.`;
 }
 
 export function buildLessonReminders(students, schedulesByStudent, now = new Date(), history = {}) {

@@ -49,5 +49,5 @@ test('marks an occurrence as sent without suppressing the following week', () =>
 test('normalizes Turkish mobile phones and prepares the guardian message', () => {
   assert.equal(normalizePhone('0532 111 22 33'), '905321112233');
   assert.equal(normalizePhone('123'), '');
-  assert.match(buildLessonReminderMessage({ studentName: 'Ada', lessonName: 'Fen', time: '18:00' }), /1 saat kaldığını/);
+  assert.equal(buildLessonReminderMessage({ studentName: 'Ada', lessonName: 'Fen', time: '18:00' }), 'Değerli velimiz; “Ada” ile dersimizin bugün saat 18:00\'de olduğunu hatırlatırız.');
 });

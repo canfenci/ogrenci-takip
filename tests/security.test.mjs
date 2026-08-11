@@ -100,6 +100,8 @@ test('lesson reminders require user action for WhatsApp and avoid duplicate noti
   assert.match(reminders, /markLessonReminderSent/);
   assert.match(reminders, /window\.open\(url, '_blank'/);
   assert.doesNotMatch(reminders, /fetch\([^)]*api\.whatsapp/);
+  assert.match(reminders, /WhatsApp’tan Gönder/);
+  assert.match(reminders, /Güvenlik nedeniyle WhatsApp gönderimi/);
   assert.match(serviceWorker, /lesson-reminders\.js/);
 });
 
