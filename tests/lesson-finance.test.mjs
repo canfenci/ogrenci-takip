@@ -8,7 +8,8 @@ test('charges only completed lessons and preserves legacy records', () => {
     { katilimDurumu: 'yapildi', odendi: false },
     { katilimDurumu: 'iptal', odendi: true },
     { katilimDurumu: 'mazeretli', odendi: false },
-    { katilimDurumu: 'gelmedi', odendi: false }
+    { katilimDurumu: 'gelmedi', odendi: false },
+    { katilimDurumu: 'planlandi', odendi: true }
   ];
   const summary = calculateLessonFinance(lessons, 750);
   assert.equal(normalizeLessonStatus(lessons[0]), 'yapildi');
@@ -16,5 +17,5 @@ test('charges only completed lessons and preserves legacy records', () => {
   assert.equal(summary.paidAmount, 750);
   assert.equal(summary.pendingAmount, 750);
   assert.equal(summary.totalAmount, 1500);
-  assert.deepEqual(summary.statusCounts, { yapildi: 2, gelmedi: 1, mazeretli: 1, iptal: 1 });
+  assert.deepEqual(summary.statusCounts, { planlandi: 1, yapildi: 2, gelmedi: 1, mazeretli: 1, iptal: 1 });
 });

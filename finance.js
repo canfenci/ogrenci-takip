@@ -74,7 +74,7 @@ export function renderFinanceReport() {
                 <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/30">
                     <td class="p-4 text-base font-semibold">${escapeHtml(row.adSoyad)}</td>
                     <td class="p-4 text-base">${row.ucret} TL</td>
-                    <td class="p-4 text-base">${row.paidDersCount + row.pendingDersCount}<br><span class="text-xs text-gray-400">${row.statusCounts.iptal + row.statusCounts.mazeretli + row.statusCounts.gelmedi} ücret dışı</span></td>
+                    <td class="p-4 text-base">${row.paidDersCount + row.pendingDersCount}<br><span class="text-xs text-gray-400">${row.statusCounts.iptal + row.statusCounts.mazeretli + row.statusCounts.gelmedi} ücret dışı · ${row.statusCounts.planlandi} planlandı</span></td>
                     <td class="p-4 text-base text-green-600 font-bold">${row.paidDersCount} (${row.paidAmount} TL)</td>
                     <td class="p-4 text-base text-yellow-600 dark:text-yellow-400 font-bold">${row.pendingDersCount} (${row.pendingAmount} TL)</td>
                     <td class="p-4 text-base font-bold text-indigo-600 dark:text-indigo-400">${row.paidAmount + row.pendingAmount} TL</td>
@@ -275,6 +275,7 @@ export function renderDersDetay(studentId) {
                         <select id="kayitKatilim" class="student-form-input min-h-[44px]">
                             ${Object.entries(ATTENDANCE_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
                         </select>
+                        <p class="mt-1 text-xs text-gray-500">Ders önceden giriliyorsa “Planlandı” olarak bırakın; ders sonrasında güncelleyin.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1">Ödeme Durumu</label>
@@ -345,7 +346,7 @@ export function editDersKayit(studentId, dersNo) {
     const yeniKonu = prompt("Konu:", k.konu);
     const yeniIcerik = prompt("İçerik:", k.icerik);
     const yeniOdendi = confirm("Ödendi mi? (Tamam:Ödendi, İptal:Bekliyor)");
-    const yeniKatilim = prompt("Katılım durumu (yapildi, gelmedi, mazeretli, iptal):", normalizeLessonStatus(k));
+    const yeniKatilim = prompt("Katılım durumu (planlandi, yapildi, gelmedi, mazeretli, iptal):", normalizeLessonStatus(k));
     
     if (yeniTarih && yeniKonu) {
         const katilimDurumu = ATTENDANCE_LABELS[yeniKatilim] ? yeniKatilim : normalizeLessonStatus(k);

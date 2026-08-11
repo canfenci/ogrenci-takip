@@ -254,7 +254,7 @@ export function renderSchedulePage() {
                             <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 p-1.5 rounded-xl border dark:border-gray-700">
                                 <label class="text-xs font-black text-gray-600 dark:text-gray-450 whitespace-nowrap">Öğrenci:</label>
                                 <select id="scheduleStudentSelect" class="student-form-input text-xs font-bold py-1 px-3 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg" style="width: auto !important; padding: 4px 10px !important;">
-                                    ${students.map(s => `<option value="${s.id}" ${s.id === selectedStudentId ? 'selected' : ''}>${escapeHtml(s.adSoyad)} (${escapeHtml(s.okul)})</option>`).join('')}
+                                    ${students.map(s => `<option value="${s.id}" ${s.id === selectedStudentId ? 'selected' : ''}>${escapeHtml(s.adSoyad)}</option>`).join('')}
                                 </select>
                             </div>
                             <button onclick="showAddScheduleModal('${selectedStudentId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow min-h-[44px]">
