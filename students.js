@@ -66,14 +66,14 @@ export function renderHomeScreen() {
             const sinifGoster = s.sinif ? `${s.sinif}. Sınıf` : "Sınıf belirtilmemiş";
             
             return `
-                <div onclick="selectStudent('${s.id}')" class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5 relative cursor-pointer hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
+                <div onclick="selectStudent('${s.id}')" class="app-panel p-5 relative cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700 transition">
                     <div class="pr-16">
                         <h3 class="text-xl font-bold">${escapeHtml(s.adSoyad)}</h3>
                         <p class="text-base text-gray-600 dark:text-gray-300">${escapeHtml(s.okul || 'Okul belirtilmemiş')} · ${escapeHtml(sinifGoster)}</p>
                     </div>
                     <div class="absolute top-2 right-2 flex gap-1">
-                        <button onclick="event.stopPropagation(); editStudent('${s.id}')" class="text-blue-500 hover:text-blue-700 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center" title="Düzenle">✏️</button>
-                        <button onclick="event.stopPropagation(); deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center" title="Sil">🗑️</button>
+                        <button onclick="event.stopPropagation(); editStudent('${s.id}')" class="text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl p-2 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Düzenle" aria-label="Öğrenciyi düzenle"><i class="fas fa-pen"></i></button>
+                        <button onclick="event.stopPropagation(); deleteStudent('${s.id}')" class="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl p-2 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Sil" aria-label="Öğrenciyi sil"><i class="fas fa-trash"></i></button>
                     </div>
                     <div class="text-sm font-bold text-indigo-600 dark:text-indigo-300 mt-4"><i class="fas fa-arrow-right mr-1"></i> Öğrenci özetini aç</div>
                 </div>
@@ -81,15 +81,15 @@ export function renderHomeScreen() {
         }).join('');
         
     const shortcutsHtml = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-md border border-gray-100/20 dark:border-gray-700/50 mb-4">
+        <div class="app-panel p-4 mb-4">
             <h3 class="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <i class="fas fa-bolt text-amber-500 animate-pulse"></i> Hızlı İşlemler
+                <i class="fas fa-bolt text-indigo-500"></i> Hızlı İşlemler
             </h3>
             <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
-                <button onclick="showAddStudentModal()" class="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold transition text-sm whitespace-nowrap min-h-[44px]">
+                <button onclick="showAddStudentModal()" class="btn-primary flex items-center gap-2 px-4 py-2 text-sm whitespace-nowrap min-h-[44px]">
                     <i class="fas fa-user-plus text-base"></i> Yeni Öğrenci Ekle
                 </button>
-                <button onclick="showDenemeAtaModal()" class="flex items-center gap-2 px-4 py-2 bg-teal-50 dark:bg-teal-900/20 hover:bg-teal-100 dark:hover:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-xl font-bold transition text-sm whitespace-nowrap min-h-[44px]">
+                <button onclick="showDenemeAtaModal()" class="btn-secondary flex items-center gap-2 px-4 py-2 text-sm whitespace-nowrap min-h-[44px]">
                     <i class="fas fa-copy text-base"></i> Toplu Deneme Ata
                 </button>
             </div>
@@ -97,14 +97,7 @@ export function renderHomeScreen() {
     `;
     
     document.getElementById("dynamic-content").innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow mb-4">
-            <h2 class="page-heading text-2xl font-bold text-gray-805 dark:text-white">📋 Öğrenci Listesi</h2>
-            <p class="text-sm text-gray-500">Toplam ${sorted.length} öğrenci (${store.activeFilter === 'all' ? 'Tümü' : store.activeFilter + '. sınıf'})</p>
-        </div>
-        ${shortcutsHtml}
-        ${filterHtml}
-        ${sortHtml}
-        <div class="grid md:grid-cols-2 gap-5">${studentsHtml}</div>
+        <div class="app-page"><header class="app-page-header"><div><h2 class="app-page-title">Öğrenciler</h2><p class="app-page-subtitle">${sorted.length} öğrenci · ${store.activeFilter === 'all' ? 'Tüm sınıflar' : store.activeFilter + '. sınıf'}</p></div></header>${shortcutsHtml}<div class="app-panel p-4"><p class="text-xs font-black uppercase tracking-wide text-gray-500 mb-2">Sınıf</p>${filterHtml}<p class="text-xs font-black uppercase tracking-wide text-gray-500 mb-2">Sıralama</p>${sortHtml}</div><div class="grid md:grid-cols-2 gap-4">${studentsHtml}</div></div>
     `;
 }
 
@@ -132,7 +125,7 @@ export function renderStudentSummaryPanel(id) {
                 <div class="rounded-2xl bg-white dark:bg-gray-800 border p-4"><span class="text-xs font-bold text-gray-500">Son Deneme</span><p class="font-black mt-1">${latestExam ? `${Number(latestExam.toplamNet || 0).toFixed(2)} net` : 'Deneme kaydı yok'}</p><p class="text-xs text-gray-500">${latestExam ? escapeHtml(latestExam.denemeAdi) : ''}</p></div>
                 <div class="rounded-2xl bg-white dark:bg-gray-800 border p-4"><span class="text-xs font-bold text-gray-500">Son Ders</span><p class="font-black mt-1">${summary.lastLesson ? escapeHtml(summary.lastLesson.konu || summary.lastLesson.ders || 'Ders') : 'Ders kaydı yok'}</p><p class="text-xs text-gray-500">${summary.lastLesson ? escapeHtml(summary.lastLesson.tarih || '') : ''}</p></div>
             </div>
-            <button onclick="openGuidanceStudent('${id}')" class="w-full min-h-[56px] rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black shadow-lg"><i class="fas fa-compass mr-2"></i> Rehberlik Dosyasını Aç</button>
+            <button onclick="openGuidanceStudent('${id}')" class="btn-primary w-full min-h-[56px]"><i class="fas fa-compass mr-2"></i> Rehberlik Dosyasını Aç</button>
         </div>`;
 }
 

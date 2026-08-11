@@ -322,7 +322,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v54/);
+  assert.match(serviceWorker, /canfenci-cache-v55/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -334,5 +334,17 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v54/);
+  assert.match(serviceWorker, /canfenci-cache-v55/);
+});
+
+test('students guidance and homework share the unified application surfaces', async () => {
+  const [students, guidance, homework, index] = await Promise.all([
+    readProjectFile('students.js'), readProjectFile('guidance.js'), readProjectFile('homework.js'), readProjectFile('index.html')
+  ]);
+  assert.match(students, /app-page-title">Öğrenciler/);
+  assert.match(guidance, /app-page-title">Rehberlik/);
+  assert.doesNotMatch(guidance, /bg-gradient-to-r from-violet-700/);
+  assert.match(homework, /app-page-title">Ödev Takibi/);
+  assert.match(homework, /status-pill-warning/);
+  assert.match(index, /\.status-pill-success/);
 });
