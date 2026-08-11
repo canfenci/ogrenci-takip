@@ -145,6 +145,34 @@
         body.dark .page-heading {
             border-color: rgba(129, 140, 248, 0.3) !important;
         }
+        /* Canfenci ortak uygulama yüzeyi */
+        .app-page { max-width: 1180px; margin: 0 auto; display: grid; gap: 1rem; }
+        .app-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+        .app-page-title { font-size: 1.65rem; line-height: 1.2; font-weight: 850; letter-spacing: -0.025em; color: #111827; }
+        .app-page-subtitle { margin-top: .35rem; color: #6B7280; font-size: .9rem; }
+        body.dark .app-page-title { color: #F8FAFC; }
+        body.dark .app-page-subtitle { color: #94A3B8; }
+        .app-panel { background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 1rem; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+        body.dark .app-panel { background: #1E293B; border-color: #334155; }
+        .app-panel-header { padding: 1rem 1.1rem; border-bottom: 1px solid #E5E7EB; }
+        body.dark .app-panel-header { border-color: #334155; }
+        .app-metric { background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: .9rem; padding: .9rem 1rem; }
+        body.dark .app-metric { background: #0F172A; border-color: #334155; }
+        .app-metric-label { color: #64748B; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+        .app-metric-value { margin-top: .25rem; color: #0F172A; font-size: 1.15rem; font-weight: 850; }
+        body.dark .app-metric-value { color: #F8FAFC; }
+        .app-data-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+        .app-data-table th { padding: .75rem 1rem; background: #F8FAFC; color: #64748B; font-size: .72rem; text-align: left; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid #E5E7EB; }
+        .app-data-table td { padding: .85rem 1rem; border-bottom: 1px solid #EEF2F7; vertical-align: middle; }
+        .app-data-table tbody tr:last-child td { border-bottom: 0; }
+        .app-data-table tbody tr:hover { background: #F8FAFC; }
+        body.dark .app-data-table th { background: #0F172A; color: #94A3B8; border-color: #334155; }
+        body.dark .app-data-table td { border-color: #334155; }
+        body.dark .app-data-table tbody tr:hover { background: rgba(15,23,42,.65); }
+        .app-disclosure > summary { list-style: none; cursor: pointer; }
+        .app-disclosure > summary::-webkit-details-marker { display: none; }
+        .app-disclosure[open] .disclosure-chevron { transform: rotate(180deg); }
+        .disclosure-chevron { transition: transform .2s ease; }
         .section-heading {
             font-size: 1.125rem !important;
             font-weight: 700 !important;

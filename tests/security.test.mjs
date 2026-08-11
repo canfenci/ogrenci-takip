@@ -312,3 +312,15 @@ test('student list opens a concise summary and guidance owns the full student fi
   assert.match(guidance, /openGuidanceStudent/);
   assert.match(serviceWorker, /guidance\.js/);
 });
+
+test('lesson records use the shared professional layout and mobile cards', async () => {
+  const [index, finance, serviceWorker] = await Promise.all([
+    readProjectFile('index.html'), readProjectFile('finance.js'), readProjectFile('sw.js')
+  ]);
+  assert.match(index, /\.app-page/);
+  assert.match(index, /\.app-data-table/);
+  assert.match(finance, /app-disclosure/);
+  assert.match(finance, /mobile-attendance-/);
+  assert.match(finance, /hidden md:block app-panel/);
+  assert.match(serviceWorker, /canfenci-cache-v53/);
+});
