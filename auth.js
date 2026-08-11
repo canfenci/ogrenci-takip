@@ -254,8 +254,9 @@ export function continueOffline() {
     store.useFirestore = false;
     showSyncStatus("Yerel mod aktif.", false);
     restoreNavigationLayout();
+    if (window.ensureTeacherProfile && !window.ensureTeacherProfile()) return;
     if (window.renderHomeScreen) {
-        window.renderHomeScreen();
+        window.renderReminderHome ? window.renderReminderHome() : window.renderHomeScreen();
     }
 }
 

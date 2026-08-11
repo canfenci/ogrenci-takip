@@ -58,6 +58,26 @@ test('development builds default to local-only storage', async () => {
   assert.match(store, /useFirestore: false/);
 });
 
+test('first use requires a complete local teacher profile that remains editable in settings', async () => {
+  const [index, profile, students, serviceWorker] = await Promise.all([
+    readProjectFile('index.html'),
+    readProjectFile('teacher-profile.js'),
+    readProjectFile('students.js'),
+    readProjectFile('sw.js')
+  ]);
+
+  assert.match(index, /ensureTeacherProfile/);
+  assert.match(profile, /Öğretmen Profilinizi Oluşturun/);
+  assert.match(profile, /adınızı ve soyadınızı birlikte yazın/);
+  assert.match(profile, /çalıştığınız okul veya kurumun adını yazın/);
+  assert.match(profile, /en az bir dersi seçin/);
+  assert.match(profile, /teacher_profile_completed_v1/);
+  assert.match(profile, /name === 'Öğretmen Adı'/);
+  assert.match(profile, /school === 'Belirtilmemiş Okul'/);
+  assert.match(students, /saveTeacherProfileFromSettings/);
+  assert.match(serviceWorker, /teacher-profile\.js/);
+});
+
 test('student progress UI includes timeline and upcoming lesson surfaces', async () => {
   const [students, serviceWorker] = await Promise.all([
     readProjectFile('students.js'),
