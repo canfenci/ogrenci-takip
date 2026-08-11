@@ -134,6 +134,18 @@ export function renderDenemeAtaModal() {
     
     const bransHtml = `
         <div id="bransSecim" class="${denemeAtaMode === 'branş' ? '' : 'hidden'}">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Ders</label>
+                    <select id="bransDers" class="student-form-input min-h-[44px]">
+                        ${(store.teacherBranches || ['Türkçe', 'Matematik', 'Fen Bilimleri', 'Sosyal Bilgiler']).map(ders => `<option value="${escapeHtml(ders)}">${escapeHtml(ders)}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Konu</label>
+                    <input type="text" id="bransKonuAdi" placeholder="Örn: Basınç" class="student-form-input min-h-[44px]">
+                </div>
+            </div>
             <div class="mb-3">
                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Toplam Soru Sayısı</label>
                 <input type="number" id="bransSoruSayisi" min="1" value="${batchBransSoruSayisi || 1}" class="student-form-input min-h-[44px]">
@@ -165,7 +177,7 @@ export function renderDenemeAtaModal() {
                     <button onclick="closeDenemeAtaModal()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button>
                 </div>
                 <div class="mb-4 flex border-b">
-                    <button id="tabBransBtn" class="flex-1 py-2 text-center font-bold border-b-2 ${denemeAtaMode === 'branş' ? 'border-blue-600 text-blue-605' : 'border-transparent text-gray-500 hover:text-gray-700'}">🔬 Branş Deneme</button>
+                    <button id="tabBransBtn" class="flex-1 py-2 text-center font-bold border-b-2 ${denemeAtaMode === 'branş' ? 'border-blue-600 text-blue-605' : 'border-transparent text-gray-500 hover:text-gray-700'}">🔬 Konu Denemesi</button>
                     <button id="tabGenelBtn" class="flex-1 py-2 text-center font-bold border-b-2 ${denemeAtaMode === 'genel' ? 'border-blue-600 text-blue-605' : 'border-transparent text-gray-500 hover:text-gray-700'}">📘 Genel Deneme (Tüm Dersler)</button>
                 </div>
                 <div class="mb-3">
@@ -225,12 +237,18 @@ export function saveDenemeAta() {
     let sorular = [], tip = "";
     if (denemeAtaMode === 'branş') {
         const soruSayisi = parseInt(document.getElementById('bransSoruSayisi')?.value) || 0;
+        const ders = document.getElementById('bransDers')?.value || '';
+        const konu = document.getElementById('bransKonuAdi')?.value.trim() || '';
+        if (!ders || !konu) {
+            alert("Konu denemesi için ders ve konu girin");
+            return;
+        }
         if (soruSayisi < 1) {
             alert("En az 1 soru olmalı");
             return;
         }
         for (let i = 0; i < soruSayisi; i++) {
-            sorular.push({ soruNo: i + 1, konuAdi: "", durum: "bos", hataKodu: null });
+            sorular.push({ soruNo: i + 1, konuAdi: konu, durum: "bos", hataKodu: null });
         }
         tip = "branş";
     } else {
@@ -265,6 +283,10 @@ export function saveDenemeAta() {
         toplamNet: 0,
         toplamSoru: sorular.length
     };
+    if (tip === 'branş') {
+        newExam.ders = document.getElementById('bransDers')?.value || '';
+        newExam.konu = document.getElementById('bransKonuAdi')?.value.trim() || '';
+    }
     
     if (tip === "genel") {
         newExam.dersBilgileri = [];
@@ -347,7 +369,7 @@ export function editBransExam(studentId, examId, exam) {
                 <button onclick="renderStudentPanel('${studentId}')" class="text-blue-600 mb-2 inline-block font-semibold">← Geri</button>
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 border">
                     <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-                        <h2 class="text-xl font-bold text-gray-800 dark:text-white">Branş Deneme Düzenle - ${escapeHtml(exam.denemeAdi)}</h2>
+                        <h2 class="text-xl font-bold text-gray-800 dark:text-white">Konu Denemesi Düzenle - ${escapeHtml(exam.denemeAdi)}</h2>
                         <button onclick="setAllQuestionsCorrect()" class="btn-all-correct bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-405 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm min-h-[44px]"><i class="fas fa-check-double mr-1"></i> Tümünü Doğru Yap</button>
                     </div>
                     <input id="editExamName" class="student-form-input min-h-[44px] mb-3" placeholder="Deneme Adı" value="${escapeHtml(exam.denemeAdi)}">
@@ -873,8 +895,8 @@ export async function exportReport(format) {
             
             <div style="display: flex; gap: 30px; margin-bottom: 20px;">
                 <div style="flex: 1; background: #fafafa; padding: 15px; border-radius: 12px; border: 1px solid #e5e7eb;">
-                    <h3 style="background: #0f766e; color: white; padding: 8px 12px; border-radius: 8px; margin-top: 0;">🔬 Branş Deneme Analizi</h3>
-                    <p style="margin: 8px 0;"><strong>Toplam Branş Deneme Sayısı:</strong> ${bransSayisi}</p>
+                    <h3 style="background: #0f766e; color: white; padding: 8px 12px; border-radius: 8px; margin-top: 0;">🔬 Konu Denemesi Analizi</h3>
+                    <p style="margin: 8px 0;"><strong>Toplam Konu Denemesi Sayısı:</strong> ${bransSayisi}</p>
                     <p style="margin: 8px 0;"><strong>Ortalama Net:</strong> <span style="color:#0f766e; font-weight:bold;">${bransOrt.toFixed(2)}</span></p>
                     <h4 style="margin: 12px 0 5px 0; color: #374151; border-bottom: 1px solid #e5e7eb; pb: 3px;">📉 En Zayıf 3 Yapılamayan Konu</h4>
                     <ul style="margin: 5px 0; padding-left: 20px;">${zayif.map(z => `<li>${z.konu} (%${z.yuzde})</li>`).join('') || '<li>Veri yok</li>'}</ul>

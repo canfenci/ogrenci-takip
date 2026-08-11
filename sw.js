@@ -1,4 +1,4 @@
-const CACHE_NAME = "canfenci-cache-v43";
+const CACHE_NAME = "canfenci-cache-v44";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -25,6 +25,7 @@ const ASSETS_TO_CACHE = [
   "./finance.js",
   "./lesson-date-utils.js",
   "./lesson-finance-insights.js",
+  "./topic-exam-insights.js",
   "./growth.js",
   "./groups.js"
 ];

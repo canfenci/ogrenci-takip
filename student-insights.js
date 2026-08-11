@@ -68,7 +68,7 @@ export function buildStudentTimeline(student, homeworks = [], lessonRecords = []
             date: exam.tarih,
             category: 'exam',
             icon: exam.tip === 'genel' ? '📘' : '🔬',
-            title: exam.tip === 'genel' ? 'Genel deneme sonucu' : 'Branş denemesi sonucu',
+            title: exam.tip === 'genel' ? 'Genel deneme sonucu' : 'Konu denemesi sonucu',
             detail: `${exam.denemeAdi || 'İsimsiz deneme'} · ${safeNumber(exam.toplamNet).toFixed(2)} net`,
             tone: 'blue'
         });
@@ -154,7 +154,7 @@ export function calculateStudentSummary(student, homeworks = [], lessonRecords =
     };
 }
 
-export function calculateSmartExamAnalysis(student) {
+export function calculateSmartExamAnalysis(student, homeworks = []) {
     const exams = student.denemeler || [];
     const generalExams = exams
         .filter(exam => exam.tip === 'genel')
@@ -215,6 +215,15 @@ export function calculateSmartExamAnalysis(student) {
             topicAccumulator[topic].attempts += 1;
             if (question.durum === 'yanlis' || question.durum === 'bos') topicAccumulator[topic].errors += 1;
         });
+    });
+    homeworks.filter(homework => homework.tur === 'Konu Denemesi' && homework.durum === 'tamamlandi').forEach(homework => {
+        const topic = String(homework.konu || homework.kaynakDers?.konu || '').trim();
+        if (!topic) return;
+        const correct = safeNumber(homework.dogru);
+        const wrong = safeNumber(homework.yanlis);
+        if (!topicAccumulator[topic]) topicAccumulator[topic] = { topic, attempts: 0, errors: 0 };
+        topicAccumulator[topic].attempts += correct + wrong;
+        topicAccumulator[topic].errors += wrong;
     });
 
     const priorityTopics = Object.values(topicAccumulator)

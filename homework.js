@@ -4,6 +4,7 @@ import { db, auth, isFirebaseActive } from './firebase-config.js';
 import { store, loadStudentsData, saveStudentsData, getStudentOdevler, getKonuListesiBySinif, escapeHtml } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
+import { calculateTopicTestNet } from './topic-exam-insights.js';
 
 export function hideNavigationElements() {
     const sidebar = document.querySelector('#app-root > div.hidden.md\\:flex');
@@ -269,7 +270,7 @@ export function renderStudentOdevDetay(studentId) {
                 : `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">⏳ Bekliyor</span>`);
         
         const resultText = isCompleted
-            ? `<div class="text-base text-gray-600 dark:text-gray-400 mt-1 font-semibold">Sonuç: <span class="text-green-600">${o.dogru} Doğru</span> / <span class="text-red-650">${o.yanlis} Yanlış</span></div>`
+            ? `<div class="text-base text-gray-600 dark:text-gray-400 mt-1 font-semibold">Sonuç: <span class="text-green-600">${o.dogru} Doğru</span> / <span class="text-red-650">${o.yanlis} Yanlış</span>${o.tur === 'Konu Denemesi' ? ` / <span class="text-blue-600">${calculateTopicTestNet(o.dogru, o.yanlis).toFixed(2)} Net</span>` : ''}</div>`
             : '';
         
         const dateTextClass = isOverdue ? 'text-red-500 font-bold' : 'text-gray-400 dark:text-gray-500';
@@ -571,6 +572,7 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
             document.getElementById('odevGradeSelect').value = grade;
             onOdevGradeChanged(grade, preSelectedStudentIds);
             if (lessonContext) {
+                document.getElementById('odevTurSelect').value = 'Konu Denemesi';
                 document.getElementById('odevBaslamaTarihi').value = lessonContext.tarih;
                 const topicSelect = document.getElementById('odevKonuSelect');
                 const hasLessonTopic = Array.from(topicSelect.options).some(option => option.value === lessonContext.konu);

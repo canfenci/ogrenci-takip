@@ -219,3 +219,21 @@ test('lesson editing uses an expandable inline form instead of browser prompts',
   assert.doesNotMatch(finance, /prompt\("Konu/);
   assert.doesNotMatch(finance, /prompt\("İçerik/);
 });
+
+test('lesson-linked topic homework results feed topic exam progress', async () => {
+  const [homework, exams, students, serviceWorker] = await Promise.all([
+    readProjectFile('homework.js'),
+    readProjectFile('exams.js'),
+    readProjectFile('students.js'),
+    readProjectFile('sw.js')
+  ]);
+  assert.match(homework, /odevTurSelect'\)\.value = 'Konu Denemesi'/);
+  assert.match(homework, /calculateTopicTestNet/);
+  assert.match(exams, />🔬 Konu Denemesi<\/button>/);
+  assert.match(exams, /bransKonuAdi/);
+  assert.match(students, /calculateTopicExamProgress/);
+  assert.match(students, /Ort\. Doğru/);
+  assert.match(students, /Ort\. Yanlış/);
+  assert.match(students, /Ort\. Net/);
+  assert.match(serviceWorker, /topic-exam-insights\.js/);
+});
