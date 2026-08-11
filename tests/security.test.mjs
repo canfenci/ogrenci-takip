@@ -322,5 +322,17 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v53/);
+  assert.match(serviceWorker, /canfenci-cache-v54/);
+});
+
+test('the shared palette uses indigo actions and semantic status colors', async () => {
+  const [index, finance, serviceWorker] = await Promise.all([
+    readProjectFile('index.html'), readProjectFile('finance.js'), readProjectFile('sw.js')
+  ]);
+  assert.match(index, /--brand-600: #4F46E5/);
+  assert.match(index, /--success: #059669/);
+  assert.match(index, /\.btn-primary/);
+  assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
+  assert.match(finance, /Ders Kaydını Kaydet/);
+  assert.match(serviceWorker, /canfenci-cache-v54/);
 });

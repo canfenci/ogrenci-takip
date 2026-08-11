@@ -235,11 +235,11 @@ export function renderDersDetay(studentId) {
                     </select>
                 </td>
                 <td class="p-4 text-base">
-                    <div class="flex gap-2 flex-wrap">
-                        <button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="text-indigo-600 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 text-sm font-semibold min-h-[44px] hover:bg-indigo-50 dark:hover:bg-indigo-950/20" title="Bu derse ödev ata">
+                <div class="flex gap-2 flex-wrap">
+                        <button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="btn-secondary px-3 py-2 text-sm min-h-[44px]" title="Bu derse ödev ata">
                             <i class="fas fa-tasks"></i> Ödev Ata
                         </button>
-                        <button id="edit-toggle-${k.id}" onclick="toggleDersKayitEditor('${k.id}')" aria-expanded="false" aria-controls="edit-row-${k.id}" class="text-blue-600 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 text-sm font-semibold min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-950/20">
+                        <button id="edit-toggle-${k.id}" onclick="toggleDersKayitEditor('${k.id}')" aria-expanded="false" aria-controls="edit-row-${k.id}" class="btn-secondary px-3 py-2 text-sm min-h-[44px]">
                             <i class="fas fa-edit"></i> Düzenle
                         </button>
                         <button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="text-red-500 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center hover:text-red-750">
@@ -283,7 +283,7 @@ export function renderDersDetay(studentId) {
                         <div id="edit-error-${k.id}" role="alert" class="hidden mt-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 px-3 py-2 text-sm font-semibold text-red-700 dark:text-red-300"></div>
                         <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
                             <button type="button" onclick="toggleDersKayitEditor('${k.id}', false)" class="min-h-[44px] px-5 rounded-xl border border-gray-300 dark:border-gray-600 font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Vazgeç</button>
-                            <button type="button" onclick="saveDersKayitEditor('${studentId}', '${k.id}')" class="min-h-[44px] px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black shadow-md"><i class="fas fa-save mr-1"></i> Değişiklikleri Kaydet</button>
+                            <button type="button" onclick="saveDersKayitEditor('${studentId}', '${k.id}')" class="btn-primary min-h-[44px] px-5"><i class="fas fa-save mr-1"></i> Değişiklikleri Kaydet</button>
                         </div>
                     </div>
                 </td>
@@ -296,7 +296,7 @@ export function renderDersDetay(studentId) {
                     <div><label class="text-xs font-bold text-gray-500" for="mobile-payment-${k.id}">Ücret</label><select id="mobile-payment-${k.id}" onchange="updateDersUcretDurumu('${studentId}', '${k.id}', this.value)" ${katilimDurumu !== 'yapildi' ? 'disabled' : ''} class="student-form-input min-h-[44px] mt-1">${katilimDurumu !== 'yapildi' ? '<option value="not-billable">Ücret Yok</option>' : `<option value="pending" ${!k.odendi ? 'selected' : ''}>Bekliyor</option><option value="paid" ${k.odendi ? 'selected' : ''}>Ödendi</option>`}</select></div>
                 </div>
                 <div class="rounded-xl bg-gray-50 dark:bg-gray-900/40 p-3">${homeworkSummary}${legacyHomeworkHtml}</div>
-                <div class="flex gap-2"><button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="flex-1 min-h-[44px] rounded-xl border border-indigo-200 text-indigo-600 font-bold"><i class="fas fa-tasks mr-1"></i> Ödev</button><button onclick="toggleDersKayitEditor('${k.id}')" class="flex-1 min-h-[44px] rounded-xl border border-blue-200 text-blue-600 font-bold"><i class="fas fa-edit mr-1"></i> Düzenle</button><button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="min-w-[44px] min-h-[44px] rounded-xl border border-red-200 text-red-500" aria-label="Ders kaydını sil"><i class="fas fa-trash"></i></button></div>
+                <div class="flex gap-2"><button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="btn-secondary flex-1 min-h-[44px]"><i class="fas fa-tasks mr-1"></i> Ödev</button><button onclick="toggleDersKayitEditor('${k.id}')" class="btn-secondary flex-1 min-h-[44px]"><i class="fas fa-edit mr-1"></i> Düzenle</button><button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="min-w-[44px] min-h-[44px] rounded-xl border border-red-200 text-red-500" aria-label="Ders kaydını sil"><i class="fas fa-trash"></i></button></div>
             </article>`;
     }
 
@@ -351,7 +351,7 @@ export function renderDersDetay(studentId) {
                         </select>
                     </div>
                     <div class="flex items-end">
-                        <button onclick="addDersKayit('${studentId}')" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-5 py-3 rounded-xl font-bold min-h-[44px] shadow-lg">Kaydet</button>
+                        <button onclick="addDersKayit('${studentId}')" class="btn-primary w-full px-5 py-3 min-h-[44px]">Ders Kaydını Kaydet</button>
                     </div>
                 </div>
                 </div>
