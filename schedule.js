@@ -2,6 +2,11 @@
 
 import { store, loadStudentsData, loadSchedule, saveSchedule, escapeHtml } from './store.js';
 import { updateMobileNavActive } from './auth.js';
+import { buildScheduleConflictMessage, findScheduleConflict } from './schedule-conflicts.js';
+
+function getAllSchedulesByStudent(students) {
+    return Object.fromEntries(students.map(student => [student.id, loadSchedule(student.id)]));
+}
 
 export function renderSchedulePage() {
     store.currentPage = "schedule";
@@ -308,9 +313,16 @@ export function renderSchedulePage() {
             const yeniSaat = prompt("Saat (HH:MM):", les.saat); 
             const yeniDers = prompt("Ders Adı:", les.dersAdi); 
             if (yeniGun && yeniSaat && yeniDers) { 
-                const conflict = lessons.some((l, i) => i !== idx && l.gun === yeniGun && l.saat === yeniSaat); 
+                const conflict = findScheduleConflict({
+                    studentId: selectedStudentId,
+                    day: yeniGun,
+                    time: yeniSaat,
+                    students,
+                    schedulesByStudent: getAllSchedulesByStudent(students),
+                    ignoreLessonIndex: idx
+                });
                 if (conflict) { 
-                    alert("Bu gün ve saatte başka bir ders var!"); 
+                    alert(buildScheduleConflictMessage(conflict, yeniGun, yeniSaat));
                     return; 
                 } 
                 lessons[idx] = { gun: yeniGun, saat: yeniSaat, dersAdi: yeniDers }; 
@@ -399,9 +411,16 @@ export function addScheduleFromModal(studentId) {
         return;
     }
     const lessons = loadSchedule(studentId);
-    const conflict = lessons.some(lesson => lesson.gun === gun && lesson.saat === saat);
+    const students = loadStudentsData();
+    const conflict = findScheduleConflict({
+        studentId,
+        day: gun,
+        time: saat,
+        students,
+        schedulesByStudent: getAllSchedulesByStudent(students)
+    });
     if (conflict) {
-        alert("Bu gün ve saatte zaten bir ders var!");
+        alert(buildScheduleConflictMessage(conflict, gun, saat));
         return;
     }
     lessons.push({ gun, saat, dersAdi });

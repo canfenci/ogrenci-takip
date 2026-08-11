@@ -237,3 +237,14 @@ test('lesson-linked topic homework results feed topic exam progress', async () =
   assert.match(students, /Ort\. Net/);
   assert.match(serviceWorker, /topic-exam-insights\.js/);
 });
+
+test('weekly schedule prevents conflicts across different students', async () => {
+  const [schedule, serviceWorker] = await Promise.all([
+    readProjectFile('schedule.js'),
+    readProjectFile('sw.js')
+  ]);
+  assert.match(schedule, /findScheduleConflict/);
+  assert.match(schedule, /getAllSchedulesByStudent/);
+  assert.match(schedule, /buildScheduleConflictMessage/);
+  assert.match(serviceWorker, /schedule-conflicts\.js/);
+});
