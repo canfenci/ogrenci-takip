@@ -412,27 +412,26 @@ export function switchStudentTab(tabName) {
     const bransContent = document.getElementById('studentBransTabContent');
     const calismaContent = document.getElementById('studentCalismaTabContent');
     
-    const activeClass = "flex-1 py-2.5 text-center font-bold border-b-2 border-blue-650 text-blue-650 transition-all duration-200 text-sm sm:text-base";
-    const inactiveClass = "flex-1 py-2.5 text-center font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-all duration-200 text-sm sm:text-base";
+    const setActiveButton = (button, active) => button?.classList.toggle('is-active', active);
     
     if (tabName === 'genel') {
-        if (genelBtn) genelBtn.className = activeClass;
-        if (bransBtn) bransBtn.className = inactiveClass;
-        if (calismaBtn) calismaBtn.className = inactiveClass;
+        setActiveButton(genelBtn, true);
+        setActiveButton(bransBtn, false);
+        setActiveButton(calismaBtn, false);
         if (genelContent) genelContent.classList.remove('hidden');
         if (bransContent) bransContent.classList.add('hidden');
         if (calismaContent) calismaContent.classList.add('hidden');
     } else if (tabName === 'brans') {
-        if (genelBtn) genelBtn.className = inactiveClass;
-        if (bransBtn) bransBtn.className = activeClass;
-        if (calismaBtn) calismaBtn.className = inactiveClass;
+        setActiveButton(genelBtn, false);
+        setActiveButton(bransBtn, true);
+        setActiveButton(calismaBtn, false);
         if (genelContent) genelContent.classList.add('hidden');
         if (bransContent) bransContent.classList.remove('hidden');
         if (calismaContent) calismaContent.classList.add('hidden');
     } else if (tabName === 'calisma') {
-        if (genelBtn) genelBtn.className = inactiveClass;
-        if (bransBtn) bransBtn.className = inactiveClass;
-        if (calismaBtn) calismaBtn.className = activeClass;
+        setActiveButton(genelBtn, false);
+        setActiveButton(bransBtn, false);
+        setActiveButton(calismaBtn, true);
         if (genelContent) genelContent.classList.add('hidden');
         if (bransContent) bransContent.classList.add('hidden');
         if (calismaContent) calismaContent.classList.remove('hidden');
@@ -927,31 +926,30 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
         }
         
         const html = `
-            <div class="pb-28 sm:pb-8 space-y-6">
-                <div class="flex flex-wrap justify-between gap-3 mb-4">
-                <button onclick="${origin === 'guidance' ? 'renderGuidancePage()' : 'renderHomeScreen()'}" class="bg-gray-200 dark:bg-gray-700 px-4 py-2.5 rounded-xl min-h-[44px] font-semibold"><i class="fas fa-arrow-left"></i> ${origin === 'guidance' ? 'Rehberlik' : 'Öğrenci Listesi'}</button>
+            <div class="app-page pb-28 sm:pb-8">
+                <header class="app-page-header">
+                <div><button onclick="${origin === 'guidance' ? 'renderGuidancePage()' : 'renderHomeScreen()'}" class="btn-secondary px-4 py-2.5 min-h-[44px] mb-3"><i class="fas fa-arrow-left mr-1"></i> ${origin === 'guidance' ? 'Rehberlik' : 'Öğrenci Listesi'}</button><h2 class="app-page-title">${escapeHtml(student.adSoyad)}</h2><p class="app-page-subtitle">Gelişim özeti, deneme analizi ve rehberlik planı</p></div>
                 <div class="flex gap-2">
-                    <button onclick="shareReportWhatsApp('${id}')" class="bg-green-600 text-white px-5 py-2.5 rounded-xl shadow font-semibold flex items-center gap-2 min-h-[44px] hover:bg-green-700 transition"><i class="fab fa-whatsapp text-lg"></i> Veli Raporu</button>
+                    <button onclick="shareReportWhatsApp('${id}')" class="btn-secondary px-4 py-2.5 flex items-center gap-2 min-h-[44px]"><i class="fab fa-whatsapp text-lg"></i> Veli Raporu</button>
                     <div class="relative inline-block">
-                        <button onclick="toggleReportMenu()" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl shadow min-h-[44px] font-semibold hover:bg-blue-700 transition"><i class="fas fa-file-alt"></i> Rapor Al</button>
+                        <button onclick="toggleReportMenu()" class="btn-primary px-4 py-2.5 min-h-[44px]"><i class="fas fa-file-alt mr-1"></i> Rapor Al</button>
                         <div id="reportMenu" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg z-50 hidden border border-gray-150 dark:border-gray-700">
                             <button onclick="exportReport('pdf'); hideReportMenu()" class="block w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 font-semibold"><i class="fas fa-file-pdf mr-1"></i> PDF Kaydet</button>
                             <button onclick="exportReport('word'); hideReportMenu()" class="block w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 font-semibold"><i class="fas fa-file-word mr-1"></i> Word Kaydet</button>
                         </div>
                     </div>
                 </div>
-            </div>
+            </header>
             
-            <div class="bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border">
+            <div class="app-panel p-5">
                 <div class="flex justify-between flex-wrap items-start">
                     <div>
-                        <h2 class="page-heading text-2xl font-bold">${escapeHtml(student.adSoyad)}</h2>
-                        <p class="text-sm text-gray-500 mt-0.5">🏫 ${escapeHtml(student.okul)} | 🎯 ${escapeHtml(student.hedefLise)} | 📚 ${student.sinif ? student.sinif + '. Sınıf' : 'Sınıf belirtilmemiş'}</p>
+                        <p class="text-sm text-gray-500 mt-0.5">${escapeHtml(student.okul)} · ${escapeHtml(student.hedefLise)} · ${student.sinif ? student.sinif + '. Sınıf' : 'Sınıf belirtilmemiş'}</p>
                         ${ekstraBilgiHtml}
                     </div>
                     <div class="text-right">
-                        <span class="bg-white dark:bg-gray-700 px-3.5 py-1.5 rounded-full shadow border font-bold text-sm">🎯 ${student.hedefNet} Net</span><br>
-                        <span class="text-sm font-semibold text-gray-500 mt-1 block">📊 Genel Ort. Net: ${genelOrtalamaNet}</span>
+                        <span class="status-pill bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">Hedef: ${student.hedefNet} Net</span><br>
+                        <span class="text-sm font-semibold text-gray-500 mt-1 block">Genel ortalama: ${genelOrtalamaNet}</span>
                     </div>
                 </div>
                 <div class="mt-4 p-3 rounded-xl text-center font-bold border motivation-card text-base bg-white dark:bg-gray-700 shadow-sm">${motivasyon}</div>
@@ -968,22 +966,22 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
                 </div>
 
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm p-4">
+                    <div class="app-panel p-4">
                         <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Son genel net</p>
-                        <p class="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">${studentSummary.latestNet === null ? '—' : studentSummary.latestNet.toFixed(2)}</p>
+                        <p class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${studentSummary.latestNet === null ? '—' : studentSummary.latestNet.toFixed(2)}</p>
                         <div class="mt-1">${netChangeHtml}</div>
                     </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm p-4">
+                    <div class="app-panel p-4">
                         <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Ödev tamamlama</p>
                         <p class="text-2xl font-black text-green-600 dark:text-green-400 mt-1">${studentSummary.homeworkCompletionRate === null ? '—' : `%${studentSummary.homeworkCompletionRate}`}</p>
                         <p class="text-xs text-gray-400 mt-1">${studentSummary.completedHomeworkCount} / ${studentSummary.homeworkCount} ödev</p>
                     </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm p-4">
+                    <div class="app-panel p-4">
                         <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Son ders</p>
-                        <p class="text-base font-black text-purple-600 dark:text-purple-400 mt-2">${studentSummary.lastLesson ? escapeHtml(formatTimelineDate(studentSummary.lastLesson.tarih)) : '—'}</p>
+                        <p class="text-base font-black text-indigo-600 dark:text-indigo-400 mt-2">${studentSummary.lastLesson ? escapeHtml(formatTimelineDate(studentSummary.lastLesson.tarih)) : '—'}</p>
                         <p class="text-xs text-gray-400 mt-1">${studentSummary.lastLesson ? escapeHtml(studentSummary.lastLesson.konu || studentSummary.lastLesson.ders || 'Konu belirtilmemiş') : 'Ders kaydı yok'}</p>
                     </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow-sm p-4">
+                    <div class="app-panel p-4">
                         <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Toplam hareket</p>
                         <p class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${timelineEvents.length}</p>
                         <p class="text-xs text-gray-400 mt-1">Tek zaman çizelgesinde</p>
@@ -994,26 +992,27 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
                     ${upcomingLessonHtml}
                 </div>
 
-                <div class="bg-white dark:bg-gray-800 rounded-2xl border shadow p-5">
-                    <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
-                        <h3 class="font-black text-lg text-gray-800 dark:text-white"><i class="fas fa-stream text-indigo-500"></i> Zaman Çizelgesi</h3>
-                        <span class="text-xs text-gray-400">En yeni hareket üstte</span>
-                    </div>
-                    <div class="max-h-[560px] overflow-y-auto pr-1">
+                <details class="app-panel app-disclosure">
+                    <summary class="app-panel-header flex items-center justify-between gap-3">
+                        <div><h3 class="font-black text-base text-gray-800 dark:text-white"><i class="fas fa-stream text-indigo-500 mr-1"></i> Zaman Çizelgesi</h3><p class="text-xs text-gray-500 mt-1">${timelineEvents.length} hareket · En yeni kayıt üstte</p></div>
+                        <i class="fas fa-chevron-down disclosure-chevron text-indigo-500"></i>
+                    </summary>
+                    <div class="max-h-[560px] overflow-y-auto p-5 pt-3">
                         ${timelineHtml}
                     </div>
-                </div>
+                </details>
             </section>
 
             <!-- Akıllı Deneme Analizi -->
-            <section class="bg-white dark:bg-gray-800 rounded-2xl border shadow p-5 space-y-5" aria-labelledby="smartExamAnalysisHeading">
-                <div class="flex items-center justify-between gap-3 flex-wrap">
+            <details class="app-panel app-disclosure" aria-labelledby="smartExamAnalysisHeading">
+                <summary class="app-panel-header flex items-center justify-between gap-3 flex-wrap">
                     <div>
-                        <h3 id="smartExamAnalysisHeading" class="section-heading text-xl font-black text-gray-800 dark:text-white"><i class="fas fa-brain text-purple-500"></i> Akıllı Deneme Analizi</h3>
-                        <p class="text-sm text-gray-500 mt-1">Sonuçlardan üretilen açıklanabilir gelişim önerileri</p>
+                        <h3 id="smartExamAnalysisHeading" class="font-black text-base text-gray-800 dark:text-white"><i class="fas fa-brain text-indigo-500 mr-1"></i> Akıllı Deneme Analizi</h3>
+                        <p class="text-xs text-gray-500 mt-1">${smartAnalysis.generalExamCount} genel deneme · Ders, konu ve sonraki adım önerileri</p>
                     </div>
-                    <span class="text-xs bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 px-3 py-1.5 rounded-full font-bold">${smartAnalysis.generalExamCount} genel deneme</span>
-                </div>
+                    <i class="fas fa-chevron-down disclosure-chevron text-indigo-500"></i>
+                </summary>
+                <div class="app-modal-body space-y-5">
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div class="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-4">
@@ -1048,12 +1047,16 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
                     </div>
                     ${warningsHtml}
                 </div>
-            </section>
+                </div>
+            </details>
             
             <!-- LGS Hedef Uyum Analizi -->
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 mt-4 border border-gray-105 dark:border-gray-700">
-                <h3 class="section-heading text-indigo-600 dark:text-indigo-400 font-bold text-lg mb-2"><i class="fas fa-graduation-cap"></i> LGS Hedef Uyum Analizi</h3>
-                <div class="space-y-3">
+            <details class="app-panel app-disclosure">
+                <summary class="app-panel-header flex items-center justify-between gap-3">
+                    <div><h3 class="font-black text-base text-gray-800 dark:text-white"><i class="fas fa-graduation-cap text-indigo-500 mr-1"></i> LGS Hedef Uyum Analizi</h3><p class="text-xs text-gray-500 mt-1">Hedef okul, puan ve net uyumunu görüntüleyin</p></div>
+                    <i class="fas fa-chevron-down disclosure-chevron text-indigo-500"></i>
+                </summary>
+                <div class="app-modal-body space-y-3">
                     <div class="flex justify-between items-center flex-wrap gap-2">
                         <div>
                             <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Hedef Okul:</span> 
@@ -1078,18 +1081,18 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
                         <div class="p-2.5 rounded-xl border text-xs font-semibold text-center ${targetMatchBadgeClass}">${targetMatchBadgeText}</div>
                     `}
                 </div>
-            </div>
+            </details>
             
             <!-- TAB SEGMENT -->
-            <div class="flex border-b border-gray-200 dark:border-gray-700 mt-6 mb-4">
-                <button onclick="switchStudentTab('genel')" id="tabStudentGenelBtn" class="flex-1 py-2.5 text-center font-bold border-b-2 border-blue-650 text-blue-650 transition-all duration-200 text-sm sm:text-base">
-                    📘 Genel Denemeler
+            <div class="app-segmented">
+                <button onclick="switchStudentTab('genel')" id="tabStudentGenelBtn" class="is-active text-sm sm:text-base">
+                    Genel Denemeler
                 </button>
-                <button onclick="switchStudentTab('brans')" id="tabStudentBransBtn" class="flex-1 py-2.5 text-center font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-705 transition-all duration-200 text-sm sm:text-base">
-                    🔬 Konu Denemeleri
+                <button onclick="switchStudentTab('brans')" id="tabStudentBransBtn" class="text-sm sm:text-base">
+                    Konu Denemeleri
                 </button>
-                <button onclick="switchStudentTab('calisma')" id="tabStudentCalismaBtn" class="flex-1 py-2.5 text-center font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-705 transition-all duration-200 text-sm sm:text-base">
-                    🎯 Rehberlik Planı
+                <button onclick="switchStudentTab('calisma')" id="tabStudentCalismaBtn" class="text-sm sm:text-base">
+                    Rehberlik Planı
                 </button>
             </div>
             
