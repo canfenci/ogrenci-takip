@@ -205,3 +205,17 @@ test('lesson attendance and payment statuses are editable with inline dropdowns'
   assert.match(finance, />Ödendi<\/option>/);
   assert.doesNotMatch(finance, /confirm\("Ödendi mi\?/);
 });
+
+test('lesson editing uses an expandable inline form instead of browser prompts', async () => {
+  const finance = await readProjectFile('finance.js');
+  assert.match(finance, /toggleDersKayitEditor/);
+  assert.match(finance, /saveDersKayitEditor/);
+  assert.match(finance, /Değişiklikleri Kaydet/);
+  assert.match(finance, /Vazgeç/);
+  assert.match(finance, /edit-date-/);
+  assert.match(finance, /edit-subject-/);
+  assert.match(finance, /edit-topic-/);
+  assert.doesNotMatch(finance, /prompt\("Tarih/);
+  assert.doesNotMatch(finance, /prompt\("Konu/);
+  assert.doesNotMatch(finance, /prompt\("İçerik/);
+});
