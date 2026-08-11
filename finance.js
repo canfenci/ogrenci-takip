@@ -214,6 +214,9 @@ export function renderDersDetay(studentId) {
         const legacyHomeworkHtml = legacyHomework.length > 0
             ? `<div class="mt-1 text-xs text-amber-600 dark:text-amber-400" title="Eski ders kaydından korundu">Eski not: ${legacyHomework.map(escapeHtml).join(', ')}</div>`
             : '';
+        const lessonBranches = [...new Set([...(store.teacherBranches || []), k.ders].filter(Boolean))];
+        const lessonTopics = getKonuListesiBySinifAndDers(effectiveSinif, k.ders);
+        const editTopics = lessonTopics.includes(k.konu) ? lessonTopics : [k.konu, ...lessonTopics].filter(Boolean);
         
         tableRows += `
             <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
@@ -241,12 +244,52 @@ export function renderDersDetay(studentId) {
                         <button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="text-indigo-600 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 text-sm font-semibold min-h-[44px] hover:bg-indigo-50 dark:hover:bg-indigo-950/20" title="Bu derse ödev ata">
                             <i class="fas fa-tasks"></i> Ödev Ata
                         </button>
-                        <button onclick="editDersKayit('${studentId}', ${k.dersNo})" class="text-blue-500 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center hover:text-blue-750">
-                            <i class="fas fa-edit"></i>
+                        <button id="edit-toggle-${k.id}" onclick="toggleDersKayitEditor('${k.id}')" aria-expanded="false" aria-controls="edit-row-${k.id}" class="text-blue-600 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 text-sm font-semibold min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-950/20">
+                            <i class="fas fa-edit"></i> Düzenle
                         </button>
                         <button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="text-red-500 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center hover:text-red-750">
                             <i class="fas fa-trash"></i>
                         </button>
+                    </div>
+                </td>
+            </tr>
+            <tr id="edit-row-${k.id}" class="hidden bg-blue-50/60 dark:bg-blue-950/20 border-b border-blue-100 dark:border-blue-900">
+                <td colspan="8" class="p-4">
+                    <div class="rounded-2xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-gray-850 p-4 shadow-inner">
+                        <div class="flex items-center justify-between gap-3 mb-4">
+                            <div>
+                                <h4 class="font-black text-gray-800 dark:text-white"><i class="fas fa-pen-to-square text-blue-500 mr-1"></i> ${k.dersNo}. Ders Kaydını Düzenle</h4>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Değişiklikleri yaptıktan sonra kaydetmeyi unutmayın.</p>
+                            </div>
+                            <button type="button" onclick="toggleDersKayitEditor('${k.id}', false)" class="min-w-[44px] min-h-[44px] rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Düzenleme panelini kapat"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                                <label for="edit-date-${k.id}" class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Tarih</label>
+                                <input id="edit-date-${k.id}" type="text" inputmode="numeric" maxlength="10" value="${formatLessonDateForDisplay(k.tarih)}" oninput="formatLessonDateTyping(this)" class="student-form-input min-h-[44px]" placeholder="GG/AA/YYYY">
+                            </div>
+                            <div>
+                                <label for="edit-subject-${k.id}" class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Ders</label>
+                                <select id="edit-subject-${k.id}" onchange="updateDersEditTopics('${k.id}', '${effectiveSinif}')" class="student-form-input min-h-[44px]">
+                                    ${lessonBranches.map(branch => `<option value="${escapeHtml(branch)}" ${branch === k.ders ? 'selected' : ''}>${effectiveSinif === '8' && branch === 'Sosyal Bilgiler' ? 'İnkılap Tarihi' : escapeHtml(branch)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="edit-topic-${k.id}" class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Konu</label>
+                                <select id="edit-topic-${k.id}" class="student-form-input min-h-[44px]">
+                                    ${editTopics.map(topic => `<option value="${escapeHtml(topic)}" ${topic === k.konu ? 'selected' : ''}>${escapeHtml(topic)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="edit-content-${k.id}" class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">İçerik / Not</label>
+                                <input id="edit-content-${k.id}" type="text" maxlength="300" value="${escapeHtml(k.icerik || '')}" class="student-form-input min-h-[44px]" placeholder="Ders içeriği veya kısa not">
+                            </div>
+                        </div>
+                        <div id="edit-error-${k.id}" role="alert" class="hidden mt-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 px-3 py-2 text-sm font-semibold text-red-700 dark:text-red-300"></div>
+                        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
+                            <button type="button" onclick="toggleDersKayitEditor('${k.id}', false)" class="min-h-[44px] px-5 rounded-xl border border-gray-300 dark:border-gray-600 font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Vazgeç</button>
+                            <button type="button" onclick="saveDersKayitEditor('${studentId}', '${k.id}')" class="min-h-[44px] px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black shadow-md"><i class="fas fa-save mr-1"></i> Değişiklikleri Kaydet</button>
+                        </div>
                     </div>
                 </td>
             </tr>`;
@@ -343,22 +386,55 @@ export function addDersKayit(studentId) {
     renderDersDetay(studentId);
 }
 
-export function editDersKayit(studentId, dersNo) {
-    let kayitlar = loadDersKayitlari(studentId);
-    const idx = kayitlar.findIndex(k => k.dersNo === dersNo);
-    if (idx === -1) return;
-    
-    const k = kayitlar[idx];
-    const yeniTarihInput = prompt("Tarih (GG/AA/YYYY):", formatLessonDateForDisplay(k.tarih));
-    const yeniTarih = parseLessonDateInput(yeniTarihInput);
-    const yeniKonu = prompt("Konu:", k.konu);
-    const yeniIcerik = prompt("İçerik:", k.icerik);
-    
-    if (yeniTarih && yeniKonu) {
-        kayitlar[idx] = { ...k, tarih: yeniTarih, konu: yeniKonu, icerik: yeniIcerik || '' };
-        saveDersKayitlari(studentId, kayitlar);
-        renderDersDetay(studentId);
+export function toggleDersKayitEditor(lessonId, forceOpen) {
+    const row = document.getElementById(`edit-row-${lessonId}`);
+    const button = document.getElementById(`edit-toggle-${lessonId}`);
+    if (!row) return;
+    const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : row.classList.contains('hidden');
+
+    document.querySelectorAll('[id^="edit-row-"]').forEach(editor => editor.classList.add('hidden'));
+    document.querySelectorAll('[id^="edit-toggle-"]').forEach(toggle => toggle.setAttribute('aria-expanded', 'false'));
+    if (shouldOpen) {
+        row.classList.remove('hidden');
+        button?.setAttribute('aria-expanded', 'true');
+        document.getElementById(`edit-date-${lessonId}`)?.focus();
     }
+}
+
+export function updateDersEditTopics(lessonId, sinif) {
+    const subject = document.getElementById(`edit-subject-${lessonId}`)?.value || '';
+    const topicSelect = document.getElementById(`edit-topic-${lessonId}`);
+    if (!topicSelect) return;
+    const topics = getKonuListesiBySinifAndDers(sinif, subject);
+    topicSelect.replaceChildren(...topics.map(topic => {
+        const option = document.createElement('option');
+        option.value = topic;
+        option.textContent = topic;
+        return option;
+    }));
+}
+
+export function saveDersKayitEditor(studentId, lessonId) {
+    const tarih = parseLessonDateInput(document.getElementById(`edit-date-${lessonId}`)?.value || '');
+    const ders = document.getElementById(`edit-subject-${lessonId}`)?.value || '';
+    const konu = document.getElementById(`edit-topic-${lessonId}`)?.value || '';
+    const icerik = document.getElementById(`edit-content-${lessonId}`)?.value.trim() || '';
+    const error = document.getElementById(`edit-error-${lessonId}`);
+
+    if (!tarih || !ders || !konu) {
+        if (error) {
+            error.textContent = 'Tarih, ders ve konu alanlarını eksiksiz doldurun.';
+            error.classList.remove('hidden');
+        }
+        return;
+    }
+
+    const kayitlar = loadDersKayitlari(studentId);
+    const idx = kayitlar.findIndex(lesson => lesson.id === lessonId);
+    if (idx === -1) return;
+    kayitlar[idx] = { ...kayitlar[idx], tarih, ders, konu, icerik };
+    saveDersKayitlari(studentId, kayitlar);
+    renderDersDetay(studentId);
 }
 
 export function updateDersKatilimDurumu(studentId, lessonId, attendanceStatus) {
@@ -423,7 +499,9 @@ window.renderFinanceReport = renderFinanceReport;
 window.renderDersKayitlari = renderDersKayitlari;
 window.renderDersDetay = renderDersDetay;
 window.addDersKayit = addDersKayit;
-window.editDersKayit = editDersKayit;
+window.toggleDersKayitEditor = toggleDersKayitEditor;
+window.updateDersEditTopics = updateDersEditTopics;
+window.saveDersKayitEditor = saveDersKayitEditor;
 window.deleteDersKayit = deleteDersKayit;
 window.updateDersKatilimDurumu = updateDersKatilimDurumu;
 window.updateDersUcretDurumu = updateDersUcretDurumu;
