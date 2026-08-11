@@ -322,7 +322,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v59/);
+  assert.match(serviceWorker, /canfenci-cache-v60/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -334,7 +334,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v59/);
+  assert.match(serviceWorker, /canfenci-cache-v60/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -346,7 +346,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v59/);
+  assert.match(serviceWorker, /canfenci-cache-v60/);
 });
 
 test('exam assignment modal and student summary use shared professional surfaces', async () => {
@@ -379,6 +379,19 @@ test('student growth center keeps headline metrics visible and details collapsib
   assert.match(students, /Akıllı Deneme Analizi/);
   assert.match(students, /LGS Hedef Uyum Analizi/);
   assert.match(students, /classList\.toggle\('is-active', active\)/);
+});
+
+test('student and homework data-entry modals use shared modal actions', async () => {
+  const [students, homework] = await Promise.all([
+    readProjectFile('students.js'), readProjectFile('homework.js')
+  ]);
+  assert.match(students, /id="addStudentModal" class="app-modal-backdrop"/);
+  assert.match(students, /Öğrenciyi Kaydet/);
+  assert.match(students, /editStudentModal/);
+  assert.match(homework, /homeworkResultModal/);
+  assert.match(homework, /Ödev Sonucu Gir/);
+  assert.match(homework, /id="odevAtaModal" class="app-modal-backdrop"/);
+  assert.match(homework, /Seçilen Öğrencilere Ata/);
 });
 
 test('students guidance and homework share the unified application surfaces', async () => {
