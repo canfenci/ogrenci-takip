@@ -76,7 +76,7 @@ export function renderLessonReminderCenter() {
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
             <div>
                 <h2 id="lessonReminderHeading" class="text-xl font-black text-gray-800 dark:text-white"><i class="fas fa-bell text-amber-500"></i> Ders Hatırlatmaları</h2>
-                <p class="text-sm text-gray-500">Ders başlamadan 1 saat önce otomatik bildirim ve hazır veli mesajı</p>
+                <p class="text-sm text-gray-500">Ders başlamadan 2 saat önce otomatik bildirim ve hazır veli mesajı</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button onclick="toggleLessonReminders()" class="${settings.enabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'} text-white px-4 py-2 rounded-xl text-xs font-bold min-h-[44px]"><i class="fas fa-power-off"></i> ${settings.enabled ? 'Hatırlatmalar Açık' : 'Hatırlatmaları Aç'}</button>
