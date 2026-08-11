@@ -6,6 +6,7 @@ import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
+import { buildHomeworkErrorTopics, getSubtopicOptions, MANUAL_SUBTOPIC_VALUE } from './homework-error-topics.js';
 
 export function hideNavigationElements() {
     const sidebar = document.querySelector('#app-root > div.hidden.md\\:flex');
@@ -271,7 +272,7 @@ export function renderStudentOdevDetay(studentId) {
                 : `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">⏳ Bekliyor</span>`);
         
         const resultText = isCompleted
-            ? `<div class="text-base text-gray-600 dark:text-gray-400 mt-1 font-semibold">Sonuç: <span class="text-green-600">${o.dogru} Doğru</span> / <span class="text-red-650">${o.yanlis} Yanlış</span>${o.tur === 'Konu Denemesi' ? ` / <span class="text-blue-600">${calculateTopicTestNet(o.dogru, o.yanlis).toFixed(2)} Net</span>` : ''}</div>`
+            ? `<div class="text-base text-gray-600 dark:text-gray-400 mt-1 font-semibold">Sonuç: <span class="text-green-600">${o.dogru} Doğru</span> / <span class="text-red-650">${o.yanlis} Yanlış</span>${o.tur === 'Konu Denemesi' ? ` / <span class="text-blue-600">${calculateTopicTestNet(o.dogru, o.yanlis).toFixed(2)} Net</span>` : ''}${(o.yanlisKonular || []).length ? `<div class="mt-1 text-xs text-amber-700 dark:text-amber-300">Yanlış konusu: ${(o.yanlisKonular || []).map(item => `${escapeHtml(item.konu)}${item.altKonu ? ` › ${escapeHtml(item.altKonu)}` : ''} (${item.adet})`).join(', ')}</div>` : ''}</div>`
             : '';
         
         const dateTextClass = isOverdue ? 'text-red-500 font-bold' : 'text-gray-400 dark:text-gray-500';
@@ -376,6 +377,9 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     if (!student) return;
     const odev = getStudentOdevler(student).find(o => o.id === hwId);
     if (!odev) return;
+    const isTopicTest = odev.tur === 'Konu Denemesi';
+    const availableTopics = getKonuListesiBySinifAndDers(student.sinif, odev.ders || odev.kaynakDers?.ders || '');
+    const topicOptions = availableTopics.includes(odev.konu) ? availableTopics : [odev.konu, ...availableTopics].filter(Boolean);
     const modal = document.createElement('div');
     modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4";
     modal.innerHTML = `
@@ -391,22 +395,60 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                     <label class="text-sm font-semibold">Yanlış Sayısı</label>
                     <input type="number" id="manualWrong" min="0" value="0" class="student-form-input min-h-[44px]">
                 </div>
+                <div class="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 p-3 space-y-3">
+                    <div>
+                        <label class="text-sm font-semibold">Yanlış Yapılan Ana Konu</label>
+                        ${isTopicTest
+                            ? `<div id="manualWrongTopicFixed" data-topic="${escapeHtml(odev.konu)}" class="mt-1 rounded-xl bg-white dark:bg-gray-800 border px-3 py-2 font-bold">${escapeHtml(odev.konu)} <span class="block text-xs font-normal text-gray-500">Konu denemesinde otomatik belirlenir.</span></div>`
+                            : `<select id="manualWrongTopic" onchange="updateHomeworkSubtopics()" class="student-form-input min-h-[44px]"><option value="">Konu seçin</option>${topicOptions.map(topic => `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`).join('')}</select>`}
+                    </div>
+                    <div>
+                        <label class="text-sm font-semibold">Alt Konu <span class="text-xs font-normal text-gray-500">(isteğe bağlı)</span></label>
+                        <select id="manualWrongSubtopic" onchange="toggleHomeworkManualSubtopic()" class="student-form-input min-h-[44px]"></select>
+                        <div id="manualWrongSubtopicArea" class="hidden mt-2"><input id="manualWrongSubtopicText" class="student-form-input min-h-[44px]" placeholder="Alt konuyu manuel girin"></div>
+                    </div>
+                </div>
                 <button onclick="saveManualOdevResult('${studentId}', '${hwId}')" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-semibold mt-2 min-h-[44px]">Kaydet</button>
                 <button onclick="this.closest('.fixed').remove()" class="w-full border py-2.5 rounded-xl min-h-[44px]">İptal</button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
+    updateHomeworkSubtopics(isTopicTest ? odev.konu : '');
+}
+
+export function updateHomeworkSubtopics(fixedTopic = '') {
+    const topic = fixedTopic || document.getElementById('manualWrongTopic')?.value || document.getElementById('manualWrongTopicFixed')?.dataset.topic || '';
+    const select = document.getElementById('manualWrongSubtopic');
+    if (!select) return;
+    select.innerHTML = '<option value="">Alt konu seçilmedi</option>' + getSubtopicOptions(topic).map(subtopic => `<option value="${escapeHtml(subtopic)}">${escapeHtml(subtopic)}</option>`).join('') + `<option value="${MANUAL_SUBTOPIC_VALUE}">✍️ Manuel gir</option>`;
+    toggleHomeworkManualSubtopic();
+}
+
+export function toggleHomeworkManualSubtopic() {
+    document.getElementById('manualWrongSubtopicArea')?.classList.toggle('hidden', document.getElementById('manualWrongSubtopic')?.value !== MANUAL_SUBTOPIC_VALUE);
 }
 
 export function saveManualOdevResult(studentId, hwId) {
     const correct = parseInt(document.getElementById('manualCorrect').value) || 0;
     const wrong = parseInt(document.getElementById('manualWrong').value) || 0;
+    const homeworkType = document.getElementById('manualWrongTopicFixed') ? 'Konu Denemesi' : '';
+    const selectedSubtopic = document.getElementById('manualWrongSubtopic')?.value || '';
+    const subtopic = selectedSubtopic === MANUAL_SUBTOPIC_VALUE ? document.getElementById('manualWrongSubtopicText')?.value.trim() || '' : selectedSubtopic;
+    const errorTopics = buildHomeworkErrorTopics({
+        homeworkType,
+        assignedTopic: document.getElementById('manualWrongTopicFixed')?.dataset.topic || '',
+        selectedTopic: document.getElementById('manualWrongTopic')?.value || '',
+        subtopic,
+        wrong
+    });
+    if (wrong > 0 && errorTopics.length === 0) return alert('Yanlış yapılan ana konuyu seçin.');
     if (store.useFirestore && isFirebaseActive) {
         db.collection("homeworks").doc(hwId).update({
             durum: "tamamlandi",
             dogru: correct,
-            yanlis: wrong
+            yanlis: wrong,
+            yanlisKonular: errorTopics
         }).then(() => {
             document.querySelector('.fixed')?.remove();
             renderStudentOdevDetay(studentId);
@@ -420,6 +462,7 @@ export function saveManualOdevResult(studentId, hwId) {
                 students[sIdx].odevler[hwIdx].durum = "tamamlandi";
                 students[sIdx].odevler[hwIdx].dogru = correct;
                 students[sIdx].odevler[hwIdx].yanlis = wrong;
+                students[sIdx].odevler[hwIdx].yanlisKonular = errorTopics;
                 saveStudentsData(students);
             }
         }
@@ -765,6 +808,8 @@ window.deleteOdev = deleteOdev;
 window.sendSingleHwReminder = sendSingleHwReminder;
 window.showEnterOdevSonucModal = showEnterOdevSonucModal;
 window.saveManualOdevResult = saveManualOdevResult;
+window.updateHomeworkSubtopics = updateHomeworkSubtopics;
+window.toggleHomeworkManualSubtopic = toggleHomeworkManualSubtopic;
 window.shareHomeworkWhatsApp = shareHomeworkWhatsApp;
 window.showOdevAtaModal = showOdevAtaModal;
 window.renderOdevAtaModal = renderOdevAtaModal;

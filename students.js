@@ -1124,6 +1124,7 @@ export async function renderStudentPanel(id) {
                         <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                             ${topicExamProgress.topics.map(topic => `<div class="border rounded-xl p-3 bg-white dark:bg-gray-900/20"><div class="flex justify-between gap-2"><span class="font-bold text-sm">${escapeHtml(topic.topic)}</span><span class="text-xs font-black text-blue-600">Ort. ${topic.averageNet.toFixed(2)} net</span></div><p class="text-xs text-gray-500 mt-1">${topic.count} deneme · ${topic.averageCorrect.toFixed(2)}D · ${topic.averageWrong.toFixed(2)}Y</p></div>`).join('')}
                         </div>
+                        ${topicExamProgress.subtopics.length ? `<div class="mt-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/10 p-3"><h4 class="font-bold text-sm mb-2">Alt Konu Hataları</h4><div class="flex flex-wrap gap-2">${topicExamProgress.subtopics.map(item => `<span class="rounded-full bg-white dark:bg-gray-800 border px-3 py-1 text-xs"><strong>${escapeHtml(item.subtopic)}</strong> · ${item.errors} yanlış <span class="text-gray-400">(${escapeHtml(item.topic)})</span></span>`).join('')}</div></div>` : ''}
                         <div class="mt-4 border-t pt-3">
                             <h4 class="font-bold text-sm text-gray-700 dark:text-gray-300 mb-2">📉 En Çok Hata Yapılan Konular</h4>
                             <div class="space-y-1.5">

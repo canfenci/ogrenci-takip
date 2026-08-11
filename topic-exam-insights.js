@@ -37,6 +37,7 @@ export function buildTopicExamRecords(student, homeworks = []) {
             lessonId: homework.kaynakDers?.lessonId || null, name: homework.yayin || 'Bağlantılı Konu Denemesi',
             date: homework.bitisTarihi || homework.baslamaTarihi || '', subject: homework.kaynakDers?.ders || homework.ders || '',
             topic: homework.konu || homework.kaynakDers?.konu || 'Konu belirtilmemiş', correct, wrong, blank: 0,
+            wrongTopics: homework.yanlisKonular || [],
             net: calculateTopicTestNet(correct, wrong)
         });
     });
@@ -58,5 +59,13 @@ export function calculateTopicExamProgress(student, homeworks = []) {
         averageNet: round(topicRecords.reduce((sum, record) => sum + record.net, 0) / topicRecords.length),
         latestNet: topicRecords.at(-1).net
     })).sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic, 'tr'));
-    return { records, count: records.length, averageCorrect: average('correct'), averageWrong: average('wrong'), averageNet: average('net'), topics };
+    const subtopicMap = {};
+    records.flatMap(record => record.wrongTopics || []).forEach(item => {
+        if (!item.altKonu) return;
+        const key = `${item.konu}|||${item.altKonu}`;
+        if (!subtopicMap[key]) subtopicMap[key] = { topic: item.konu, subtopic: item.altKonu, errors: 0 };
+        subtopicMap[key].errors += safeNumber(item.adet);
+    });
+    const subtopics = Object.values(subtopicMap).sort((a, b) => b.errors - a.errors || a.subtopic.localeCompare(b.subtopic, 'tr'));
+    return { records, count: records.length, averageCorrect: average('correct'), averageWrong: average('wrong'), averageNet: average('net'), topics, subtopics };
 }

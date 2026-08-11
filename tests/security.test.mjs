@@ -259,3 +259,14 @@ test('grade-specific resource books are selectable with a manual fallback', asyn
   assert.match(finance, /kayitKaynak/);
   assert.match(serviceWorker, /resource-books\.js/);
 });
+
+test('homework results capture main and optional subtopic errors', async () => {
+  const [homework, students, serviceWorker] = await Promise.all([
+    readProjectFile('homework.js'), readProjectFile('students.js'), readProjectFile('sw.js')
+  ]);
+  assert.match(homework, /Yanlış Yapılan Ana Konu/);
+  assert.match(homework, /Alt Konu/);
+  assert.match(homework, /yanlisKonular/);
+  assert.match(students, /Alt Konu Hataları/);
+  assert.match(serviceWorker, /homework-error-topics\.js/);
+});
