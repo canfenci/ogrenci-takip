@@ -8,6 +8,7 @@ import { getBransOrtalamaNet, getGenelOrtalamaNet, getOrtalamaNet, getKonuBazliB
 import { buildStudentTimeline, calculateSmartExamAnalysis, calculateStudentSummary, formatTimelineDate } from './student-insights.js';
 import { validateStudentInput } from './data-validation.js';
 import { renderLessonReminderCenter } from './lesson-reminders.js';
+import { calculateTopicExamProgress } from './topic-exam-insights.js';
 
 export function onTargetSchoolChanged(selectEl, netInputId, customAreaId) {
     const customArea = document.getElementById(customAreaId);
@@ -73,7 +74,7 @@ export function renderHomeScreen() {
                         <p class="text-base text-gray-600 dark:text-gray-300">${escapeHtml(s.okul)} | ${sinifGoster}</p>
                         <p class="text-blue-600 dark:text-blue-400 font-semibold text-base">🎯 ${s.hedefNet} Net Hedefi</p>
                         <div class="flex flex-wrap gap-2 mt-2">
-                            ${bransOrt !== null ? `<span class="stat-badge text-base">🔬 Branş Ort: ${bransOrt}</span>` : ''}
+                            ${bransOrt !== null ? `<span class="stat-badge text-base">🔬 Konu Ort: ${bransOrt}</span>` : ''}
                             ${genelOrt !== null ? `<span class="stat-badge text-base">📘 Genel Ort: ${genelOrt}</span>` : ''}
                             ${son !== null ? `<span class="stat-badge text-base">📈 Son Net: ${son}</span>` : ''}
                         </div>
@@ -517,6 +518,8 @@ export async function renderStudentPanel(id) {
         const denemeler = student.denemeler || [];
         const bransDenemeler = denemeler.filter(d => d.tip === "branş");
         const genelDenemeler = denemeler.filter(d => d.tip === "genel");
+        const studentHomeworks = getStudentOdevler(student);
+        const topicExamProgress = calculateTopicExamProgress(student, studentHomeworks);
         const konuList = getKonuListesiBySinif(student.sinif);
         const hataKonulari = {};
         konuList.forEach(k => hataKonulari[k] = 0);
@@ -596,11 +599,10 @@ export async function renderStudentPanel(id) {
             ? `<div class="flex flex-wrap gap-3 mt-2 text-sm">${dersUcretiDegeri ? `<span class="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full"><i class="fas fa-money-bill-wave"></i> Bir Ders Ücreti: ${escapeHtml(dersUcretiDegeri)} TL</span>` : ''}${veliTelDegeri ? `<span class="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full"><i class="fas fa-phone-alt"></i> Veli: ${escapeHtml(veliTelDegeri)}</span>` : ''}</div>`
             : '';
 
-        const studentHomeworks = getStudentOdevler(student);
         const lessonRecords = loadDersKayitlari(id);
         const studentSchedule = loadSchedule(id);
         const studentSummary = calculateStudentSummary(student, studentHomeworks, lessonRecords, studentSchedule);
-        const smartAnalysis = calculateSmartExamAnalysis(student);
+        const smartAnalysis = calculateSmartExamAnalysis(student, studentHomeworks);
         const timelineEvents = buildStudentTimeline(student, studentHomeworks, lessonRecords);
         const timelineToneClasses = {
             blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800',
@@ -683,7 +685,7 @@ export async function renderStudentPanel(id) {
                     </div>
                     <span class="text-xs font-black text-red-600 dark:text-red-400">%${topic.errorRate}</span>
                 </div>`).join('')
-            : '<p class="text-sm text-gray-400 text-center py-6">Konu önceliği için branş denemesi soru sonuçları gerekli.</p>';
+            : '<p class="text-sm text-gray-400 text-center py-6">Konu önceliği için konu denemesi sonuçları gerekli.</p>';
         const recommendationsHtml = smartAnalysis.recommendations.length
             ? smartAnalysis.recommendations.map(recommendation => `
                 <li class="flex gap-2 text-sm text-gray-700 dark:text-gray-200">
@@ -717,14 +719,26 @@ export async function renderStudentPanel(id) {
                 </div>
             `).join('');
             
-        const bransExamsHtml = bransDenemeler.length === 0 
-            ? '<p class="text-center text-gray-500 py-3">Henüz branş denemesi yok.</p>' 
+        const linkedTopicExamHtml = topicExamProgress.records.filter(record => record.source === 'homework').slice().reverse().map(record => `
+                <div class="border rounded-xl p-3 mb-2 bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900">
+                    <div class="flex items-start justify-between gap-3 flex-wrap">
+                        <div>
+                            <span class="font-bold text-gray-800 dark:text-white">${escapeHtml(record.topic)}</span>
+                            <span class="text-xs ml-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">Ders bağlantılı</span>
+                            <p class="text-xs text-gray-500 mt-1">${escapeHtml(record.subject || 'Ders belirtilmemiş')} · ${escapeHtml(record.name)} · ${escapeHtml(record.date)}</p>
+                        </div>
+                        <span class="text-sm font-black text-blue-600">${record.net.toFixed(2)} net</span>
+                    </div>
+                    <p class="text-sm mt-2"><span class="text-green-600 font-bold">${record.correct} doğru</span> · <span class="text-red-600 font-bold">${record.wrong} yanlış</span></p>
+                </div>`).join('');
+        const bransExamsHtml = bransDenemeler.length === 0 && !linkedTopicExamHtml
+            ? '<p class="text-center text-gray-500 py-3">Henüz konu denemesi yok.</p>'
             : bransDenemeler.slice().reverse().map(ex => `
                 <div class="border rounded-xl p-3 flex justify-between flex-wrap mb-2 last:mb-0 bg-white dark:bg-gray-800">
                     <div>
                         <span class="font-bold text-gray-805 dark:text-white">${escapeHtml(ex.denemeAdi)}</span> 
                         <span class="text-xs text-gray-400">${ex.tarih}</span> 
-                        <span class="text-xs exam-badge bg-emerald-50 text-emerald-600 dark:bg-gray-600 dark:text-white px-1.5 py-0.5 rounded">🔬 Branş</span><br>
+                        <span class="text-xs exam-badge bg-emerald-50 text-emerald-600 dark:bg-gray-600 dark:text-white px-1.5 py-0.5 rounded">🔬 Konu Denemesi</span><br>
                         <span class="text-sm">Net: <strong class="text-blue-600">${ex.toplamNet}</strong> (${ex.toplamDogru}D ${ex.toplamYanlis}Y ${ex.toplamBos}B)</span>
                     </div>
                     <div class="flex gap-2 items-center">
@@ -734,7 +748,7 @@ export async function renderStudentPanel(id) {
                         <button onclick="deleteExam('${id}','${ex.id}')" class="text-red-500 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
-            `).join('');
+            `).join('') + linkedTopicExamHtml;
             
         // 1. Tavsiye Edilen Ders Çalışma Programı
         const adviceList = [];
@@ -756,7 +770,7 @@ export async function renderStudentPanel(id) {
                 } else if (successVal < 80) {
                     adviceText = `🟡 <strong class="text-amber-600 dark:text-amber-450">Orta:</strong> Başarı oranı %${pct}. Formül ve kural kartları hazırlanmalı, haftalık soru adedi arttırılmalı.`;
                 } else {
-                    adviceText = `🟢 <strong class="text-green-600 dark:text-green-400">Mükemmel:</strong> Başarı oranı %${pct}. Mevcut seviyeyi korumak adına branş denemelerine ve zor seviye sorulara odaklanılmalı.`;
+                    adviceText = `🟢 <strong class="text-green-600 dark:text-green-400">Mükemmel:</strong> Başarı oranı %${pct}. Mevcut seviyeyi korumak adına konu denemelerine ve zor seviye sorulara odaklanılmalı.`;
                 }
                 adviceList.push(`
                     <div class="border-b dark:border-gray-700 pb-1.5 mb-1.5 last:border-b-0 text-sm">
@@ -1058,7 +1072,7 @@ export async function renderStudentPanel(id) {
                     📘 Genel Denemeler
                 </button>
                 <button onclick="switchStudentTab('brans')" id="tabStudentBransBtn" class="flex-1 py-2.5 text-center font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-705 transition-all duration-200 text-sm sm:text-base">
-                    🔬 Branş Denemeleri
+                    🔬 Konu Denemeleri
                 </button>
                 <button onclick="switchStudentTab('calisma')" id="tabStudentCalismaBtn" class="flex-1 py-2.5 text-center font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-705 transition-all duration-200 text-sm sm:text-base">
                     🎯 Çalışma & Gelişim Planı
@@ -1098,11 +1112,16 @@ export async function renderStudentPanel(id) {
             <!-- BRANS TAB CONTENT (HIDDEN BY DEFAULT) -->
             <div id="studentBransTabContent" class="hidden space-y-4">
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 border">
-                    <h3 class="section-heading text-lg font-bold text-gray-800 dark:text-white border-b pb-2 mb-3">🔬 Branş Sınav İstatistikleri</h3>
-                    ${bransDenemeler.length === 0 ? '<p class="text-gray-500 text-sm">Henüz branş deneme eklenmemiş.</p>' : `
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="border rounded-xl p-3 bg-gray-50 dark:bg-gray-900/10"><span class="font-bold text-sm text-gray-500 dark:text-gray-400 block">Toplam Branş Deneme</span> <strong class="text-base">${bransDenemeler.length}</strong></div>
-                            <div class="border rounded-xl p-3 bg-gray-50 dark:bg-gray-900/10"><span class="font-bold text-sm text-gray-500 dark:text-gray-400 block">Ortalama Net</span> <strong class="text-base text-blue-600">${(bransDenemeler.reduce((sum, d) => sum + d.toplamNet, 0) / bransDenemeler.length).toFixed(2)}</strong></div>
+                    <h3 class="section-heading text-lg font-bold text-gray-800 dark:text-white border-b pb-2 mb-3">🔬 Konu Denemesi İstatistikleri</h3>
+                    ${topicExamProgress.count === 0 ? '<p class="text-gray-500 text-sm">Henüz sonuçlandırılmış konu denemesi yok.</p>' : `
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div class="border rounded-xl p-3 bg-gray-50 dark:bg-gray-900/10"><span class="font-bold text-xs text-gray-500 dark:text-gray-400 block">Toplam Deneme</span> <strong class="text-base">${topicExamProgress.count}</strong></div>
+                            <div class="border rounded-xl p-3 bg-green-50 dark:bg-green-950/20"><span class="font-bold text-xs text-gray-500 dark:text-gray-400 block">Ort. Doğru</span> <strong class="text-base text-green-600">${topicExamProgress.averageCorrect?.toFixed(2)}</strong></div>
+                            <div class="border rounded-xl p-3 bg-red-50 dark:bg-red-950/20"><span class="font-bold text-xs text-gray-500 dark:text-gray-400 block">Ort. Yanlış</span> <strong class="text-base text-red-600">${topicExamProgress.averageWrong?.toFixed(2)}</strong></div>
+                            <div class="border rounded-xl p-3 bg-blue-50 dark:bg-blue-950/20"><span class="font-bold text-xs text-gray-500 dark:text-gray-400 block">Ort. Net</span> <strong class="text-base text-blue-600">${topicExamProgress.averageNet?.toFixed(2)}</strong></div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            ${topicExamProgress.topics.map(topic => `<div class="border rounded-xl p-3 bg-white dark:bg-gray-900/20"><div class="flex justify-between gap-2"><span class="font-bold text-sm">${escapeHtml(topic.topic)}</span><span class="text-xs font-black text-blue-600">Ort. ${topic.averageNet.toFixed(2)} net</span></div><p class="text-xs text-gray-500 mt-1">${topic.count} deneme · ${topic.averageCorrect.toFixed(2)}D · ${topic.averageWrong.toFixed(2)}Y</p></div>`).join('')}
                         </div>
                         <div class="mt-4 border-t pt-3">
                             <h4 class="font-bold text-sm text-gray-700 dark:text-gray-300 mb-2">📉 En Çok Hata Yapılan Konular</h4>
@@ -1143,7 +1162,7 @@ export async function renderStudentPanel(id) {
                     `}
                 </div>
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 border">
-                    <h3 class="section-heading text-lg font-bold text-gray-800 dark:text-white border-b pb-2 mb-3">📝 Branş Denemeleri</h3>
+                    <h3 class="section-heading text-lg font-bold text-gray-800 dark:text-white border-b pb-2 mb-3">📝 Konu Denemeleri</h3>
                     <div class="space-y-2 md:max-h-80 md:overflow-y-auto mt-2">${bransExamsHtml}</div>
                 </div>
             </div>

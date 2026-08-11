@@ -178,7 +178,7 @@ export function exportStudyPlanToPdf(studentId) {
                 adviceText = `Başarı oranı %${pct}. Formül ve kural kartları hazırlanmalı, haftalık soru adedi arttırılmalı.`;
             } else {
                 cardClass = 'excellent';
-                adviceText = `Başarı oranı %${pct}. Mevcut seviyeyi korumak adına branş denemelerine ve zor seviye sorulara odaklanılmalı.`;
+                adviceText = `Başarı oranı %${pct}. Mevcut seviyeyi korumak adına konu denemelerine ve zor seviye sorulara odaklanılmalı.`;
             }
             adviceList.push(`
                 <div class="advice-card ${cardClass}">
@@ -509,4 +509,3 @@ window.changeGrowthTarget = changeGrowthTarget;
 window.addGrowthLog = addGrowthLog;
 window.deleteGrowthLog = deleteGrowthLog;
 window.setErrorFilter = setErrorFilter;
-
