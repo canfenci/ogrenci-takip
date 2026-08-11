@@ -6,7 +6,7 @@ import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
-import { buildHomeworkErrorTopics, getSubtopicOptions, MANUAL_SUBTOPIC_VALUE } from './homework-error-topics.js';
+import { buildHomeworkErrorTopics } from './homework-error-topics.js';
 
 export function hideNavigationElements() {
     const sidebar = document.querySelector('#app-root > div.hidden.md\\:flex');
@@ -400,12 +400,11 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                         <label class="text-sm font-semibold">Yanlış Yapılan Ana Konu</label>
                         ${isTopicTest
                             ? `<div id="manualWrongTopicFixed" data-topic="${escapeHtml(odev.konu)}" class="mt-1 rounded-xl bg-white dark:bg-gray-800 border px-3 py-2 font-bold">${escapeHtml(odev.konu)} <span class="block text-xs font-normal text-gray-500">Konu denemesinde otomatik belirlenir.</span></div>`
-                            : `<select id="manualWrongTopic" onchange="updateHomeworkSubtopics()" class="student-form-input min-h-[44px]"><option value="">Konu seçin</option>${topicOptions.map(topic => `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`).join('')}</select>`}
+                            : `<select id="manualWrongTopic" class="student-form-input min-h-[44px]"><option value="">Konu seçin</option>${topicOptions.map(topic => `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`).join('')}</select>`}
                     </div>
                     <div>
                         <label class="text-sm font-semibold">Alt Konu <span class="text-xs font-normal text-gray-500">(isteğe bağlı)</span></label>
-                        <select id="manualWrongSubtopic" onchange="toggleHomeworkManualSubtopic()" class="student-form-input min-h-[44px]"></select>
-                        <div id="manualWrongSubtopicArea" class="hidden mt-2"><input id="manualWrongSubtopicText" class="student-form-input min-h-[44px]" placeholder="Alt konuyu manuel girin"></div>
+                        <input id="manualWrongSubtopicText" class="student-form-input min-h-[44px] mt-1" placeholder="Boş bırakabilir veya örn. Eksen Eğikliği yazabilirsiniz">
                     </div>
                 </div>
                 <button onclick="saveManualOdevResult('${studentId}', '${hwId}')" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-semibold mt-2 min-h-[44px]">Kaydet</button>
@@ -414,27 +413,13 @@ export function showEnterOdevSonucModal(studentId, hwId) {
         </div>
     `;
     document.body.appendChild(modal);
-    updateHomeworkSubtopics(isTopicTest ? odev.konu : '');
-}
-
-export function updateHomeworkSubtopics(fixedTopic = '') {
-    const topic = fixedTopic || document.getElementById('manualWrongTopic')?.value || document.getElementById('manualWrongTopicFixed')?.dataset.topic || '';
-    const select = document.getElementById('manualWrongSubtopic');
-    if (!select) return;
-    select.innerHTML = '<option value="">Alt konu seçilmedi</option>' + getSubtopicOptions(topic).map(subtopic => `<option value="${escapeHtml(subtopic)}">${escapeHtml(subtopic)}</option>`).join('') + `<option value="${MANUAL_SUBTOPIC_VALUE}">✍️ Manuel gir</option>`;
-    toggleHomeworkManualSubtopic();
-}
-
-export function toggleHomeworkManualSubtopic() {
-    document.getElementById('manualWrongSubtopicArea')?.classList.toggle('hidden', document.getElementById('manualWrongSubtopic')?.value !== MANUAL_SUBTOPIC_VALUE);
 }
 
 export function saveManualOdevResult(studentId, hwId) {
     const correct = parseInt(document.getElementById('manualCorrect').value) || 0;
     const wrong = parseInt(document.getElementById('manualWrong').value) || 0;
     const homeworkType = document.getElementById('manualWrongTopicFixed') ? 'Konu Denemesi' : '';
-    const selectedSubtopic = document.getElementById('manualWrongSubtopic')?.value || '';
-    const subtopic = selectedSubtopic === MANUAL_SUBTOPIC_VALUE ? document.getElementById('manualWrongSubtopicText')?.value.trim() || '' : selectedSubtopic;
+    const subtopic = document.getElementById('manualWrongSubtopicText')?.value.trim() || '';
     const errorTopics = buildHomeworkErrorTopics({
         homeworkType,
         assignedTopic: document.getElementById('manualWrongTopicFixed')?.dataset.topic || '',
@@ -808,8 +793,6 @@ window.deleteOdev = deleteOdev;
 window.sendSingleHwReminder = sendSingleHwReminder;
 window.showEnterOdevSonucModal = showEnterOdevSonucModal;
 window.saveManualOdevResult = saveManualOdevResult;
-window.updateHomeworkSubtopics = updateHomeworkSubtopics;
-window.toggleHomeworkManualSubtopic = toggleHomeworkManualSubtopic;
 window.shareHomeworkWhatsApp = shareHomeworkWhatsApp;
 window.showOdevAtaModal = showOdevAtaModal;
 window.renderOdevAtaModal = renderOdevAtaModal;
