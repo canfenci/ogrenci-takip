@@ -192,6 +192,19 @@
         .btn-secondary { background: #FFFFFF !important; color: var(--brand-600) !important; border: 1px solid #C7D2FE !important; border-radius: .75rem; font-weight: 750; }
         .btn-secondary:hover { background: var(--brand-soft) !important; }
         body.dark .btn-secondary { background: #1E293B !important; color: #A5B4FC !important; border-color: #4338CA !important; }
+        .app-modal-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(15,23,42,.58); backdrop-filter: blur(3px); }
+        .app-modal { width: 100%; max-height: 90vh; overflow-y: auto; background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: 1rem; box-shadow: 0 24px 60px rgba(15,23,42,.24); }
+        .app-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border-subtle); }
+        .app-modal-body { padding: 1.25rem; }
+        .app-modal-close { min-width: 2.75rem; min-height: 2.75rem; border-radius: .75rem; color: var(--text-secondary); }
+        .app-modal-close:hover { background: var(--brand-soft); color: var(--brand-700); }
+        .app-segmented { display: flex; gap: .35rem; padding: .3rem; border-radius: .85rem; background: #F1F5F9; }
+        .app-segmented button { flex: 1; min-height: 2.75rem; padding: .5rem .75rem; border-radius: .65rem; color: #64748B; font-weight: 750; }
+        .app-segmented button.is-active { background: #FFFFFF; color: var(--brand-700); box-shadow: 0 1px 3px rgba(15,23,42,.12); }
+        body.dark .app-modal { background: #1E293B; border-color: #334155; }
+        body.dark .app-modal-header { border-color: #334155; }
+        body.dark .app-segmented { background: #0F172A; }
+        body.dark .app-segmented button.is-active { background: #334155; color: #C7D2FE; }
         .status-success { color: var(--success) !important; }
         .status-warning { color: var(--warning) !important; }
         .status-pill { display: inline-flex; align-items: center; gap: .3rem; border-radius: 999px; padding: .3rem .65rem; font-size: .75rem; font-weight: 800; border: 1px solid transparent; }
