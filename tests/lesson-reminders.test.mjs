@@ -7,7 +7,7 @@ import {
   normalizePhone
 } from '../lesson-reminder-insights.js';
 
-test('creates a reminder exactly one hour before a weekly lesson', () => {
+test('activates a reminder two hours before a weekly lesson', () => {
   const now = new Date('2026-08-10T17:15:00+03:00');
   const students = [{ id: 's1', adSoyad: 'Ada Yılmaz', veliTel: '0532 111 22 33' }];
   const schedules = { s1: [{ gun: 'Pazartesi', saat: '18:00', dersAdi: 'Matematik' }] };
@@ -16,8 +16,11 @@ test('creates a reminder exactly one hour before a weekly lesson', () => {
 
   assert.equal(reminder.isDue, true);
   assert.equal(reminder.normalizedPhone, '905321112233');
-  assert.equal(reminder.reminderAt.toISOString(), '2026-08-10T14:00:00.000Z');
+  assert.equal(reminder.reminderAt.toISOString(), '2026-08-10T13:00:00.000Z');
   assert.equal(reminder.lessonAt.toISOString(), '2026-08-10T15:00:00.000Z');
+
+  const [tooEarly] = buildLessonReminders(students, schedules, new Date('2026-08-10T15:59:00+03:00'), {});
+  assert.equal(tooEarly.isDue, false);
 });
 
 test('moves a passed weekly lesson to next week and excludes cancelled lessons', () => {

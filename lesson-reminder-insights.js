@@ -1,4 +1,4 @@
-export const REMINDER_MINUTES = 60;
+export const REMINDER_MINUTES = 120;
 
 const DAY_INDEX = {
     Pazar: 0,
