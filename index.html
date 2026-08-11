@@ -34,10 +34,24 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <style>
+        :root {
+            --brand-600: #4F46E5;
+            --brand-700: #4338CA;
+            --brand-soft: #EEF2FF;
+            --surface-page: #F8FAFC;
+            --surface-card: #FFFFFF;
+            --text-primary: #0F172A;
+            --text-secondary: #64748B;
+            --border-subtle: #E2E8F0;
+            --success: #059669;
+            --warning: #D97706;
+            --danger: #DC2626;
+            --info: #2563EB;
+        }
         .skip-link { position: fixed; left: 1rem; top: -4rem; z-index: 10000; background: #111827; color: white; padding: .75rem 1rem; border-radius: .5rem; }
         .skip-link:focus { top: 1rem; }
         :focus-visible { outline: 3px solid #F59E0B !important; outline-offset: 3px !important; }
-        body:not(.dark) { background-color: #F8F9FA !important; color: #111111 !important; }
+        body:not(.dark) { background-color: var(--surface-page) !important; color: var(--text-primary) !important; }
         body:not(.dark) .bg-white, body:not(.dark) .bg-gray-50 { background-color: #FFFFFF !important; color: #111111 !important; }
         body:not(.dark) .text-gray-800 { color: #111111 !important; }
         body:not(.dark) button.bg-gray-200 { background-color: #E5E7EB !important; color: #111111 !important; }
@@ -148,15 +162,15 @@
         /* Canfenci ortak uygulama yüzeyi */
         .app-page { max-width: 1180px; margin: 0 auto; display: grid; gap: 1rem; }
         .app-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-        .app-page-title { font-size: 1.65rem; line-height: 1.2; font-weight: 850; letter-spacing: -0.025em; color: #111827; }
-        .app-page-subtitle { margin-top: .35rem; color: #6B7280; font-size: .9rem; }
+        .app-page-title { font-size: 1.65rem; line-height: 1.2; font-weight: 850; letter-spacing: -0.025em; color: var(--text-primary); }
+        .app-page-subtitle { margin-top: .35rem; color: var(--text-secondary); font-size: .9rem; }
         body.dark .app-page-title { color: #F8FAFC; }
         body.dark .app-page-subtitle { color: #94A3B8; }
-        .app-panel { background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 1rem; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+        .app-panel { background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: 1rem; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
         body.dark .app-panel { background: #1E293B; border-color: #334155; }
         .app-panel-header { padding: 1rem 1.1rem; border-bottom: 1px solid #E5E7EB; }
         body.dark .app-panel-header { border-color: #334155; }
-        .app-metric { background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: .9rem; padding: .9rem 1rem; }
+        .app-metric { background: var(--surface-page); border: 1px solid var(--border-subtle); border-radius: .9rem; padding: .9rem 1rem; }
         body.dark .app-metric { background: #0F172A; border-color: #334155; }
         .app-metric-label { color: #64748B; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
         .app-metric-value { margin-top: .25rem; color: #0F172A; font-size: 1.15rem; font-weight: 850; }
@@ -173,6 +187,13 @@
         .app-disclosure > summary::-webkit-details-marker { display: none; }
         .app-disclosure[open] .disclosure-chevron { transform: rotate(180deg); }
         .disclosure-chevron { transition: transform .2s ease; }
+        .btn-primary { background: var(--brand-600) !important; color: #FFFFFF !important; border: 1px solid var(--brand-600) !important; border-radius: .75rem; font-weight: 800; box-shadow: 0 1px 2px rgba(79,70,229,.18); }
+        .btn-primary:hover { background: var(--brand-700) !important; border-color: var(--brand-700) !important; }
+        .btn-secondary { background: #FFFFFF !important; color: var(--brand-600) !important; border: 1px solid #C7D2FE !important; border-radius: .75rem; font-weight: 750; }
+        .btn-secondary:hover { background: var(--brand-soft) !important; }
+        body.dark .btn-secondary { background: #1E293B !important; color: #A5B4FC !important; border-color: #4338CA !important; }
+        .status-success { color: var(--success) !important; }
+        .status-warning { color: var(--warning) !important; }
         .section-heading {
             font-size: 1.125rem !important;
             font-weight: 700 !important;
@@ -208,19 +229,19 @@
             min-height: 44px;
         }
         .sidebar-btn .sidebar-icon {
-            color: #6366F1;
+            color: #64748B !important;
             transition: color 0.25s;
         }
         .sidebar-btn:hover {
             background-color: #EEF2FF !important;
-            color: #1E1B4B !important;
+            color: var(--brand-700) !important;
             transform: translateX(4px) !important;
         }
         .sidebar-btn:hover .sidebar-icon {
-            color: #1E1B4B !important;
+            color: var(--brand-700) !important;
         }
         .sidebar-btn.active {
-            background: #4F46E5 !important;
+            background: var(--brand-600) !important;
             color: #FFFFFF !important;
             box-shadow: 0 4px 10px -2px rgba(79, 70, 229, 0.3) !important;
         }
@@ -233,7 +254,7 @@
             color: #9CA3AF !important;
         }
         body.dark .sidebar-btn .sidebar-icon {
-            color: #818CF8;
+            color: #94A3B8 !important;
         }
         body.dark .sidebar-btn:hover {
             background-color: #1E1B4B !important;
@@ -341,15 +362,15 @@
             vertical-align: middle !important;
         }
         
-        /* Global thead stilleri */
-        thead {
+        /* Eski tablolar için başlık; yeni uygulama tabloları kendi sade stilini kullanır. */
+        table:not(.app-data-table) thead {
             background-color: #1f2937 !important;
             color: #ffffff !important;
         }
-        body.dark thead {
+        body.dark table:not(.app-data-table) thead {
             background-color: #111827 !important;
         }
-        thead th {
+        table:not(.app-data-table) thead th {
             color: #ffffff !important;
             font-size: 1rem !important;
         }
@@ -387,8 +408,11 @@
             transition: transform 0.2s ease-in-out;
         }
         body.dark .mobile-nav-btn::after {
-            background-color: #818CF8;
+            background-color: rgba(255,255,255,.96);
+            border-top: 1px solid var(--border-subtle);
+            backdrop-filter: blur(14px);
         }
+        body.dark .mobile-nav-bar { background-color: rgba(15,23,42,.96); border-color: #334155; }
         .mobile-nav-btn.active::after {
             transform: translateX(-50%) scale(1);
         }
@@ -426,16 +450,16 @@
                 </div>
             </div>
             <div class="flex flex-col gap-2">
-                <button id="sidebar-nav-reminders" onclick="renderReminderHome()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-home sidebar-icon text-xl text-blue-500"></i> Ana Sayfa</button>
-                <button id="sidebar-nav-home" onclick="renderHomeScreen()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users sidebar-icon text-xl text-green-500"></i> Öğrenciler</button>
-                <button id="sidebar-nav-guidance" onclick="renderGuidancePage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-compass sidebar-icon text-xl text-violet-500"></i> Rehberlik</button>
-                <button id="sidebar-nav-groups" onclick="renderGroupsPage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users-cog sidebar-icon text-xl text-purple-500"></i> Sınıf & Gruplar</button>
-                <button id="sidebar-nav-schedule" onclick="renderSchedulePage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-calendar-alt sidebar-icon text-xl text-indigo-500"></i> Ders Programı</button>
-                <button id="sidebar-nav-homework" onclick="renderOdevTakibi()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-tasks sidebar-icon text-xl text-orange-500"></i> Ödev Takibi</button>
-                <button id="sidebar-nav-lessons" onclick="renderDersKayitlari()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-book-open sidebar-icon text-xl text-pink-500"></i> Ders Kayıtları</button>
-                <button onclick="showDenemeAtaModal()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-copy sidebar-icon text-xl text-teal-500"></i> Deneme Ata</button>
-                <button onclick="toggleTheme()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-moon sidebar-icon text-xl text-amber-500"></i> <span id="themeBtnText">Koyu Mod</span></button>
-                <button id="sidebar-nav-general" onclick="renderGenelIslemler()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-cog sidebar-icon text-xl text-slate-500"></i> Ayarlar</button>
+                <button id="sidebar-nav-reminders" onclick="renderReminderHome()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-home sidebar-icon text-xl"></i> Ana Sayfa</button>
+                <button id="sidebar-nav-home" onclick="renderHomeScreen()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users sidebar-icon text-xl"></i> Öğrenciler</button>
+                <button id="sidebar-nav-guidance" onclick="renderGuidancePage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-compass sidebar-icon text-xl"></i> Rehberlik</button>
+                <button id="sidebar-nav-groups" onclick="renderGroupsPage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users-cog sidebar-icon text-xl"></i> Sınıf & Gruplar</button>
+                <button id="sidebar-nav-schedule" onclick="renderSchedulePage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-calendar-alt sidebar-icon text-xl"></i> Ders Programı</button>
+                <button id="sidebar-nav-homework" onclick="renderOdevTakibi()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-tasks sidebar-icon text-xl"></i> Ödev Takibi</button>
+                <button id="sidebar-nav-lessons" onclick="renderDersKayitlari()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-book-open sidebar-icon text-xl"></i> Ders Kayıtları</button>
+                <button onclick="showDenemeAtaModal()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-copy sidebar-icon text-xl"></i> Deneme Ata</button>
+                <button onclick="toggleTheme()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-moon sidebar-icon text-xl"></i> <span id="themeBtnText">Koyu Mod</span></button>
+                <button id="sidebar-nav-general" onclick="renderGenelIslemler()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-cog sidebar-icon text-xl"></i> Ayarlar</button>
             </div>
             <div class="text-xs text-gray-400 dark:text-gray-555 mt-auto pt-4 text-center">
                 <i class="fas fa-flask"></i> PWA Standartlarında
