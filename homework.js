@@ -7,6 +7,7 @@ import { updateMobileNavActive } from './auth.js';
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
 import { buildHomeworkErrorTopics } from './homework-error-topics.js';
+import { buildWorkPerformance } from './work-performance-insights.js';
 
 export function hideNavigationElements() {
     const sidebar = document.querySelector('#app-root > div.hidden.md\\:flex');
@@ -244,7 +245,7 @@ export function renderOdevTakibi() {
     document.getElementById("dynamic-content").innerHTML = html;
 }
 
-export function renderStudentOdevDetay(studentId) {
+export function renderStudentOdevDetay(studentId, performanceFilter = 'all') {
     store.currentPage = "studentOdevDetay";
     if (window.currentPage) window.currentPage = "studentOdevDetay";
     window._currentOdevStudentId = studentId;
@@ -257,6 +258,7 @@ export function renderStudentOdevDetay(studentId) {
         return;
     }
     const odevler = getStudentOdevler(student);
+    const performance = buildWorkPerformance(odevler, performanceFilter);
     const todayStr = new Date().toISOString().slice(0, 10);
     let listRows = '';
     
@@ -307,6 +309,7 @@ export function renderStudentOdevDetay(studentId) {
     }
     
     const html = `
+        <div class="space-y-4">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 border">
             <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
                 <div>
@@ -322,12 +325,47 @@ export function renderStudentOdevDetay(studentId) {
                     </button>
                 </div>
             </div>
+            <div class="mb-5 rounded-2xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/10 p-4">
+                <div class="flex items-start justify-between gap-3 flex-wrap mb-3">
+                    <div><h3 class="font-black text-lg text-gray-800 dark:text-white">📈 Çalışma Performansı</h3><p class="text-xs text-gray-500">Testler ve konu denemelerinin D/Y/net gelişimi</p></div>
+                    <div class="flex rounded-xl border bg-white dark:bg-gray-800 p-1 text-xs font-bold">
+                        ${[['all','Tümü'],['test','Testler'],['topic','Konu Denemeleri']].map(([value,label]) => `<button onclick="renderStudentOdevDetay('${studentId}','${value}')" class="px-3 py-2 rounded-lg ${performanceFilter === value ? 'bg-indigo-600 text-white' : 'text-gray-500'}">${label}</button>`).join('')}
+                    </div>
+                </div>
+                ${performance.count ? `
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                        <div class="rounded-xl border bg-white dark:bg-gray-800 p-3"><span class="block text-xs text-gray-500">Çalışma</span><strong>${performance.count}</strong></div>
+                        <div class="rounded-xl border bg-green-50 dark:bg-green-950/20 p-3"><span class="block text-xs text-gray-500">Ort. Doğru</span><strong class="text-green-600">${performance.averageCorrect.toFixed(2)}</strong></div>
+                        <div class="rounded-xl border bg-red-50 dark:bg-red-950/20 p-3"><span class="block text-xs text-gray-500">Ort. Yanlış</span><strong class="text-red-600">${performance.averageWrong.toFixed(2)}</strong></div>
+                        <div class="rounded-xl border bg-blue-50 dark:bg-blue-950/20 p-3"><span class="block text-xs text-gray-500">Ort. Net</span><strong class="text-blue-600">${performance.averageNet.toFixed(2)}</strong></div>
+                    </div>
+                    <div class="h-72 rounded-xl border bg-white dark:bg-gray-800 p-2"><canvas id="workPerformanceChart"></canvas></div>
+                ` : '<p class="text-sm text-gray-500 text-center py-6">Bu filtrede sonuçlandırılmış çalışma bulunmuyor.</p>'}
+            </div>
             <div class="space-y-3 mt-4">
                 ${listRows || '<div class="text-center text-gray-400 p-4">Henüz atanmış ödev bulunmuyor.</div>'}
             </div>
         </div>
+        </div>
     `;
     document.getElementById("dynamic-content").innerHTML = html;
+    setTimeout(() => {
+        const ctx = document.getElementById('workPerformanceChart')?.getContext('2d');
+        if (!ctx || !performance.count || !window.Chart) return;
+        if (window.workPerformanceChartInstance) window.workPerformanceChartInstance.destroy();
+        window.workPerformanceChartInstance = new window.Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: performance.records.map(record => `${record.date} · ${record.label}`),
+                datasets: [
+                    { label: 'Doğru', data: performance.records.map(record => record.correct), borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.25 },
+                    { label: 'Yanlış', data: performance.records.map(record => record.wrong), borderColor: '#dc2626', backgroundColor: '#dc2626', tension: 0.25 },
+                    { label: 'Net', data: performance.records.map(record => record.net), borderColor: '#2563eb', backgroundColor: '#2563eb', tension: 0.25, borderWidth: 3 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true } } }
+        });
+    }, 0);
 }
 
 export function deleteOdev(studentId, hwId) {
