@@ -322,7 +322,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v67/);
+  assert.match(serviceWorker, /canfenci-cache-v68/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -334,7 +334,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v67/);
+  assert.match(serviceWorker, /canfenci-cache-v68/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -346,7 +346,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v67/);
+  assert.match(serviceWorker, /canfenci-cache-v68/);
 });
 
 test('exam assignment modal and student summary use shared professional surfaces', async () => {
@@ -444,4 +444,14 @@ test('guidance study plans follow the teacher branches selected in settings', as
   assert.match(growth, /Program süresi/);
   assert.match(growth, /mode\.startsWith\('branch:'\)/);
   assert.match(serviceWorker, /study-plan-engine\.js/);
+});
+
+test('printed study plans explain techniques and limit daily subject advice', async () => {
+  const growth = await readProjectFile('growth.js');
+  assert.match(growth, /ÇALIŞMA TEKNİKLERİ NASIL UYGULANIR/);
+  assert.match(growth, /Türkçe · Günlük Paragraf Rutini/);
+  assert.match(growth, /Matematik · Yeni Nesil Soru Rutini/);
+  assert.match(growth, /40 veya daha fazla/);
+  assert.doesNotMatch(growth, /DERS BAZLI GELİŞİM ÖNERİLERİ[\s\S]*İngilizce/);
+  assert.doesNotMatch(growth, /DERS BAZLI GELİŞİM ÖNERİLERİ[\s\S]*Din Kültürü/);
 });
