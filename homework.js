@@ -582,7 +582,7 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
                                 <label class="block text-xs font-semibold text-gray-500 mb-1">Ödevin Türü</label>
                                 <select id="odevTurSelect" class="student-form-input min-h-[44px]">
                                     <option value="Konu Denemesi">Konu Denemesi</option>
-                                    <option value="Yaprak Test">Yaprak Test</option>
+                                    <option value="Konu Testi">Konu Testi</option>
                                     <option value="Örnek Sınavlar">Örnek Sınavlar</option>
                                     <option value="Konu Tekrarı" selected>Konu Tekrarı</option>
                                     <option value="Diğer">Diğer</option>
