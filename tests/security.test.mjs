@@ -33,7 +33,18 @@ test('successful authentication restores navigation before cloud profile loading
   assert.match(auth, /Verileriniz hazırlanıyor/);
   assert.match(index, /if \(window\.restoreNavigationLayout\) window\.restoreNavigationLayout\(\)/);
   assert.match(index, /if \(window\.renderAppLoadingState\) window\.renderAppLoadingState\(\)/);
-  assert.match(serviceWorker, /canfenci-cache-v71/);
+  assert.match(serviceWorker, /canfenci-cache-v72/);
+});
+
+test('login refreshes Safari verification state and preserves sign-out feedback', async () => {
+  const auth = await readProjectFile('auth.js');
+
+  assert.match(auth, /await user\.reload\(\)/);
+  assert.match(auth, /user = auth\.currentUser \|\| user/);
+  assert.match(auth, /sessionStorage\.setItem\('canfenci_auth_flash_v1'/);
+  assert.match(auth, /sessionStorage\.getItem\('canfenci_auth_flash_v1'\)/);
+  assert.match(auth, /sessionStorage\.removeItem\('canfenci_auth_flash_v1'\)/);
+  assert.ok(auth.indexOf('await user.reload()') < auth.indexOf('if (!user.emailVerified)'));
 });
 
 test('public homework links are disabled and are not included in reminders', async () => {
@@ -348,7 +359,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v71/);
+  assert.match(serviceWorker, /canfenci-cache-v72/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -360,7 +371,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v71/);
+  assert.match(serviceWorker, /canfenci-cache-v72/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -372,7 +383,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v71/);
+  assert.match(serviceWorker, /canfenci-cache-v72/);
 });
 
 test('exam assignment modal and student summary use shared professional surfaces', async () => {
