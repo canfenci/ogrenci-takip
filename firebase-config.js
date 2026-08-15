@@ -335,7 +335,58 @@ export async function runMigration() {
     }
 }
 
+export function getLocalMigrationSummary() {
+    const readJson = (key, fallback) => {
+        try { return JSON.parse(localStorage.getItem(key)) || fallback; }
+        catch (_) { return fallback; }
+    };
+    const students = readJson(STORAGE_KEY, []);
+    const groups = readJson("student_groups_v1", []);
+    const schedules = readJson(SCHEDULE_KEY, {});
+    const lessons = readJson(DERS_KAYITLARI_KEY, {});
+    return {
+        students: Array.isArray(students) ? students.length : 0,
+        groups: Array.isArray(groups) ? groups.length : 0,
+        schedules: Object.keys(schedules || {}).length,
+        lessons: Object.values(lessons || {}).reduce((total, records) => total + (Array.isArray(records) ? records.length : 0), 0)
+    };
+}
+
+export async function migrateLocalDataToCurrentAccount(confirmationEmail) {
+    const user = auth.currentUser;
+    if (!user || !user.emailVerified) {
+        return { ok: false, message: "Doğrulanmış bir bulut hesabıyla giriş yapmalısınız." };
+    }
+
+    const expectedEmail = String(user.email || '').trim().toLocaleLowerCase('tr-TR');
+    const enteredEmail = String(confirmationEmail || '').trim().toLocaleLowerCase('tr-TR');
+    if (!enteredEmail || enteredEmail !== expectedEmail) {
+        return { ok: false, message: `Onay için açık hesabın e-posta adresini eksiksiz yazın: ${user.email}` };
+    }
+
+    const summary = getLocalMigrationSummary();
+    if (summary.students === 0 && summary.groups === 0) {
+        return { ok: false, message: "Bu Chrome profilinde aktarılabilecek yerel öğrenci veya grup kaydı bulunamadı." };
+    }
+
+    const existingCloudData = await db.collection("students").where("userId", "==", user.uid).limit(1).get();
+    if (!existingCloudData.empty) {
+        return { ok: false, message: "Bu bulut hesabında zaten öğrenci kayıtları var. Güvenlik için otomatik birleştirme durduruldu." };
+    }
+
+    const approved = confirm(`${summary.students} öğrenci, ${summary.lessons} ders kaydı ve ${summary.groups} grup ${user.email} hesabına kopyalanacak.\n\nYerel kayıtlar silinmeyecek. Devam edilsin mi?`);
+    if (!approved) return { ok: false, message: "Aktarım iptal edildi; hiçbir kayıt değiştirilmedi." };
+
+    const migrated = await runMigration();
+    if (!migrated) return { ok: false, message: "Aktarım tamamlanamadı. Yerel kayıtlar korunuyor." };
+
+    localStorage.setItem(LOCAL_DATA_OWNER_KEY, user.uid);
+    return { ok: true, message: `Yerel kayıtlar ${user.email} bulut hesabına başarıyla aktarıldı.` };
+}
+
 // Bind to window for global access
 window.initializeFirestoreSync = initializeFirestoreSync;
 window.runMigration = runMigration;
 window.resetFirestoreSync = resetFirestoreSync;
+window.getLocalMigrationSummary = getLocalMigrationSummary;
+window.migrateLocalDataToCurrentAccount = migrateLocalDataToCurrentAccount;

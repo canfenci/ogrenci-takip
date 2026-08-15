@@ -33,7 +33,7 @@ test('successful authentication restores navigation before cloud profile loading
   assert.match(auth, /Verileriniz hazırlanıyor/);
   assert.match(index, /if \(window\.restoreNavigationLayout\) window\.restoreNavigationLayout\(\)/);
   assert.match(index, /if \(window\.renderAppLoadingState\) window\.renderAppLoadingState\(\)/);
-  assert.match(serviceWorker, /canfenci-cache-v72/);
+  assert.match(serviceWorker, /canfenci-cache-v73/);
 });
 
 test('login refreshes Safari verification state and preserves sign-out feedback', async () => {
@@ -93,6 +93,25 @@ test('production cloud sync isolates authenticated accounts from shared local da
   assert.match(firebaseConfig, /store\.syncUserId !== user\.uid/);
   assert.match(store, /useFirestore: false/);
   assert.match(store, /syncUserId: null/);
+});
+
+test('manual local recovery requires the exact verified account and an empty cloud account', async () => {
+  const [firebaseConfig, students, serviceWorker] = await Promise.all([
+    readProjectFile('firebase-config.js'),
+    readProjectFile('students.js'),
+    readProjectFile('sw.js')
+  ]);
+
+  assert.match(firebaseConfig, /migrateLocalDataToCurrentAccount/);
+  assert.match(firebaseConfig, /!user \|\| !user\.emailVerified/);
+  assert.match(firebaseConfig, /enteredEmail !== expectedEmail/);
+  assert.match(firebaseConfig, /limit\(1\)\.get\(\)/);
+  assert.match(firebaseConfig, /if \(!existingCloudData\.empty\)/);
+  assert.match(firebaseConfig, /Yerel kayıtlar silinmeyecek/);
+  assert.match(students, /Yerel Kayıt Kurtarma/);
+  assert.match(students, /Açık hesap:/);
+  assert.match(students, /startLocalDataRecovery/);
+  assert.match(serviceWorker, /canfenci-cache-v73/);
 });
 
 test('first use requires a complete local teacher profile that remains editable in settings', async () => {
@@ -359,7 +378,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v72/);
+  assert.match(serviceWorker, /canfenci-cache-v73/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -371,7 +390,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v72/);
+  assert.match(serviceWorker, /canfenci-cache-v73/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -383,7 +402,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v72/);
+  assert.match(serviceWorker, /canfenci-cache-v73/);
 });
 
 test('exam assignment modal and student summary use shared professional surfaces', async () => {
