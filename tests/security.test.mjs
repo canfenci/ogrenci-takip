@@ -322,7 +322,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v66/);
+  assert.match(serviceWorker, /canfenci-cache-v67/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -334,7 +334,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v66/);
+  assert.match(serviceWorker, /canfenci-cache-v67/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -346,7 +346,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v66/);
+  assert.match(serviceWorker, /canfenci-cache-v67/);
 });
 
 test('exam assignment modal and student summary use shared professional surfaces', async () => {
@@ -429,15 +429,19 @@ test('students guidance and homework share the unified application surfaces', as
 });
 
 test('guidance study plans follow the teacher branches selected in settings', async () => {
-  const [students, growth] = await Promise.all([
+  const [students, growth, serviceWorker] = await Promise.all([
     readProjectFile('students.js'),
-    readProjectFile('growth.js')
+    readProjectFile('growth.js'),
+    readProjectFile('sw.js')
   ]);
 
   assert.match(students, /store\.teacherBranches/);
-  assert.match(students, /Branş Programı/);
-  assert.match(students, /Genel Çalışma Programı/);
-  assert.match(students, /autoPopulateStudyPlan\('\$\{id\}', document\.getElementById\('studyPlanMode'\)\.value\)/);
-  assert.match(growth, /buildBranchStudyPlan/);
+  assert.match(growth, /Branş Programı/);
+  assert.match(growth, /Genel Çalışma Programı/);
+  assert.match(students, /showStudyPlanSetup\('\$\{id\}'\)/);
+  assert.match(growth, /Akıllı Çalışma Programı/);
+  assert.match(growth, /STUDY_TECHNIQUES/);
+  assert.match(growth, /Program süresi/);
   assert.match(growth, /mode\.startsWith\('branch:'\)/);
+  assert.match(serviceWorker, /study-plan-engine\.js/);
 });
