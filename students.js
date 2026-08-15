@@ -1636,6 +1636,7 @@ export function renderGenelIslemler() {
 
             <div class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-400">
                 <i class="fas fa-flask"></i> Canfenci Öğrenci Takip Sistemi PWA v1.0
+                <button type="button" onclick="showPrivacyNotice()" class="block mx-auto mt-2 min-h-[44px] text-xs font-bold underline hover:text-indigo-600">Gizlilik ve KVKK Aydınlatma Metni</button>
             </div>
         </div>
     `;
