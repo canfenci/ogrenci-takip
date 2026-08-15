@@ -338,6 +338,7 @@ export const store = {
     globalSchedules: {},
     globalLessons: {},
     globalGroups: [],
+    globalResourceBooks: [],
     chartInstance: null,
     currentSortOrder: "default",
     useFirestore: false,
