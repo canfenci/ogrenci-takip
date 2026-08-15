@@ -45,6 +45,9 @@ export function renderLoginScreen() {
                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">🔑 Şifre</label>
                 <input type="password" id="loginPassword" placeholder="••••••••" class="student-form-input">
             </div>
+            <div id="forgotPasswordContainer" class="text-right -mt-2">
+                <button type="button" onclick="handlePasswordReset()" class="min-h-[44px] px-1 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Şifremi unuttum</button>
+            </div>
             <div id="confirmPasswordContainer" class="hidden">
                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">🔑 Şifre Tekrar</label>
                 <input type="password" id="loginConfirmPassword" placeholder="••••••••" class="student-form-input">
@@ -105,6 +108,7 @@ export function switchAuthTab(mode) {
     const tabRegister = document.getElementById("tabRegister");
     const confirmContainer = document.getElementById("confirmPasswordContainer");
     const branchesContainer = document.getElementById("registerBranchesContainer");
+    const forgotPasswordContainer = document.getElementById("forgotPasswordContainer");
     const actionBtn = document.getElementById("authActionButton");
     const errDiv = document.getElementById("loginError");
     
@@ -115,6 +119,7 @@ export function switchAuthTab(mode) {
         if (tabRegister) tabRegister.className = "flex-1 pb-2.5 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300";
         if (confirmContainer) confirmContainer.classList.add("hidden");
         if (branchesContainer) branchesContainer.classList.add("hidden");
+        if (forgotPasswordContainer) forgotPasswordContainer.classList.remove("hidden");
         if (actionBtn) {
             actionBtn.innerHTML = `<i class="fas fa-sign-in-alt"></i> Giriş Yap`;
             actionBtn.setAttribute("onclick", "handleLogin()");
@@ -124,10 +129,44 @@ export function switchAuthTab(mode) {
         if (tabLogin) tabLogin.className = "flex-1 pb-2.5 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300";
         if (confirmContainer) confirmContainer.classList.remove("hidden");
         if (branchesContainer) branchesContainer.classList.remove("hidden");
+        if (forgotPasswordContainer) forgotPasswordContainer.classList.add("hidden");
         if (actionBtn) {
             actionBtn.innerHTML = `<i class="fas fa-user-plus"></i> Kayıt Ol (Bulut Kurulumu)`;
             actionBtn.setAttribute("onclick", "handleRegister()");
         }
+    }
+}
+
+export async function handlePasswordReset() {
+    const email = document.getElementById('loginEmail')?.value.trim();
+    const feedback = document.getElementById('loginError');
+    if (!feedback) return;
+
+    if (!email) {
+        feedback.textContent = 'Şifre sıfırlama bağlantısı için önce e-posta adresinizi yazın.';
+        feedback.className = 'bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200 px-4 py-2.5 rounded-xl mb-4 text-sm';
+        document.getElementById('loginEmail')?.focus();
+        return;
+    }
+
+    try {
+        await auth.sendPasswordResetEmail(email, {
+            url: 'https://canfenci.github.io/ogrenci-takip/',
+            handleCodeInApp: false
+        });
+        feedback.textContent = 'Bu adresle kayıtlı bir hesap varsa şifre sıfırlama bağlantısı gönderildi. Gelen kutusu ve spam klasörünü kontrol edin.';
+        feedback.className = 'bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-2.5 rounded-xl mb-4 text-sm';
+    } catch (err) {
+        console.error('Password reset failed:', err);
+        if (err.code === 'auth/invalid-email') {
+            feedback.textContent = 'Geçerli bir e-posta adresi yazın.';
+        } else if (err.code === 'auth/too-many-requests') {
+            feedback.textContent = 'Çok fazla istek gönderildi. Bir süre bekleyip tekrar deneyin.';
+        } else {
+            // Do not reveal whether an account exists for the supplied address.
+            feedback.textContent = 'Şifre sıfırlama isteği şu anda gönderilemedi. Lütfen bağlantınızı kontrol edip tekrar deneyin.';
+        }
+        feedback.className = 'bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-2.5 rounded-xl mb-4 text-sm';
     }
 }
 
@@ -377,3 +416,4 @@ window.updateMobileNavActive = updateMobileNavActive;
 window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
 window.handleLogout = handleLogout;
+window.handlePasswordReset = handlePasswordReset;
