@@ -635,8 +635,11 @@
                 if (window.isFirebaseActive && window.auth) {
                     window.auth.onAuthStateChanged(user => {
                         if (user) {
+                            if (window.restoreNavigationLayout) window.restoreNavigationLayout();
+                            if (window.renderAppLoadingState) window.renderAppLoadingState();
                             if (window.initializeFirestoreSync) {
                                 window.initializeFirestoreSync().then(() => {
+                                    document.getElementById("dynamic-content")?.removeAttribute("aria-busy");
                                     if (window.ensureTeacherProfile && !window.ensureTeacherProfile()) return;
                                     const page = urlParams.get('page');
                                     if (page === 'odevler' && window.renderOdevTakibi) {
