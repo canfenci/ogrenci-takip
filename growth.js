@@ -2,6 +2,7 @@
 
 import { store, loadStudentsData, saveStudentsData, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM, escapeHtml } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
+import { STUDY_TECHNIQUES, buildAdaptiveStudyPlan, calculateStudyProfile, getStudyBadge } from './study-plan-engine.js';
 
 export function addStudyTask(studentId, gun) {
     const input = document.getElementById(`taskInput_${gun}`);
@@ -41,99 +42,103 @@ export function deleteStudyTask(studentId, gun, taskIdx) {
     }
 }
 
-export function buildBranchStudyPlan(subject) {
-    return {
-        "Pazartesi": [`${subject} - Eksik konu tekrarı`, `${subject} - 30 soru`],
-        "Salı": [`${subject} - Konu testi`],
-        "Çarşamba": [`${subject} - Yanlış soruların analizi ve tekrar çözümü`],
-        "Perşembe": [`${subject} - Kaynak kitaptan çalışma`],
-        "Cuma": [`${subject} - Konu denemesi`],
-        "Cumartesi": [`${subject} - Haftalık tekrar ve gelişim değerlendirmesi`],
-        "Pazar": ["Dinlenme ve Kitap Okuma"]
-    };
+export function showStudyPlanSetup(studentId) {
+    const students = loadStudentsData();
+    const student = students.find(item => item.id === studentId);
+    if (!student) return;
+    document.getElementById('studyPlanSetupModal')?.remove();
+    const branches = Array.isArray(store.teacherBranches) ? store.teacherBranches : [];
+    const programOptions = branches.map(branch => `<option value="branch:${escapeHtml(branch)}">${escapeHtml(branch)} Branş Programı</option>`).join('');
+    const techniqueOptions = Object.entries(STUDY_TECHNIQUES).map(([key, label]) => `
+        <label class="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 p-3 cursor-pointer">
+            <input type="checkbox" name="studyTechnique" value="${key}" checked class="rounded text-indigo-600">
+            <span class="text-sm font-bold">${label}</span>
+        </label>`).join('');
+    const dayOptions = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'].map((day, index) => `
+        <label class="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="studyDay" value="${day}" ${index < 6 ? 'checked' : ''} class="rounded text-indigo-600">${day}</label>`).join('');
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="studyPlanSetupModal" class="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="studyPlanSetupTitle">
+            <div class="app-modal max-w-3xl mx-auto my-4 sm:my-8">
+                <div class="app-modal-header flex items-start justify-between gap-4">
+                    <div><h3 id="studyPlanSetupTitle" class="text-xl font-black">Akıllı Çalışma Programı</h3><p class="text-sm text-gray-500 mt-1">${escapeHtml(student.adSoyad)} için program ölçütlerini belirleyin.</p></div>
+                    <button onclick="closeStudyPlanSetup()" class="min-w-[44px] min-h-[44px] text-gray-500" aria-label="Pencereyi kapat"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="app-modal-body space-y-5">
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <label class="text-sm font-bold">Program türü<select id="studySetupMode" onchange="updateStudyPlanPreview('${studentId}')" class="student-form-input mt-1 min-h-[44px]">${programOptions}<option value="general">Genel Çalışma Programı</option></select></label>
+                        <label class="text-sm font-bold">Aşama<select id="studySetupStage" onchange="updateStudyPlanPreview('${studentId}')" class="student-form-input mt-1 min-h-[44px]"><option value="auto">Otomatik</option><option value="beginner">Başlangıç</option><option value="intermediate">Orta</option><option value="advanced">İleri</option></select></label>
+                        <label class="text-sm font-bold">Yoğunluk<select id="studySetupIntensity" class="student-form-input mt-1 min-h-[44px]"><option value="auto">Otomatik</option><option value="light">Hafif</option><option value="balanced">Dengeli</option><option value="intensive">Yoğun</option></select></label>
+                        <label class="text-sm font-bold">Günlük azami süre<select id="studySetupMinutes" class="student-form-input mt-1 min-h-[44px]"><option value="20">20 dakika</option><option value="30" selected>30 dakika</option><option value="45">45 dakika</option><option value="60">60 dakika</option><option value="75">75 dakika</option></select></label>
+                        <label class="text-sm font-bold sm:col-span-2">Program süresi<select id="studySetupDuration" class="student-form-input mt-1 min-h-[44px]"><option value="1">1 hafta</option><option value="2">2 hafta</option><option value="4">4 hafta</option></select></label>
+                    </div>
+                    <div id="studyPlanAutoPreview" class="rounded-xl border border-indigo-100 bg-indigo-50/60 dark:bg-indigo-950/20 dark:border-indigo-900 p-4"></div>
+                    <fieldset><legend class="font-black text-sm mb-2">Kullanılacak teknikler</legend><div class="grid sm:grid-cols-2 gap-2">${techniqueOptions}</div></fieldset>
+                    <fieldset><legend class="font-black text-sm mb-2">Çalışma günleri</legend><div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${dayOptions}</div></fieldset>
+                    <p class="text-xs text-gray-500">2 veya 4 haftalık seçimlerde oluşturulan haftalık düzen belirtilen süre boyunca uygulanır ve sonuçlara göre yeniden değerlendirilebilir.</p>
+                </div>
+                <div class="app-modal-actions"><button onclick="closeStudyPlanSetup()" class="btn-secondary min-h-[44px]">Vazgeç</button><button onclick="createConfiguredStudyPlan('${studentId}')" class="btn-primary min-h-[44px]"><i class="fas fa-magic mr-1"></i> Programı Oluştur</button></div>
+            </div>
+        </div>`);
+    updateStudyPlanPreview(studentId);
 }
 
-export function autoPopulateStudyPlan(studentId, mode = 'general') {
-    const selectedBranch = mode.startsWith('branch:') ? mode.slice('branch:'.length).trim() : '';
-    const planName = selectedBranch ? `${selectedBranch} branş programı` : 'genel çalışma programı';
-    if (!confirm(`Öğrenci için ${planName} otomatik olarak doldurulacaktır. Mevcut program silinecektir. Emin misiniz?`)) return;
+export function closeStudyPlanSetup() {
+    document.getElementById('studyPlanSetupModal')?.remove();
+}
+
+export function updateStudyPlanPreview(studentId) {
+    const student = loadStudentsData().find(item => item.id === studentId);
+    const mode = document.getElementById('studySetupMode')?.value || 'general';
+    const subject = mode.startsWith('branch:') ? mode.slice(7) : '';
+    const profile = calculateStudyProfile(student, subject);
+    const selectedStage = document.getElementById('studySetupStage')?.value || 'auto';
+    const stage = selectedStage === 'auto' ? profile.stage : selectedStage;
+    const badge = getStudyBadge(subject || 'general', stage);
+    const stageNames = { beginner: 'Başlangıç', intermediate: 'Orta', advanced: 'İleri' };
+    const confidenceText = profile.confidence === 'low' ? 'Veri az; başlangıç aşaması önerildi.' : `${profile.dataPoints} kayıt üzerinden hesaplandı.`;
+    const preview = document.getElementById('studyPlanAutoPreview');
+    if (preview) preview.innerHTML = `<div class="flex items-center justify-between gap-3"><div><p class="text-xs font-black uppercase tracking-wide text-indigo-600">Önerilen rozet</p><p class="text-lg font-black mt-1">🏅 ${escapeHtml(badge)}</p></div><span class="rounded-full bg-white dark:bg-gray-800 px-3 py-1 text-xs font-black">${stageNames[stage]}</span></div><p class="text-xs text-gray-500 mt-2">${confidenceText} · Performans puanı: ${profile.score}/100</p>`;
+}
+
+export function createConfiguredStudyPlan(studentId) {
+    const mode = document.getElementById('studySetupMode')?.value || 'general';
+    const stageChoice = document.getElementById('studySetupStage')?.value || 'auto';
+    const intensityChoice = document.getElementById('studySetupIntensity')?.value || 'auto';
+    const techniques = [...document.querySelectorAll('input[name="studyTechnique"]:checked')].map(input => input.value);
+    const days = [...document.querySelectorAll('input[name="studyDay"]:checked')].map(input => input.value);
+    if (!techniques.length) return alert('Lütfen en az bir çalışma tekniği seçin.');
+    if (!days.length) return alert('Lütfen en az bir çalışma günü seçin.');
+    autoPopulateStudyPlan(studentId, {
+        mode,
+        stageChoice,
+        intensityChoice,
+        techniques,
+        days,
+        dailyMinutes: Number(document.getElementById('studySetupMinutes')?.value || 30),
+        durationWeeks: Number(document.getElementById('studySetupDuration')?.value || 1)
+    });
+}
+
+export function autoPopulateStudyPlan(studentId, configuration = {}) {
     const students = loadStudentsData();
     const sIdx = students.findIndex(s => s.id === studentId);
     if (sIdx === -1) return;
-    
-    const s = students[sIdx];
-    const denemeler = s.denemeler || [];
-    const genelDenemeler = denemeler.filter(d => d.tip === "genel");
-    
-    // Calculate course success percentages
-    const successRates = {};
-    GENEL_DERSLER_KEY.forEach(d => {
-        successRates[d] = null;
-    });
-    
-    if (genelDenemeler.length > 0) {
-        const dersBazliNetler = {};
-        GENEL_DERSLER_KEY.forEach(d => dersBazliNetler[d] = { dogru: 0, toplamSoru: 0 });
-        
-        for (let den of genelDenemeler) {
-            if (den.dersSonuclari) {
-                for (let d in den.dersSonuclari) {
-                    if (dersBazliNetler[d]) {
-                        const sc = den.dersSonuclari[d];
-                        dersBazliNetler[d].dogru += sc.dogru;
-                        dersBazliNetler[d].toplamSoru += (sc.dogru + sc.yanlis + sc.bos);
-                    }
-                }
-            }
-        }
-        
-        GENEL_DERSLER_KEY.forEach(d => {
-            const t = dersBazliNetler[d].toplamSoru;
-            successRates[d] = t ? (dersBazliNetler[d].dogru / t) * 100 : null;
-        });
-    }
-    
-    // Find weakest subjects
-    const sortedSubjects = GENEL_DERSLER_KEY.map(d => {
-        return { key: d, name: d, success: successRates[d] !== null ? successRates[d] : 100 };
-    }).sort((a, b) => a.success - b.success);
-    
-    const weakest = sortedSubjects[0];
-    const secondWeakest = sortedSubjects[1];
-    
-    // Prepare recommended plan
-    const plan = selectedBranch ? buildBranchStudyPlan(selectedBranch) : {
-        "Pazartesi": [],
-        "Salı": [],
-        "Çarşamba": [],
-        "Perşembe": [],
-        "Cuma": [],
-        "Cumartesi": [],
-        "Pazar": ["Dinlenme ve Kitap Okuma"]
-    };
-    
-    if (!selectedBranch) {
-        // Add weakest subject tasks
-        plan["Pazartesi"].push(`${weakest.name} - Konu Çalışması & 40 Soru`);
-        plan["Çarşamba"].push(`${weakest.name} - Soru Çözümü (50 Soru)`);
-        plan["Cuma"].push(`${weakest.name} - Hata Analizi ve Tekrar`);
-
-        // Add second weakest
-        plan["Salı"].push(`${secondWeakest.name} - Konu Tekrarı & 45 Soru`);
-        plan["Perşembe"].push(`${secondWeakest.name} - Soru Çözümü (50 Soru)`);
-
-        // Add other subjects or general assignments
-        plan["Pazartesi"].push("Türkçe - Paragraf Soru Çözümü (20 Soru)");
-        plan["Salı"].push("Kitap Okuma (30 dk)");
-        plan["Çarşamba"].push("Türkçe - Paragraf Soru Çözümü (20 Soru)");
-        plan["Perşembe"].push("Kitap Okuma (30 dk)");
-        plan["Cuma"].push("Türkçe - Dil Bilgisi Tekrarı");
-        plan["Cumartesi"].push("Haftalık Genel Deneme Çözümü");
-        plan["Cumartesi"].push("Deneme Analizi ve Yanlış Soru Sıfırlama");
-    }
-    
-    s.studyPlan = plan;
+    const student = students[sIdx];
+    const mode = typeof configuration === 'string' ? configuration : configuration.mode || 'general';
+    const subject = mode.startsWith('branch:') ? mode.slice(7) : '';
+    const profile = calculateStudyProfile(student, subject);
+    const stage = configuration.stageChoice && configuration.stageChoice !== 'auto' ? configuration.stageChoice : profile.stage;
+    const intensity = configuration.intensityChoice && configuration.intensityChoice !== 'auto' ? configuration.intensityChoice : profile.intensity;
+    const techniques = configuration.techniques || Object.keys(STUDY_TECHNIQUES);
+    const days = configuration.days || ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+    const dailyMinutes = configuration.dailyMinutes || 30;
+    const durationWeeks = configuration.durationWeeks || 1;
+    const badge = getStudyBadge(subject || 'general', stage);
+    student.studyPlan = buildAdaptiveStudyPlan({ subject, stage, intensity, techniques, days, dailyMinutes });
+    student.studyPlanProfile = { mode, subject, stage, intensity, techniques, days, dailyMinutes, durationWeeks, badge, score: profile.score, generatedAt: new Date().toISOString() };
     saveStudentsData(students);
+    closeStudyPlanSetup();
+    showSyncStatus(`🏅 ${badge} programı oluşturuldu`, false);
     if (window.renderStudentPanel) {
         window.renderStudentPanel(studentId).then(() => {
             if (window.switchStudentTab) window.switchStudentTab('calisma');
@@ -519,6 +524,10 @@ export function setErrorFilter(filterName) {
 window.addStudyTask = addStudyTask;
 window.deleteStudyTask = deleteStudyTask;
 window.autoPopulateStudyPlan = autoPopulateStudyPlan;
+window.showStudyPlanSetup = showStudyPlanSetup;
+window.closeStudyPlanSetup = closeStudyPlanSetup;
+window.updateStudyPlanPreview = updateStudyPlanPreview;
+window.createConfiguredStudyPlan = createConfiguredStudyPlan;
 window.exportStudyPlanToPdf = exportStudyPlanToPdf;
 window.resetStudentError = resetStudentError;
 window.changeGrowthTarget = changeGrowthTarget;

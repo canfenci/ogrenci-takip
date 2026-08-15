@@ -491,6 +491,7 @@ export function normalizeStudent(s) {
         denemeler: s.denemeler || [],
         odevler: Array.isArray(s.odevler) ? s.odevler : [],
         studyPlan: s.studyPlan || {},
+        studyPlanProfile: s.studyPlanProfile || null,
         errorResets: s.errorResets || {},
         growthPlan: s.growthPlan || {},
         weeklyGoals: s.weeklyGoals || {},

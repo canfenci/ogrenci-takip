@@ -795,10 +795,14 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
             }
         }
         const studyAdviceHtml = adviceList.join('');
-        const teacherProgramBranches = Array.isArray(store.teacherBranches) ? store.teacherBranches : [];
-        const studyPlanModeOptions = teacherProgramBranches.map((branch, index) => `
-            <option value="branch:${escapeHtml(branch)}" ${index === 0 ? 'selected' : ''}>${escapeHtml(branch)} Branş Programı</option>
-        `).join('');
+        const studyPlanProfile = student.studyPlanProfile || null;
+        const studyStageNames = { beginner: 'Başlangıç', intermediate: 'Orta', advanced: 'İleri' };
+        const studyIntensityNames = { light: 'Hafif', balanced: 'Dengeli', intensive: 'Yoğun' };
+        const studyPlanProfileHtml = studyPlanProfile ? `
+            <div class="mb-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div><p class="text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-400">Öğrencinin çalışma rozeti</p><p class="text-lg font-black mt-1">🏅 ${escapeHtml(studyPlanProfile.badge || 'Çalışma Kaşifi')}</p><p class="text-xs text-gray-500 mt-1">${escapeHtml(studyPlanProfile.subject || 'Genel çalışma')} · ${studyPlanProfile.durationWeeks || 1} haftalık program</p></div>
+                <div class="flex flex-wrap gap-2"><span class="rounded-full bg-white dark:bg-gray-800 border px-3 py-1 text-xs font-black">${studyStageNames[studyPlanProfile.stage] || 'Başlangıç'}</span><span class="rounded-full bg-white dark:bg-gray-800 border px-3 py-1 text-xs font-black">${studyIntensityNames[studyPlanProfile.intensity] || 'Hafif'}</span><span class="rounded-full bg-white dark:bg-gray-800 border px-3 py-1 text-xs font-black">${studyPlanProfile.dailyMinutes || 30} dk/gün</span></div>
+            </div>` : '';
         
         // 2. Haftalık Çalışma Takvimi
         const gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -1203,19 +1207,15 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
                             <p class="text-sm text-gray-500">Ayarlar'da seçtiğiniz derslere göre branş veya genel çalışma programı oluşturun.</p>
                         </div>
                         <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-                            <label class="sr-only" for="studyPlanMode">Çalışma programı türü</label>
-                            <select id="studyPlanMode" class="student-form-input min-h-[44px] sm:min-w-[230px]">
-                                ${studyPlanModeOptions}
-                                <option value="general">Genel Çalışma Programı</option>
-                            </select>
                             <button onclick="exportStudyPlanToPdf('${id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-1.5 shadow min-h-[44px]">
                                 <i class="fas fa-file-pdf text-base"></i> Programı PDF Kaydet
                             </button>
-                            <button onclick="autoPopulateStudyPlan('${id}', document.getElementById('studyPlanMode').value)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-1.5 shadow min-h-[44px]">
+                            <button onclick="showStudyPlanSetup('${id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-1.5 shadow min-h-[44px]">
                                 <i class="fas fa-magic text-base"></i> Programı Otomatik Doldur
                             </button>
                         </div>
                     </div>
+                    ${studyPlanProfileHtml}
                     
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
                         <!-- Performans Önerileri -->
