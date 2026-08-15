@@ -10,6 +10,7 @@ import { validateStudentInput } from './data-validation.js';
 import { renderLessonReminderCenter } from './lesson-reminders.js';
 import { calculateTopicExamProgress } from './topic-exam-insights.js';
 import { addResourceBook, deleteResourceBook, loadResourceBooks } from './resource-books.js';
+import { backupFileName, buildFullBackup } from './backup.js';
 
 let selectedSettingsResourceGrade = '';
 
@@ -443,18 +444,43 @@ export function switchStudentTab(tabName) {
 // Backup & Recovery
 export function exportBackup() {
     try {
-        const data = loadStudentsData();
+        const readJson = (key, fallback) => {
+            try {
+                const value = JSON.parse(localStorage.getItem(localDataKey(key)));
+                return value ?? fallback;
+            } catch {
+                return fallback;
+            }
+        };
+        const isCloud = store.useFirestore && isFirebaseActive && !store.isGuestMode;
+        const data = buildFullBackup({
+            accountEmail: isCloud ? (auth.currentUser?.email || '') : '',
+            mode: store.isGuestMode ? 'guest' : (isCloud ? 'cloud' : 'offline'),
+            teacherProfile: {
+                name: localStorage.getItem(localDataKey('teacher_name_v1')) || store.teacherName || '',
+                school: localStorage.getItem(localDataKey('teacher_school_v1')) || store.teacherSchool || '',
+                branches: readJson('teacher_branches_v1', store.teacherBranches || [])
+            },
+            students: loadStudentsData(),
+            homeworks: isCloud ? (store.globalHomeworks || []) : loadStudentsData().flatMap(student => student.odevler || []),
+            schedules: isCloud ? (store.globalSchedules || {}) : readJson('student_schedule', {}),
+            lessons: isCloud ? (store.globalLessons || {}) : readJson('student_ders_kayitlari_v2', {}),
+            groups: isCloud ? (store.globalGroups || []) : readJson('student_groups_v1', []),
+            resourceBooks: loadResourceBooks(),
+            reminderSettings: readJson('lesson_reminder_settings_v1', {}),
+            reminderHistory: readJson('lesson_reminder_history_v1', {})
+        });
         const jsonStr = JSON.stringify(data, null, 2);
         const blob = new Blob([jsonStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = "canfenci_yedek.json";
+        a.download = backupFileName();
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showSyncStatus("✅ Yedek başarıyla alındı", false);
+        showSyncStatus("✅ Tam veri yedeği indirildi", false);
     } catch (err) {
         console.error("Yedek hatası:", err);
         alert("Yedek alınamadı: " + err.message);

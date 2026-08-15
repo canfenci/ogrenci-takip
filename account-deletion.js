@@ -19,8 +19,8 @@ export function showAccountDeletionDialog() {
             <div class="mt-4 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/15 p-4 text-sm text-red-800 dark:text-red-200">
                 Öğrenciler, ödevler, ders kayıtları, programlar, gruplar, kaynak kitaplar ve öğretmen profili kalıcı olarak silinir. İşlem tamamlandıktan sonra hesap yeniden açılsa bile bu veriler geri getirilemez.
             </div>
-            <button type="button" onclick="exportBackup()" class="mt-4 w-full min-h-[44px] rounded-xl border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold"><i class="fas fa-download mr-1"></i> Önce Öğrenci Yedeğini İndir</button>
-            <p class="mt-1 text-xs text-gray-500">Mevcut yedek yalnızca öğrenci kartlarını içerir; tüm bulut kayıtlarının eksiksiz arşivi değildir.</p>
+            <button type="button" onclick="exportBackup()" class="mt-4 w-full min-h-[44px] rounded-xl border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold"><i class="fas fa-download mr-1"></i> Önce Tam Veri Yedeğini İndir</button>
+            <p class="mt-1 text-xs text-gray-500">Yedek; öğrencileri, ödevleri, ders kayıtlarını, programları, grupları, kaynak kitapları ve öğretmen profilini içerir. Kişisel veri içerdiği için dosyayı güvenli bir yerde saklayın.</p>
             <div class="mt-5 space-y-3">
                 <div><label for="deleteAccountEmail" class="block text-xs font-bold mb-1">Açık hesabın e-posta adresi</label><input id="deleteAccountEmail" type="email" autocomplete="off" class="student-form-input" placeholder="${escapeHtml(user.email || '')}"></div>
                 <div><label for="deleteAccountPassword" class="block text-xs font-bold mb-1">Mevcut şifre</label><input id="deleteAccountPassword" type="password" autocomplete="current-password" class="student-form-input" placeholder="Mevcut şifreniz"></div>
