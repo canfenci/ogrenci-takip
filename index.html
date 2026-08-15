@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#4F46E5">
+    <meta name="theme-color" content="#151D31">
     <title>Canfenci Öğrenci Takip Sistemi</title>
     <link rel="manifest" href="manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
@@ -11,6 +11,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Canfenci">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -18,8 +21,8 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#4F46E5',
-                        secondary: '#7C3AED'
+                        primary: '#394B87',
+                        secondary: '#B58B4A'
                     }
                 }
             }
@@ -35,14 +38,18 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <style>
         :root {
-            --brand-600: #4F46E5;
-            --brand-700: #4338CA;
-            --brand-soft: #EEF2FF;
-            --surface-page: #F8FAFC;
+            --brand-500: #5167A9;
+            --brand-600: #394B87;
+            --brand-700: #2C3B70;
+            --brand-soft: #EEF1F8;
+            --accent: #B58B4A;
+            --accent-soft: #F7F1E7;
+            --surface-page: #F3F5F8;
             --surface-card: #FFFFFF;
-            --text-primary: #0F172A;
-            --text-secondary: #64748B;
-            --border-subtle: #E2E8F0;
+            --surface-raised: #FBFCFE;
+            --text-primary: #182033;
+            --text-secondary: #667085;
+            --border-subtle: #DDE2EA;
             --success: #059669;
             --warning: #D97706;
             --danger: #DC2626;
@@ -51,7 +58,10 @@
         .skip-link { position: fixed; left: 1rem; top: -4rem; z-index: 10000; background: #111827; color: white; padding: .75rem 1rem; border-radius: .5rem; }
         .skip-link:focus { top: 1rem; }
         :focus-visible { outline: 3px solid #F59E0B !important; outline-offset: 3px !important; }
-        body:not(.dark) { background-color: var(--surface-page) !important; color: var(--text-primary) !important; }
+        html { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important; letter-spacing: -0.006em; }
+        h1, h2, h3, .app-page-title, .page-heading, .section-heading, .logo-canfenci { font-family: 'Manrope', 'Inter', sans-serif !important; }
+        body:not(.dark) { background: radial-gradient(circle at 82% 0%, rgba(181,139,74,.07), transparent 26rem), var(--surface-page) !important; color: var(--text-primary) !important; }
         body:not(.dark) .bg-white, body:not(.dark) .bg-gray-50 { background-color: #FFFFFF !important; color: #111111 !important; }
         body:not(.dark) .text-gray-800 { color: #111111 !important; }
         body:not(.dark) button.bg-gray-200 { background-color: #E5E7EB !important; color: #111111 !important; }
@@ -62,8 +72,8 @@
         body:not(.dark) .weak-card h4, body:not(.dark) .weak-card p { color: #7F1D1D !important; }
         body:not(.dark) .strong-card { background-color: #D1FAE5 !important; border-color: #A7F3D0 !important; }
         body:not(.dark) .strong-card h4, body:not(.dark) .strong-card p { color: #064E3B !important; }
-        body:not(.dark) .btn-batch { background-color: #4F46E5 !important; color: white !important; }
-        body:not(.dark) .btn-batch:hover { background-color: #4338CA !important; }
+        body:not(.dark) .btn-batch { background-color: var(--brand-600) !important; color: white !important; }
+        body:not(.dark) .btn-batch:hover { background-color: var(--brand-700) !important; }
         body:not(.dark) .exam-badge { background-color: #CBD5E1 !important; color: #0F172A !important; }
         body.dark input, body.dark input[type="number"] {
             background-color: #334155 !important;
@@ -79,8 +89,8 @@
             font-size: inherit;
             display: inline-block;
         }
-        .logo-canfenci .can-part { color: #4F46E5; }
-        .logo-canfenci .fenci-part { color: #7C3AED; }
+        .logo-canfenci .can-part { color: var(--brand-600); }
+        .logo-canfenci .fenci-part { color: var(--accent); }
         body.dark .logo-canfenci .can-part { color: #818CF8; }
         body.dark .logo-canfenci .fenci-part { color: #A78BFA; }
         .logo-deneme { color: #111111; font-weight: 600; display: inline-block; }
@@ -99,8 +109,8 @@
             outline: none !important;
         }
         .student-form-input:focus, .modal-input:focus, select.modal-input:focus {
-            border-color: #4F46E5 !important;
-            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2) !important;
+            border-color: var(--brand-500) !important;
+            box-shadow: 0 0 0 3px rgba(81, 103, 169, 0.14) !important;
         }
         body.dark .student-form-input, body.dark .modal-input, body.dark select.modal-input {
             background-color: #1f2937 !important;
@@ -115,7 +125,7 @@
         body.dark { background-color: #111827 !important; color: #F8F9FA !important; }
         body.dark .bg-white, body.dark .bg-gray-50 { background-color: #1E293B !important; color: #F8F9FA !important; }
         body.dark .text-gray-800 { color: #E2E8F0 !important; }
-        .btn-sort-active { background-color: #4F46E5 !important; color: white !important; }
+        .btn-sort-active { background-color: var(--brand-600) !important; color: white !important; }
         .btn-sort-inactive { background-color: #E9ECEF !important; color: #212529 !important; border: 1px solid #CED4DA !important; }
         .stat-badge { padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; }
         body.dark .btn-sort-inactive { background-color: #2C2C2C !important; color: #F8F9FA !important; }
@@ -293,8 +303,8 @@
         }
 
         .tab-active {
-            border-bottom: 2px solid #4F46E5;
-            color: #4F46E5;
+            border-bottom: 2px solid var(--brand-600);
+            color: var(--brand-600);
         }
         .tab-inactive {
             border-bottom: 2px solid transparent;
@@ -304,7 +314,7 @@
             color: #9CA3AF;
         }
         .filter-btn-active {
-            background-color: #4F46E5 !important;
+            background-color: var(--brand-600) !important;
             color: white !important;
         }
         .filter-btn-inactive {
@@ -330,7 +340,7 @@
             transition: color 0.2s;
         }
         .mobile-nav-btn.active {
-            color: #4F46E5 !important;
+            color: var(--brand-600) !important;
         }
         body.dark .mobile-nav-btn.active {
             color: #818CF8 !important;
@@ -410,7 +420,7 @@
         }
         .mobile-nav-btn.active i {
             transform: scale(1.1) translateY(-2px);
-            color: #4F46E5 !important;
+            color: var(--brand-600) !important;
         }
         body.dark .mobile-nav-btn.active i {
             color: #818CF8 !important;
@@ -424,7 +434,7 @@
             width: 4px;
             height: 4px;
             border-radius: 50%;
-            background-color: #4F46E5;
+            background-color: var(--accent);
             transition: transform 0.2s ease-in-out;
         }
         body.dark .mobile-nav-btn::after {
@@ -454,12 +464,47 @@
                 right: 1rem !important;
             }
         }
+        /* Premium product skin */
+        .app-sidebar { width: 280px !important; flex: 0 0 280px; background: linear-gradient(180deg, #151D31 0%, #111827 100%) !important; border-right: 1px solid rgba(255,255,255,.06); box-shadow: 18px 0 50px rgba(15,23,42,.08) !important; }
+        .app-sidebar .logo-canfenci .can-part { color: #FFFFFF; }
+        .app-sidebar .logo-canfenci .fenci-part { color: #D4B170; }
+        .app-sidebar .logo-deneme { color: #98A2B3; font-weight: 500; letter-spacing: .01em; }
+        .app-sidebar > div:first-child { border-color: rgba(255,255,255,.1) !important; }
+        .app-sidebar .sidebar-btn { width: 100%; color: #B7C0D1 !important; border-radius: .625rem; font-weight: 600; }
+        .app-sidebar .sidebar-btn .sidebar-icon { color: #7F8BA3 !important; }
+        .app-sidebar .sidebar-btn:hover { background: rgba(255,255,255,.06) !important; color: #FFFFFF !important; transform: none !important; }
+        .app-sidebar .sidebar-btn:hover .sidebar-icon { color: #D4B170 !important; }
+        .app-sidebar .sidebar-btn.active { position: relative; background: rgba(255,255,255,.1) !important; color: #FFFFFF !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06) !important; }
+        .app-sidebar .sidebar-btn.active::before { content: ''; position: absolute; left: 0; width: 3px; height: 22px; border-radius: 0 3px 3px 0; background: #D4B170; }
+        .app-sidebar .sidebar-btn.active .sidebar-icon { color: #D4B170 !important; }
+        .app-workspace { flex: 1 1 auto !important; width: auto !important; background: transparent; }
+        .app-page { gap: 1.15rem; }
+        .app-page-title { font-size: 1.55rem; font-weight: 800; letter-spacing: -.035em; }
+        .app-page-subtitle { color: #7B8496; }
+        .app-panel { border-radius: .875rem; border-color: var(--border-subtle); box-shadow: 0 1px 2px rgba(16,24,40,.025), 0 8px 24px rgba(16,24,40,.035); }
+        .bg-white.rounded-2xl, .bg-gray-800.rounded-2xl { border-radius: .875rem !important; border-color: var(--border-subtle) !important; box-shadow: 0 1px 2px rgba(16,24,40,.025), 0 8px 24px rgba(16,24,40,.035) !important; }
+        .bg-white.rounded-2xl.cursor-pointer:hover, .bg-gray-800.rounded-2xl.cursor-pointer:hover { transform: translateY(-2px) !important; box-shadow: 0 2px 4px rgba(16,24,40,.04), 0 14px 30px rgba(16,24,40,.07) !important; }
+        .student-form-input, .modal-input, select.modal-input { border-width: 1px !important; border-color: #CDD3DD !important; border-radius: .625rem !important; padding: .68rem .8rem !important; box-shadow: inset 0 1px 2px rgba(16,24,40,.025); }
+        .student-form-input:focus, .modal-input:focus, select.modal-input:focus { border-color: var(--brand-500) !important; box-shadow: 0 0 0 3px rgba(81,103,169,.14) !important; }
+        .btn-primary { border-radius: .625rem; font-weight: 700; box-shadow: 0 1px 2px rgba(44,59,112,.2), 0 5px 14px rgba(44,59,112,.12); }
+        .btn-primary:hover { box-shadow: 0 2px 4px rgba(44,59,112,.2), 0 8px 20px rgba(44,59,112,.16); transform: translateY(-1px); }
+        .btn-secondary { border-radius: .625rem; color: var(--brand-700) !important; border-color: #C9D0E3 !important; box-shadow: 0 1px 2px rgba(16,24,40,.03); }
+        .app-modal { border-radius: 1rem; box-shadow: 0 30px 80px rgba(15,23,42,.28); }
+        .app-data-table th { background: #F5F6F9; color: #778195; font-weight: 700; }
+        .mobile-nav-bar { background: rgba(255,255,255,.94) !important; border-color: #DDE2EA !important; box-shadow: 0 -10px 30px rgba(15,23,42,.06) !important; }
+        .mobile-nav-btn.active, .mobile-nav-btn.active i { color: var(--brand-600) !important; }
+        .mobile-nav-btn::after { background-color: var(--accent); }
+        body.dark { background: #101522 !important; color: #E8ECF4 !important; }
+        body.dark .app-sidebar { background: #0C1120 !important; }
+        body.dark .app-panel, body.dark .app-modal { background: #171E2E; border-color: #293246; }
+        body.dark .student-form-input, body.dark .modal-input, body.dark select.modal-input { background: #141B2A !important; border-color: #344057 !important; }
+        body.dark .mobile-nav-bar { background: rgba(16,21,34,.96) !important; border-color: #293246 !important; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased">
     <a class="skip-link" href="#dynamic-content">Ana içeriğe geç</a>
     <div id="app-root" class="flex flex-col md:flex-row min-h-[100dvh]">
-        <div class="hidden md:flex w-full md:w-1/4 bg-white dark:bg-gray-800 shadow-lg p-5 flex-col gap-6">
+        <div class="app-sidebar hidden md:flex w-full md:w-1/4 bg-white dark:bg-gray-800 shadow-lg p-5 flex-col gap-6">
             <div class="flex items-center gap-2 border-b pb-4 mb-2">
                 <img src="logo.svg" alt="Canfenci Logo" class="w-10 h-10" onerror="this.style.display='none'">
                 <div class="text-xl font-extrabold">
@@ -514,7 +559,7 @@
             </button>
         </div>
 
-        <div class="w-full md:w-3/4 px-5 py-6 md:p-8 pb-36 md:pb-8 overflow-y-auto">
+        <div class="app-workspace w-full md:w-3/4 px-5 py-6 md:p-8 pb-36 md:pb-8 overflow-y-auto">
             <div id="offlineIndicator" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-2 rounded-full text-sm shadow-xl font-semibold hidden flex items-center gap-2">
                 <i class="fas fa-wifi-slash"></i> Çevrimdışı Çalışılıyor (Verileriniz yerel kaydediliyor)
             </div>
