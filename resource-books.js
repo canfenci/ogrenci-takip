@@ -6,6 +6,9 @@ function storageKey() {
 }
 
 export function loadResourceBooks() {
+    if (!window.store?.isGuestMode && window.store?.useFirestore && window.isFirebaseActive) {
+        return (window.store.globalResourceBooks || []).map(book => ({ ...book }));
+    }
     try {
         const books = JSON.parse(localStorage.getItem(storageKey())) || [];
         return Array.isArray(books) ? books : [];
@@ -15,6 +18,28 @@ export function loadResourceBooks() {
 }
 
 export function saveResourceBooks(books) {
+    if (!window.store?.isGuestMode && window.store?.useFirestore && window.isFirebaseActive && window.db && window.auth?.currentUser) {
+        const user = window.auth.currentUser;
+        const previousBooks = window.store.globalResourceBooks || [];
+        const nextIds = new Set(books.map(book => book.id));
+        window.store.globalResourceBooks = books.map(book => ({ ...book, userId: user.uid }));
+
+        books.forEach(book => {
+            const bookData = { ...book, userId: user.uid };
+            window.db.collection('resourceBooks').doc(`${user.uid}_${book.id}`).set(bookData).catch(err => {
+                console.error('Resource book cloud save failed:', err);
+                window.handleFirebaseError?.(err);
+            });
+        });
+        previousBooks.filter(book => !nextIds.has(book.id)).forEach(book => {
+            window.db.collection('resourceBooks').doc(`${user.uid}_${book.id}`).delete().catch(err => {
+                console.error('Resource book cloud delete failed:', err);
+                window.handleFirebaseError?.(err);
+            });
+        });
+        window.showSyncStatus?.('Kaynak kitaplar bulutla eşitlendi.', false);
+        return;
+    }
     localStorage.setItem(storageKey(), JSON.stringify(books));
 }
 

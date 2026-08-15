@@ -55,5 +55,11 @@ service cloud.firestore {
       allow update: if isOwner(resource) && keepsOwnership();
       allow create: if isNewDocOwner();
     }
+
+    match /resourceBooks/{bookId} {
+      allow read, delete: if isOwner(resource);
+      allow update: if isOwner(resource) && keepsOwnership();
+      allow create: if isNewDocOwner();
+    }
   }
 }

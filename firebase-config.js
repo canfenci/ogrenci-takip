@@ -68,6 +68,7 @@ function clearCloudState() {
     store.globalSchedules = {};
     store.globalLessons = {};
     store.globalGroups = [];
+    store.globalResourceBooks = [];
     store.currentStudentId = null;
 }
 
@@ -235,6 +236,38 @@ export async function initializeFirestoreSync() {
             console.error("Groups sync error:", err);
         });
         store.firestoreUnsubscribers.push(unsubscribeGroups);
+
+        // Listen to account-owned resource books and migrate the current
+        // browser's legacy books only when this user owns the local dataset.
+        let initialResourceBooksSnapshotHandled = false;
+        const unsubscribeResourceBooks = db.collection("resourceBooks").where("userId", "==", user.uid).onSnapshot(async snapshot => {
+            if (store.syncUserId !== user.uid) return;
+            store.globalResourceBooks = [];
+            snapshot.forEach(doc => store.globalResourceBooks.push(doc.data()));
+
+            if (!initialResourceBooksSnapshotHandled) {
+                initialResourceBooksSnapshotHandled = true;
+                let localBooks = [];
+                try { localBooks = JSON.parse(localStorage.getItem('resource_books_v1')) || []; }
+                catch (_) { localBooks = []; }
+                const localDataOwner = localStorage.getItem(LOCAL_DATA_OWNER_KEY);
+                if (snapshot.empty && localDataOwner === user.uid && Array.isArray(localBooks) && localBooks.length > 0) {
+                    for (const book of localBooks) {
+                        const bookData = { ...book, userId: user.uid };
+                        await db.collection("resourceBooks").doc(`${user.uid}_${book.id}`).set(bookData);
+                    }
+                    showSyncStatus("Kaynak kitaplar bulut hesabına aktarıldı.", false);
+                }
+            }
+
+            if (store.currentPage === "general" && window.renderGenelIslemler) {
+                window.renderGenelIslemler();
+            }
+        }, err => {
+            console.error("Resource books sync error:", err);
+            handleFirebaseError(err);
+        });
+        store.firestoreUnsubscribers.push(unsubscribeResourceBooks);
 
         // Listen to teacher settings (branches & name)
         if (user) {
