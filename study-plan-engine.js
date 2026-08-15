@@ -6,6 +6,34 @@ export const STUDY_TECHNIQUES = {
     mindmap: 'Zihin Haritalama'
 };
 
+export const STUDY_TECHNIQUE_GUIDES = {
+    feynman: {
+        title: 'Feynman Tekniği',
+        explanation: 'Konuyu, hiç bilmeyen bir arkadaşına anlatıyormuş gibi sade cümlelerle açıkla. Anlatamadığın yer, tekrar çalışman gereken bölümdür.',
+        example: 'Örnek: Basıncın ne olduğunu günlük hayattan bir örnek vererek sesli biçimde anlat.'
+    },
+    pomodoro: {
+        title: 'Pomodoro Tekniği',
+        explanation: 'Programdaki süre boyunca yalnızca çalışmana odaklan. Süre bitince 5 dakika ara ver; bu sırada telefon veya dersle ilgilenme.',
+        example: 'Örnek: 25 dakika konu testi çöz, ardından 5 dakika dinlen.'
+    },
+    spaced: {
+        title: 'Aralıklı Tekrar',
+        explanation: 'Konuyu tek seferde uzun süre çalışmak yerine farklı günlerde kısa tekrarlarla yeniden gözden geçir.',
+        example: 'Örnek: Bugün öğrendiğin konuyu 1, 3 ve 7 gün sonra 10 dakika tekrar et.'
+    },
+    recall: {
+        title: 'Aktif Hatırlatma',
+        explanation: 'Kitabı kapat ve öğrendiklerini bakmadan hatırlamaya çalış. Sonra notlarını açıp eksiklerini kontrol et.',
+        example: 'Örnek: Konunun üç önemli kuralını kitaba bakmadan bir kâğıda yaz.'
+    },
+    mindmap: {
+        title: 'Zihin Haritalama',
+        explanation: 'Ana konuyu sayfanın ortasına yaz; ilişkili kavramları çizgiler, kısa notlar ve küçük şekillerle birbirine bağla.',
+        example: 'Örnek: “Mevsimler” başlığından eksen eğikliği, dolanma ve güneş ışınlarına dallar çıkar.'
+    }
+};
+
 export const BRANCH_BADGES = {
     'Fen Bilimleri': { beginner: 'Bilim Kaşifi', intermediate: 'Deney Uzmanı', advanced: 'Bilim Ustası' },
     'Matematik': { beginner: 'Sayı Kaşifi', intermediate: 'Problem Çözücü', advanced: 'Matematik Stratejisti' },

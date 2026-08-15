@@ -1,8 +1,8 @@
 // ==================== WORKPLAN & GROWTH TAKIP MODÜLÜ ====================
 
-import { store, loadStudentsData, saveStudentsData, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM, escapeHtml } from './store.js';
+import { store, loadStudentsData, saveStudentsData, escapeHtml } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
-import { STUDY_TECHNIQUES, buildAdaptiveStudyPlan, calculateStudyProfile, getStudyBadge } from './study-plan-engine.js';
+import { STUDY_TECHNIQUES, STUDY_TECHNIQUE_GUIDES, buildAdaptiveStudyPlan, calculateStudyProfile, getStudyBadge } from './study-plan-engine.js';
 
 export function addStudyTask(studentId, gun) {
     const input = document.getElementById(`taskInput_${gun}`);
@@ -151,64 +151,17 @@ export function exportStudyPlanToPdf(studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
     
-    const denemeler = student.denemeler || [];
-    const genelDenemeler = denemeler.filter(d => d.tip === "genel");
-    
-    const dersBazliNetler = {};
-    GENEL_DERSLER_KEY.forEach(d => dersBazliNetler[d] = { dogru: 0, toplamSoru: 0 });
-    for(let den of genelDenemeler) {
-        if(den.dersSonuclari) {
-            for(let d in den.dersSonuclari) {
-                if(dersBazliNetler[d]) {
-                    const sc = den.dersSonuclari[d];
-                    dersBazliNetler[d].dogru += sc.dogru;
-                    dersBazliNetler[d].toplamSoru += (sc.dogru + sc.yanlis + sc.bos);
-                }
-            }
-        }
-    }
-    
-    const dersBazliYuzdeler = {};
-    for(let i=0; i<GENEL_DERSLER_KEY.length; i++){
-        const d = GENEL_DERSLER_KEY[i];
-        const t = dersBazliNetler[d].toplamSoru;
-        dersBazliYuzdeler[d] = t ? ((dersBazliNetler[d].dogru / t) * 100).toFixed(1) : null;
-    }
-    
-    const adviceList = [];
-    for (let i = 0; i < GENEL_DERSLER_KEY.length; i++) {
-        const d = GENEL_DERSLER_KEY[i];
-        const name = GENEL_DERSLER_GORUNUM[i];
-        const pct = dersBazliYuzdeler[d];
-        if (pct === null || pct === undefined) {
-            adviceList.push(`
-                <div class="advice-card empty">
-                    <h4>${name}</h4>
-                    <p>Veri bulunmamaktadır. Haftalık konu tekrarı ve temel soru çözümleri yapılması önerilir.</p>
-                </div>
-            `);
-        } else {
-            const successVal = parseFloat(pct);
-            let adviceText = '';
-            let cardClass = 'empty';
-            if (successVal < 50) {
-                cardClass = 'critical';
-                adviceText = `Başarı oranı %${pct}. Konu anlatım videoları izlenmeli ve günlük 50+ soru ile eksikler kapatılmalı.`;
-            } else if (successVal < 80) {
-                cardClass = 'medium';
-                adviceText = `Başarı oranı %${pct}. Formül ve kural kartları hazırlanmalı, haftalık soru adedi arttırılmalı.`;
-            } else {
-                cardClass = 'excellent';
-                adviceText = `Başarı oranı %${pct}. Mevcut seviyeyi korumak adına konu denemelerine ve zor seviye sorulara odaklanılmalı.`;
-            }
-            adviceList.push(`
-                <div class="advice-card ${cardClass}">
-                    <h4>${name} (%${pct})</h4>
-                    <p>${adviceText}</p>
-                </div>
-            `);
-        }
-    }
+    const planProfile = student.studyPlanProfile || {};
+    const stage = planProfile.stage || 'beginner';
+    const dailyQuestionCount = stage === 'advanced' ? '40 veya daha fazla' : stage === 'intermediate' ? '25' : '15';
+    const stageLabel = stage === 'advanced' ? 'İleri' : stage === 'intermediate' ? 'Orta' : 'Başlangıç';
+    const adviceList = [
+        `<div class="advice-card medium"><h4>Türkçe · Günlük Paragraf Rutini</h4><p>Her gün ${dailyQuestionCount} paragraf sorusu çöz. Yanlış yaptığın sorularda cevap anahtarına bakmadan önce metne dönüp doğru seçeneğin gerekçesini bul.</p></div>`,
+        `<div class="advice-card excellent"><h4>Matematik · Yeni Nesil Soru Rutini</h4><p>Her gün ${dailyQuestionCount} yeni nesil matematik sorusu çöz. Çözemediğin soruyu işaretle, çözümünü öğrendikten sonra aynı soruyu yeniden çöz.</p></div>`
+    ];
+    const selectedTechniques = Array.isArray(planProfile.techniques) && planProfile.techniques.length ? planProfile.techniques : Object.keys(STUDY_TECHNIQUE_GUIDES);
+    const techniqueGuideHtml = selectedTechniques.map(key => STUDY_TECHNIQUE_GUIDES[key]).filter(Boolean).map(guide => `
+        <div class="technique-card"><h4>${guide.title}</h4><p>${guide.explanation}</p><p class="example">${guide.example}</p></div>`).join('');
     
     const gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
     const tableHeaders = gunler.map(gun => `<th>${gun}</th>`).join('');
@@ -326,7 +279,7 @@ export function exportStudyPlanToPdf(studentId) {
                 }
                 .advice-grid {
                     display: grid;
-                    grid-template-columns: repeat(3, 1fr);
+                    grid-template-columns: repeat(2, 1fr);
                     gap: 12px;
                     margin-bottom: 20px;
                 }
@@ -365,6 +318,11 @@ export function exportStudyPlanToPdf(studentId) {
                     color: #4B5563;
                     line-height: 1.4;
                 }
+                .technique-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+                .technique-card { border: 1px solid #DDE2EA; border-radius: 8px; padding: 10px; background: #F8FAFC; break-inside: avoid; }
+                .technique-card h4 { margin: 0 0 5px; color: #394B87; font-size: 12px; }
+                .technique-card p { margin: 0; color: #475467; font-size: 10.5px; line-height: 1.45; }
+                .technique-card .example { margin-top: 6px; font-weight: 700; color: #182033; }
                 .footer {
                     text-align: center;
                     font-size: 10px;
@@ -388,7 +346,8 @@ export function exportStudyPlanToPdf(studentId) {
                 </div>
                 <div>
                     <strong>Hedef Lise:</strong> ${escapeHtml(student.hedefLise)} (Hedef Net: ${student.hedefNet})<br>
-                    <strong>Haftalık Soru Hedefi:</strong> ${weeklyTarget} Soru
+                    <strong>Haftalık Soru Hedefi:</strong> ${weeklyTarget} Soru<br>
+                    <strong>Çalışma Aşaması:</strong> ${stageLabel}${planProfile.badge ? ` · ${escapeHtml(planProfile.badge)}` : ''}
                 </div>
             </div>
             
@@ -410,6 +369,9 @@ export function exportStudyPlanToPdf(studentId) {
             <div class="advice-grid">
                 ${adviceList.join('')}
             </div>
+
+            <div class="section-title">🧠 ÇALIŞMA TEKNİKLERİ NASIL UYGULANIR?</div>
+            <div class="technique-grid">${techniqueGuideHtml}</div>
             
             <div class="footer">
                 Rapor Oluşturma Tarihi: ${new Date().toLocaleDateString('tr-TR')} - Canfenci Öğrenci Takip Sistemi &copy; ${new Date().getFullYear()}

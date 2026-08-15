@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { BRANCH_BADGES, buildAdaptiveStudyPlan, calculateStudyProfile, getStudyBadge } from '../study-plan-engine.js';
+import { BRANCH_BADGES, STUDY_TECHNIQUE_GUIDES, buildAdaptiveStudyPlan, calculateStudyProfile, getStudyBadge } from '../study-plan-engine.js';
 
 test('defines three-stage badges for every supported study branch', () => {
   assert.deepEqual(BRANCH_BADGES['Fen Bilimleri'], { beginner: 'Bilim Kaşifi', intermediate: 'Deney Uzmanı', advanced: 'Bilim Ustası' });
@@ -40,4 +40,12 @@ test('builds a selected-day plan with learning techniques and intensity limits',
   assert.match(plan.Pazartesi[0], /Feynman Tekniği/);
   assert.match(plan.Perşembe[0], /Aralıklı Tekrar/);
   assert.equal(plan.Salı.length, 0);
+});
+
+test('explains every learning technique in plain language with an example', () => {
+  assert.equal(Object.keys(STUDY_TECHNIQUE_GUIDES).length, 5);
+  Object.values(STUDY_TECHNIQUE_GUIDES).forEach(guide => {
+    assert.ok(guide.explanation.length > 40);
+    assert.match(guide.example, /^Örnek:/);
+  });
 });
