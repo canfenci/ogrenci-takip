@@ -1,8 +1,7 @@
-const CACHE_NAME = "canfenci-cache-v63";
+const CACHE_NAME = "canfenci-cache-v64";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
-  "./logo.svg",
   "./manifest.json",
   "./icons/icon-192x192.png",
   "./icons/icon-512x512.png",
