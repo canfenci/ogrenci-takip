@@ -11,6 +11,8 @@ import { renderLessonReminderCenter } from './lesson-reminders.js';
 import { calculateTopicExamProgress } from './topic-exam-insights.js';
 import { addResourceBook, deleteResourceBook, loadResourceBooks } from './resource-books.js';
 
+let selectedSettingsResourceGrade = '';
+
 export function onTargetSchoolChanged(selectEl, netInputId, customAreaId) {
     const customArea = document.getElementById(customAreaId);
     const netInput = document.getElementById(netInputId);
@@ -1498,11 +1500,17 @@ export function renderGenelIslemler() {
     ` : '';
     
     const resourceBooks = loadResourceBooks();
-    const resourceBookRows = resourceBooks.length ? resourceBooks.map(book => `
-        <div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 px-3 py-2">
-            <div><span class="font-bold text-sm">${escapeHtml(book.name)}</span><p class="text-xs text-gray-500">${escapeHtml(book.grade)}. Sınıf · ${escapeHtml(book.subject)}</p></div>
-            <button type="button" onclick="removeResourceBook('${book.id}')" class="min-w-[44px] min-h-[44px] text-red-500" aria-label="${escapeHtml(book.name)} kaynağını sil"><i class="fas fa-trash"></i></button>
-        </div>`).join('') : '<p class="text-sm text-gray-500">Henüz kaynak kitap eklenmedi.</p>';
+    const selectedResourceBooks = selectedSettingsResourceGrade
+        ? resourceBooks.filter(book => String(book.grade) === selectedSettingsResourceGrade)
+        : [];
+    const resourceBookRows = !selectedSettingsResourceGrade
+        ? '<p class="text-sm text-gray-500">Kaynak kitapları görmek için önce sınıf düzeyi seçin.</p>'
+        : selectedResourceBooks.length ? selectedResourceBooks.map(book => `
+            <div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 px-3 py-2">
+                <div><span class="font-bold text-sm">${escapeHtml(book.name)}</span><p class="text-xs text-gray-500">${escapeHtml(book.grade)}. Sınıf · ${escapeHtml(book.subject)}</p></div>
+                <button type="button" onclick="removeResourceBook('${book.id}')" class="min-w-[44px] min-h-[44px] text-red-500" aria-label="${escapeHtml(book.name)} kaynağını sil"><i class="fas fa-trash"></i></button>
+            </div>`).join('')
+        : `<p class="text-sm text-gray-500">${escapeHtml(selectedSettingsResourceGrade)}. sınıf için henüz kaynak kitap eklenmedi.</p>`;
     const html = `
         <div class="app-page max-w-3xl">
             <header class="app-page-header"><div><h2 class="app-page-title">Ayarlar</h2><p class="app-page-subtitle">
@@ -1558,7 +1566,7 @@ export function renderGenelIslemler() {
                 <h3 class="font-black text-gray-800 dark:text-white"><i class="fas fa-book text-indigo-600"></i> Kaynak Kitaplar</h3>
                 <p class="text-xs text-gray-500 mt-1 mb-3">Kaynakları sınıf ve ders düzeyine göre tanımlayın; ödev, ders kaydı ve konu denemelerinde listeden seçin.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <select id="resourceGrade" class="student-form-input min-h-[44px]"><option value="">Sınıf seçin</option>${['5','6','7','8'].map(grade => `<option value="${grade}">${grade}. Sınıf</option>`).join('')}</select>
+                    <select id="resourceGrade" onchange="filterSettingsResourceBooks(this.value)" class="student-form-input min-h-[44px]"><option value="">Sınıf seçin</option>${['5','6','7','8'].map(grade => `<option value="${grade}" ${selectedSettingsResourceGrade === grade ? 'selected' : ''}>${grade}. Sınıf</option>`).join('')}</select>
                     <select id="resourceSubject" class="student-form-input min-h-[44px]"><option value="">Ders seçin</option>${(store.teacherBranches || []).map(subject => `<option value="${escapeHtml(subject)}">${escapeHtml(subject)}</option>`).join('')}</select>
                     <input id="resourceName" maxlength="120" class="student-form-input min-h-[44px]" placeholder="Kitap / yayın adı">
                 </div>
@@ -1613,6 +1621,11 @@ export function saveNewResourceBook() {
         name: document.getElementById('resourceName')?.value
     });
     if (!result.ok) return alert(result.error);
+    renderGenelIslemler();
+}
+
+export function filterSettingsResourceBooks(grade) {
+    selectedSettingsResourceGrade = String(grade || '');
     renderGenelIslemler();
 }
 
@@ -1755,3 +1768,4 @@ window.updateTeacherName = updateTeacherName;
 window.updateTeacherSchool = updateTeacherSchool;
 window.saveNewResourceBook = saveNewResourceBook;
 window.removeResourceBook = removeResourceBook;
+window.filterSettingsResourceBooks = filterSettingsResourceBooks;
