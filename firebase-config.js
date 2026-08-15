@@ -1,8 +1,7 @@
 // ==================== FIREBASE CONFIGURATION & INITIALIZATION ====================
 
-// Keep cloud features off while the product and data model are still evolving.
-// Switch this to true only when Firebase rules and the production data model are ready.
-const CLOUD_FEATURES_ENABLED = false;
+// Firebase is active in production; users may still choose local-only mode from the login screen.
+const CLOUD_FEATURES_ENABLED = true;
 
 const firebaseConfig = {
   apiKey: "AIzaSyBga07O0BZ-xbEAOPGc10o3DnJXqtCADIY",
@@ -65,21 +64,39 @@ export async function initializeFirestoreSync() {
     const user = auth.currentUser;
     if (!user) return;
     store.isSyncInitialized = true;
-    store.useFirestore = true;
+    store.useFirestore = false;
 
     showSyncStatus("Veriler buluttan yükleniyor...", false);
 
     try {
-        // Listen to students
-        db.collection("students").where("userId", "==", user.uid).onSnapshot(snapshot => {
+        let initialStudentsSnapshotHandled = false;
+
+        // Listen to students. Cloud mode is enabled only after the first snapshot
+        // and the local-to-cloud migration choice have been resolved.
+        db.collection("students").where("userId", "==", user.uid).onSnapshot(async snapshot => {
             store.globalStudents = [];
             snapshot.forEach(doc => store.globalStudents.push(doc.data()));
-            
-            // Check if local data needs migrating
-            const localData = localStorage.getItem(STORAGE_KEY);
-            if (snapshot.empty && localData && JSON.parse(localData).length > 0) {
-                if (confirm("Bulut veritabanınız boş görünüyor. Mevcut yerel verilerinizi buluta aktarmak ister misiniz?")) {
-                    runMigration();
+
+            if (!initialStudentsSnapshotHandled) {
+                initialStudentsSnapshotHandled = true;
+                let localStudents = [];
+                try {
+                    localStudents = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+                } catch (err) {
+                    console.warn('Local migration data could not be read:', err);
+                }
+
+                if (snapshot.empty && localStudents.length > 0) {
+                    const approved = confirm("Bulut hesabınız henüz boş. Bu cihazdaki mevcut öğrenci, ödev, ders ve program kayıtlarını güvenli bulut hesabınıza aktarmak ister misiniz?\n\nHayır seçerseniz verileriniz yerel olarak görünmeye devam eder ve silinmez.");
+                    if (approved) {
+                        await runMigration();
+                        store.useFirestore = true;
+                    } else {
+                        store.useFirestore = false;
+                        showSyncStatus("Yerel kayıtlar korunuyor; bulut aktarımı yapılmadı.", false);
+                    }
+                } else {
+                    store.useFirestore = true;
                 }
             }
 
@@ -87,6 +104,8 @@ export async function initializeFirestoreSync() {
                 window.renderHomeScreen();
             } else if (store.currentPage === "student" && store.currentStudentId && window.renderStudentPanel) {
                 window.renderStudentPanel(store.currentStudentId);
+            } else if (store.currentPage === "reminderHome" && window.renderReminderHome) {
+                window.renderReminderHome();
             }
         }, err => {
             console.error("Students sync error:", err);
@@ -189,7 +208,7 @@ export async function initializeFirestoreSync() {
             });
         }
 
-        showSyncStatus("Bulut senkronizasyonu aktif.", false);
+        showSyncStatus("Firebase bağlantısı hazır.", false);
     } catch (err) {
         console.error("Firestore sync init error:", err);
         handleFirebaseError(err);

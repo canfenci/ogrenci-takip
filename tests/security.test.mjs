@@ -47,14 +47,16 @@ test('student deletion includes dependent cloud records', async () => {
   assert.match(students, /await batch\.commit\(\)/);
 });
 
-test('development builds default to local-only storage', async () => {
+test('production cloud sync is enabled with a safe local-data fallback', async () => {
   const [firebaseConfig, store] = await Promise.all([
     readProjectFile('firebase-config.js'),
     readProjectFile('store.js')
   ]);
 
-  assert.match(firebaseConfig, /const CLOUD_FEATURES_ENABLED = false/);
+  assert.match(firebaseConfig, /const CLOUD_FEATURES_ENABLED = true/);
   assert.match(firebaseConfig, /if \(!CLOUD_FEATURES_ENABLED \|\| store\.isSyncInitialized/);
+  assert.match(firebaseConfig, /store\.useFirestore = false/);
+  assert.match(firebaseConfig, /Hayır seçerseniz verileriniz yerel olarak görünmeye devam eder ve silinmez/);
   assert.match(store, /useFirestore: false/);
 });
 
@@ -322,7 +324,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v68/);
+  assert.match(serviceWorker, /canfenci-cache-v69/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -334,7 +336,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v68/);
+  assert.match(serviceWorker, /canfenci-cache-v69/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -346,7 +348,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v68/);
+  assert.match(serviceWorker, /canfenci-cache-v69/);
 });
 
 test('exam assignment modal and student summary use shared professional surfaces', async () => {
