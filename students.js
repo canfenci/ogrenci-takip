@@ -1634,6 +1634,13 @@ export function renderGenelIslemler() {
                 ${logoutHtml}
             </div>
 
+            ${cloudUser && !store.isGuestMode ? `
+            <div class="app-panel p-5 border-red-200 dark:border-red-900">
+                <h3 class="font-black text-red-700 dark:text-red-300"><i class="fas fa-exclamation-triangle mr-1"></i> Hesap ve Veri Yönetimi</h3>
+                <p class="text-xs text-gray-500 mt-1">Hesabınızı kapatmak isterseniz tüm bulut kayıtlarını kalıcı olarak silebilirsiniz. Bu işlem geri alınamaz ve yeniden kimlik doğrulaması gerektirir.</p>
+                <button type="button" onclick="showAccountDeletionDialog()" class="mt-3 w-full min-h-[44px] rounded-xl border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 font-black hover:bg-red-50 dark:hover:bg-red-900/20"><i class="fas fa-user-times mr-1"></i> Hesabımı ve Verilerimi Sil</button>
+            </div>` : ''}
+
             <div class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-400">
                 <i class="fas fa-flask"></i> Canfenci Öğrenci Takip Sistemi PWA v1.0
                 <button type="button" onclick="showPrivacyNotice()" class="block mx-auto mt-2 min-h-[44px] text-xs font-bold underline hover:text-indigo-600">Gizlilik ve KVKK Aydınlatma Metni</button>
