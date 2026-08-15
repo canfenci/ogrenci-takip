@@ -6,7 +6,7 @@ export const REMINDER_HISTORY_KEY = 'lesson_reminder_history_v1';
 
 function readJson(key, fallback) {
     try {
-        return JSON.parse(localStorage.getItem(key)) || fallback;
+        return JSON.parse(localStorage.getItem(window.localDataKey ? window.localDataKey(key) : key)) || fallback;
     } catch {
         return fallback;
     }
@@ -17,7 +17,7 @@ export function getReminderSettings() {
 }
 
 export function saveReminderSettings(settings) {
-    localStorage.setItem(REMINDER_SETTINGS_KEY, JSON.stringify(settings));
+    localStorage.setItem(window.localDataKey ? window.localDataKey(REMINDER_SETTINGS_KEY) : REMINDER_SETTINGS_KEY, JSON.stringify(settings));
 }
 
 export function getReminderHistory() {
@@ -27,7 +27,7 @@ export function getReminderHistory() {
 function updateReminderHistory(id, values) {
     const history = getReminderHistory();
     history[id] = { ...(history[id] || {}), ...values };
-    localStorage.setItem(REMINDER_HISTORY_KEY, JSON.stringify(history));
+    localStorage.setItem(window.localDataKey ? window.localDataKey(REMINDER_HISTORY_KEY) : REMINDER_HISTORY_KEY, JSON.stringify(history));
 }
 
 export function getCurrentLessonReminders(now = new Date()) {

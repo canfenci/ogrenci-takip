@@ -1,4 +1,4 @@
-import { store, escapeHtml } from './store.js';
+import { store, escapeHtml, localDataKey } from './store.js';
 import { restoreNavigationLayout } from './auth.js';
 
 export const TEACHER_PROFILE_COMPLETED_KEY = 'teacher_profile_completed_v1';
@@ -6,7 +6,7 @@ export const TEACHER_BRANCHES = ['Türkçe', 'Matematik', 'Fen Bilimleri', 'Sosy
 
 function getStoredBranches() {
     try {
-        const branches = JSON.parse(localStorage.getItem('teacher_branches_v1') || '[]');
+        const branches = JSON.parse(localStorage.getItem(localDataKey('teacher_branches_v1')) || '[]');
         return Array.isArray(branches) ? branches.filter(branch => TEACHER_BRANCHES.includes(branch)) : [];
     } catch (_) {
         return [];
@@ -34,8 +34,8 @@ export function validateTeacherProfile(profile) {
 
 export function getTeacherProfile() {
     return {
-        name: localStorage.getItem('teacher_name_v1') || '',
-        school: localStorage.getItem('teacher_school_v1') || '',
+        name: localStorage.getItem(localDataKey('teacher_name_v1')) || '',
+        school: localStorage.getItem(localDataKey('teacher_school_v1')) || '',
         branches: getStoredBranches()
     };
 }
@@ -45,22 +45,22 @@ export function hasCompleteTeacherProfile() {
     if (!result.valid) return false;
 
     // Existing users with complete settings should not be asked for the same data again.
-    if (localStorage.getItem(TEACHER_PROFILE_COMPLETED_KEY) !== 'true') {
-        localStorage.setItem(TEACHER_PROFILE_COMPLETED_KEY, 'true');
+    if (localStorage.getItem(localDataKey(TEACHER_PROFILE_COMPLETED_KEY)) !== 'true') {
+        localStorage.setItem(localDataKey(TEACHER_PROFILE_COMPLETED_KEY), 'true');
     }
     return true;
 }
 
 async function persistTeacherProfile(profile) {
-    localStorage.setItem('teacher_name_v1', profile.name);
-    localStorage.setItem('teacher_school_v1', profile.school);
-    localStorage.setItem('teacher_branches_v1', JSON.stringify(profile.branches));
-    localStorage.setItem(TEACHER_PROFILE_COMPLETED_KEY, 'true');
+    localStorage.setItem(localDataKey('teacher_name_v1'), profile.name);
+    localStorage.setItem(localDataKey('teacher_school_v1'), profile.school);
+    localStorage.setItem(localDataKey('teacher_branches_v1'), JSON.stringify(profile.branches));
+    localStorage.setItem(localDataKey(TEACHER_PROFILE_COMPLETED_KEY), 'true');
     store.teacherName = profile.name;
     store.teacherSchool = profile.school;
     store.teacherBranches = profile.branches;
 
-    if (window.isFirebaseActive && window.auth?.currentUser && window.db) {
+    if (!store.isGuestMode && window.isFirebaseActive && window.auth?.currentUser && window.db) {
         await window.db.collection('users').doc(window.auth.currentUser.uid).set({
             name: profile.name,
             school: profile.school,

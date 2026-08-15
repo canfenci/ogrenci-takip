@@ -1,7 +1,7 @@
 // ==================== STUDENTS MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, loadSchedule, loadDersKayitlari, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM } from './store.js';
+import { store, loadStudentsData, saveStudentsData, loadSchedule, loadDersKayitlari, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM, localDataKey } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { getBransOrtalamaNet, getGenelOrtalamaNet, getOrtalamaNet, getKonuBazliBasarilar, getBestWorstTopics, getMotivationMessage, getHataIstatistikleri, lgsPuanHesapla } from './exams.js';
@@ -1693,7 +1693,7 @@ export function removeResourceBook(id) {
 export async function updateTeacherName() {
     const newName = document.getElementById("teacherNameInput")?.value.trim() || "Öğretmen Adı";
     store.teacherName = newName;
-    localStorage.setItem('teacher_name_v1', newName);
+    localStorage.setItem(localDataKey('teacher_name_v1'), newName);
     
     if (window.isFirebaseActive && window.auth && window.auth.currentUser && window.db) {
         try {
@@ -1746,7 +1746,7 @@ export async function updateTeacherBranches() {
         return;
     }
     
-    localStorage.setItem('teacher_branches_v1', JSON.stringify(branches));
+    localStorage.setItem(localDataKey('teacher_branches_v1'), JSON.stringify(branches));
     store.teacherBranches = branches;
     
     if (window.isFirebaseActive && window.auth && window.auth.currentUser && window.db) {
@@ -1773,7 +1773,7 @@ export async function updateTeacherBranches() {
 export async function updateTeacherSchool() {
     const newSchool = document.getElementById("teacherSchoolInput")?.value.trim() || "";
     store.teacherSchool = newSchool;
-    localStorage.setItem('teacher_school_v1', newSchool);
+    localStorage.setItem(localDataKey('teacher_school_v1'), newSchool);
     
     if (window.isFirebaseActive && window.auth && window.auth.currentUser && window.db) {
         try {
