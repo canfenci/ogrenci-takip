@@ -147,6 +147,12 @@ export async function handleLogin() {
             return;
         }
 
+        // Authentication is complete. Restore navigation immediately instead
+        // of keeping Safari on the navigation-hidden login layout while the
+        // Firestore profile request is still pending.
+        restoreNavigationLayout();
+        renderAppLoadingState();
+
         // Fetch user branches from Firestore users collection
         if (window.isFirebaseActive && window.db) {
             try {
@@ -162,7 +168,6 @@ export async function handleLogin() {
         }
 
         showSyncStatus("Giriş başarılı!", false);
-        restoreNavigationLayout();
         if (window.initializeFirestoreSync) {
             await window.initializeFirestoreSync();
         }
@@ -283,6 +288,20 @@ export function restoreNavigationLayout() {
     }
 }
 
+export function renderAppLoadingState() {
+    const content = document.getElementById('dynamic-content');
+    if (!content) return;
+    content.setAttribute('aria-busy', 'true');
+    content.innerHTML = `
+        <div class="min-h-[55vh] flex items-center justify-center px-4">
+            <div class="app-panel w-full max-w-md p-7 text-center">
+                <div class="mx-auto mb-4 h-11 w-11 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" aria-hidden="true"></div>
+                <h1 class="text-lg font-black text-gray-900 dark:text-gray-100">Verileriniz hazırlanıyor</h1>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Hesabınız ve çalışma alanınız güvenli biçimde yükleniyor…</p>
+            </div>
+        </div>`;
+}
+
 export function updateMobileNavActive(activeId) {
     // 1. Update mobile bottom navigation buttons
     document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
@@ -313,6 +332,7 @@ window.renderLoginScreen = renderLoginScreen;
 window.switchAuthTab = switchAuthTab;
 window.continueOffline = continueOffline;
 window.restoreNavigationLayout = restoreNavigationLayout;
+window.renderAppLoadingState = renderAppLoadingState;
 window.updateMobileNavActive = updateMobileNavActive;
 window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
