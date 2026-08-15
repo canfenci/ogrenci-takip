@@ -1,9 +1,13 @@
 export const RESOURCE_BOOKS_KEY = 'resource_books_v1';
 export const MANUAL_RESOURCE_VALUE = '__manual__';
 
+function storageKey() {
+    return window.store?.isGuestMode ? `canfenci_guest_v1__${RESOURCE_BOOKS_KEY}` : RESOURCE_BOOKS_KEY;
+}
+
 export function loadResourceBooks() {
     try {
-        const books = JSON.parse(localStorage.getItem(RESOURCE_BOOKS_KEY)) || [];
+        const books = JSON.parse(localStorage.getItem(storageKey())) || [];
         return Array.isArray(books) ? books : [];
     } catch {
         return [];
@@ -11,7 +15,7 @@ export function loadResourceBooks() {
 }
 
 export function saveResourceBooks(books) {
-    localStorage.setItem(RESOURCE_BOOKS_KEY, JSON.stringify(books));
+    localStorage.setItem(storageKey(), JSON.stringify(books));
 }
 
 export function getResourceBooks(grade, subject) {

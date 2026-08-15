@@ -1,7 +1,7 @@
 // ==================== AUTHENTICATION & LOGIN SCREEN ====================
 
 import { auth, isFirebaseActive } from './firebase-config.js';
-import { store } from './store.js';
+import { store, localDataKey } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 
 export function renderLoginScreen() {
@@ -82,8 +82,9 @@ export function renderLoginScreen() {
             </div>
             
             <button onclick="continueOffline()" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2.5 rounded-xl transition text-sm">
-                ☁️ Çevrimdışı/Bulutsuz Devam Et (Yerel Kayıtlar)
+                <i class="fas fa-user-secret mr-1"></i> Misafir Olarak Dene
             </button>
+            <p class="text-xs text-center text-gray-500 dark:text-gray-400">Kayıt olmadan uygulamayı inceleyin. Misafir verileri yalnızca bu cihazda saklanır ve bulut hesaplarıyla paylaşılmaz.</p>
         </div>
     </div>`;
     document.getElementById("dynamic-content").innerHTML = html;
@@ -131,6 +132,7 @@ export function switchAuthTab(mode) {
 }
 
 export async function handleLogin() {
+    store.isGuestMode = false;
     const email = document.getElementById("loginEmail").value.trim();
     const password = document.getElementById("loginPassword").value;
     const errDiv = document.getElementById("loginError");
@@ -275,8 +277,27 @@ export async function handleRegister() {
 }
 
 export function continueOffline() {
+    store.isGuestMode = true;
     store.useFirestore = false;
-    showSyncStatus("Yerel mod aktif.", false);
+    store.globalStudents = [];
+    store.globalHomeworks = [];
+    store.globalSchedules = {};
+    store.globalLessons = {};
+    store.globalGroups = [];
+
+    const guestBranches = ["Türkçe", "Matematik", "Fen Bilimleri", "Sosyal Bilgiler"];
+    if (!localStorage.getItem(localDataKey('teacher_profile_completed_v1'))) {
+        localStorage.setItem(localDataKey('teacher_name_v1'), 'Misafir Öğretmen');
+        localStorage.setItem(localDataKey('teacher_school_v1'), 'Demo Okulu');
+        localStorage.setItem(localDataKey('teacher_branches_v1'), JSON.stringify(guestBranches));
+        localStorage.setItem(localDataKey('teacher_profile_completed_v1'), 'true');
+    }
+    store.teacherName = localStorage.getItem(localDataKey('teacher_name_v1')) || 'Misafir Öğretmen';
+    store.teacherSchool = localStorage.getItem(localDataKey('teacher_school_v1')) || 'Demo Okulu';
+    try { store.teacherBranches = JSON.parse(localStorage.getItem(localDataKey('teacher_branches_v1'))) || guestBranches; }
+    catch (_) { store.teacherBranches = guestBranches; }
+
+    showSyncStatus("Misafir modu aktif. Veriler yalnızca bu cihazda saklanır.", false);
     restoreNavigationLayout();
     if (window.ensureTeacherProfile && !window.ensureTeacherProfile()) return;
     if (window.renderHomeScreen) {

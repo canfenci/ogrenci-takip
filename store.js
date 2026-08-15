@@ -305,6 +305,7 @@ export const STORAGE_KEY = "lgs_soru_bazli_v6";
 export const SCHEDULE_KEY = "student_schedule";
 export const DERS_KAYITLARI_KEY = "student_ders_kayitlari_v2";
 export const GROUPS_KEY = "student_groups_v1";
+export const GUEST_STORAGE_PREFIX = "canfenci_guest_v1__";
 
 // Migration for legacy teacher branches
 let initialBranches = ["Türkçe", "Matematik", "Fen Bilimleri", "Sosyal Bilgiler"];
@@ -340,6 +341,7 @@ export const store = {
     chartInstance: null,
     currentSortOrder: "default",
     useFirestore: false,
+    isGuestMode: false,
     isSyncInitialized: false,
     syncUserId: null,
     firestoreUnsubscribers: [],
@@ -348,13 +350,17 @@ export const store = {
     teacherSchool: localStorage.getItem('teacher_school_v1') || "Belirtilmemiş Okul"
 };
 
+export function localDataKey(key) {
+    return store.isGuestMode ? `${GUEST_STORAGE_PREFIX}${key}` : key;
+}
+
 // State Helper Functions
 export function loadStudentsData() {
     if (store.useFirestore && window.isFirebaseActive) {
         return store.globalStudents || [];
     }
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(localDataKey(STORAGE_KEY));
         return raw ? JSON.parse(raw).map(normalizeStudent) : [];
     } catch (e) {
         console.error("loadStudentsData error", e);
@@ -380,7 +386,7 @@ export function saveStudentsData(students) {
     } else {
         try {
             store.globalStudents = students;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+            localStorage.setItem(localDataKey(STORAGE_KEY), JSON.stringify(students));
             if (window.showSyncStatus) window.showSyncStatus("✅ Kaydedildi", false);
         } catch (e) {
             console.error("saveStudentsData error", e);
@@ -393,7 +399,7 @@ export function loadSchedule(studentId) {
         return store.globalSchedules[studentId] || [];
     }
     try {
-        const sched = JSON.parse(localStorage.getItem(SCHEDULE_KEY)) || {};
+        const sched = JSON.parse(localStorage.getItem(localDataKey(SCHEDULE_KEY))) || {};
         return sched[studentId] || [];
     } catch (e) {
         return [];
@@ -411,9 +417,9 @@ export function saveSchedule(studentId, lessons) {
         if (window.showSyncStatus) window.showSyncStatus("✅ Ders programı senkronize edildi", false);
     } else {
         try {
-            const sched = JSON.parse(localStorage.getItem(SCHEDULE_KEY)) || {};
+            const sched = JSON.parse(localStorage.getItem(localDataKey(SCHEDULE_KEY))) || {};
             sched[studentId] = lessons;
-            localStorage.setItem(SCHEDULE_KEY, JSON.stringify(sched));
+            localStorage.setItem(localDataKey(SCHEDULE_KEY), JSON.stringify(sched));
             store.globalSchedules[studentId] = lessons;
         } catch (e) {
             console.error("saveSchedule error", e);
@@ -426,7 +432,7 @@ export function loadDersKayitlari(studentId) {
         return store.globalLessons[studentId] || [];
     }
     try {
-        const lessonsObj = JSON.parse(localStorage.getItem(DERS_KAYITLARI_KEY)) || {};
+        const lessonsObj = JSON.parse(localStorage.getItem(localDataKey(DERS_KAYITLARI_KEY))) || {};
         return lessonsObj[studentId] || [];
     } catch (e) {
         return [];
@@ -444,9 +450,9 @@ export function saveDersKayitlari(studentId, lessons) {
         if (window.showSyncStatus) window.showSyncStatus("✅ Ders kayıtları senkronize edildi", false);
     } else {
         try {
-            const lessonsObj = JSON.parse(localStorage.getItem(DERS_KAYITLARI_KEY)) || {};
+            const lessonsObj = JSON.parse(localStorage.getItem(localDataKey(DERS_KAYITLARI_KEY))) || {};
             lessonsObj[studentId] = lessons;
-            localStorage.setItem(DERS_KAYITLARI_KEY, JSON.stringify(lessonsObj));
+            localStorage.setItem(localDataKey(DERS_KAYITLARI_KEY), JSON.stringify(lessonsObj));
             store.globalLessons[studentId] = lessons;
         } catch (e) {
             console.error("saveDersKayitlari error", e);
@@ -513,7 +519,7 @@ export function loadGroupsData() {
         return store.globalGroups || [];
     }
     try {
-        const raw = localStorage.getItem(GROUPS_KEY);
+        const raw = localStorage.getItem(localDataKey(GROUPS_KEY));
         return raw ? JSON.parse(raw) : [];
     } catch (e) {
         console.error("loadGroupsData error", e);
@@ -537,7 +543,7 @@ export function saveGroupsData(groups) {
         if (window.showSyncStatus) window.showSyncStatus("✅ Bulut senkronize edildi", false);
     } else {
         try {
-            localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+            localStorage.setItem(localDataKey(GROUPS_KEY), JSON.stringify(groups));
             if (window.showSyncStatus) window.showSyncStatus("✅ Kaydedildi", false);
         } catch (e) {
             console.error("saveGroupsData error", e);
@@ -555,7 +561,7 @@ export function deleteGroupData(groupId) {
         if (window.showSyncStatus) window.showSyncStatus("✅ Bulut senkronize edildi", false);
     } else {
         try {
-            localStorage.setItem(GROUPS_KEY, JSON.stringify(store.globalGroups));
+            localStorage.setItem(localDataKey(GROUPS_KEY), JSON.stringify(store.globalGroups));
             if (window.showSyncStatus) window.showSyncStatus("✅ Kaydedildi", false);
         } catch (e) {
             console.error("deleteGroupData error", e);
@@ -569,6 +575,7 @@ window.STORAGE_KEY = STORAGE_KEY;
 window.SCHEDULE_KEY = SCHEDULE_KEY;
 window.DERS_KAYITLARI_KEY = DERS_KAYITLARI_KEY;
 window.GROUPS_KEY = GROUPS_KEY;
+window.localDataKey = localDataKey;
 window.loadStudentsData = loadStudentsData;
 window.saveStudentsData = saveStudentsData;
 window.loadSchedule = loadSchedule;
