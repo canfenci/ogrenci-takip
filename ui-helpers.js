@@ -94,9 +94,10 @@ export function registerPWA() {
             }
         });
 
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
         .then(reg => {
             console.log('Service Worker Registered Successfully', reg.scope);
+            reg.update().catch(err => console.warn('Service Worker update check failed', err));
             // Service Worker update detection
             reg.addEventListener('updatefound', () => {
                 const newWorker = reg.installing;
