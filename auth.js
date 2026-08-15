@@ -3,6 +3,7 @@
 import { auth, isFirebaseActive } from './firebase-config.js';
 import { store, localDataKey } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
+import { PRIVACY_NOTICE_VERSION } from './privacy-notice.js';
 
 export function renderLoginScreen() {
     store.currentPage = "login";
@@ -72,6 +73,10 @@ export function renderLoginScreen() {
                         <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">Sosyal Bilgiler</span>
                     </label>
                 </div>
+                <label class="mt-3 flex items-start gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-3 cursor-pointer">
+                    <input type="checkbox" id="privacyNoticeAcknowledged" class="mt-0.5 w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500">
+                    <span class="text-xs leading-5 text-gray-600 dark:text-gray-300"><button type="button" onclick="event.preventDefault(); event.stopPropagation(); showPrivacyNotice()" class="font-black text-indigo-600 dark:text-indigo-400 underline">KVKK Aydınlatma Metni</button>ni okudum. Bunun açık rıza değil, veri işleme hakkında bilgilendirme olduğunu biliyorum.</span>
+                </label>
             </div>
             
             <button id="authActionButton" onclick="handleLogin()" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
@@ -88,6 +93,7 @@ export function renderLoginScreen() {
                 <i class="fas fa-user-secret mr-1"></i> Misafir Olarak Dene
             </button>
             <p class="text-xs text-center text-gray-500 dark:text-gray-400">Kayıt olmadan uygulamayı inceleyin. Misafir verileri yalnızca bu cihazda saklanır ve bulut hesaplarıyla paylaşılmaz.</p>
+            <button type="button" onclick="showPrivacyNotice()" class="w-full min-h-[44px] text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 underline">Gizlilik ve KVKK Aydınlatma Metni</button>
         </div>
     </div>`;
     document.getElementById("dynamic-content").innerHTML = html;
@@ -267,6 +273,12 @@ export async function handleRegister() {
         return;
     }
 
+    if (!document.getElementById('privacyNoticeAcknowledged')?.checked) {
+        errDiv.textContent = 'Kayıt olmadan önce KVKK Aydınlatma Metnini okuyup bilgilendirme kutusunu işaretleyin.';
+        errDiv.classList.remove('hidden');
+        return;
+    }
+
     const branches = [];
     if (document.getElementById("registerBranchTur")?.checked) branches.push("Türkçe");
     if (document.getElementById("registerBranchMath")?.checked) branches.push("Matematik");
@@ -289,6 +301,8 @@ export async function handleRegister() {
             await window.db.collection("users").doc(user.uid).set({
                 email: email,
                 branches: branches,
+                privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+                privacyNoticeAcknowledgedAt: new Date().toISOString(),
                 createdAt: new Date().toISOString()
             });
         }
