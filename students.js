@@ -1497,6 +1497,23 @@ export function renderGenelIslemler() {
     
     const themeText = store.darkMode ? 'Açık Mod' : 'Koyu Mod';
     const themeIcon = store.darkMode ? 'fa-sun' : 'fa-moon';
+    const cloudUser = window.auth?.currentUser;
+    const localMigrationSummary = window.getLocalMigrationSummary?.() || { students: 0, groups: 0, schedules: 0, lessons: 0 };
+    const recoveryHtml = cloudUser && (localMigrationSummary.students > 0 || localMigrationSummary.groups > 0) ? `
+        <div class="app-panel p-5 border-amber-200 dark:border-amber-800">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0"><i class="fas fa-cloud-upload-alt"></i></div>
+                <div>
+                    <h3 class="font-black text-gray-800 dark:text-white">Yerel Kayıt Kurtarma</h3>
+                    <p class="text-xs text-gray-500 mt-1">Bu Chrome profilinde <strong>${localMigrationSummary.students} öğrenci</strong>, ${localMigrationSummary.lessons} ders kaydı ve ${localMigrationSummary.groups} grup bulundu. Aktarım yalnızca açık ve boş bulut hesabına yapılır; yerel kayıtlar silinmez.</p>
+                </div>
+            </div>
+            <div class="mt-4 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs font-semibold text-amber-800 dark:text-amber-200">Açık hesap: ${escapeHtml(cloudUser.email || '')}</div>
+            <label for="migrationAccountEmail" class="block text-xs font-bold text-gray-600 dark:text-gray-300 mt-4 mb-1.5">Onaylamak için açık hesabın e-posta adresini yazın</label>
+            <input id="migrationAccountEmail" type="email" autocomplete="off" class="student-form-input min-h-[44px]" placeholder="${escapeHtml(cloudUser.email || '')}">
+            <button id="localMigrationButton" type="button" onclick="startLocalDataRecovery()" class="btn-primary mt-3 w-full min-h-[44px]"><i class="fas fa-cloud-upload-alt mr-1"></i> Yerel Kayıtları Bu Hesaba Aktar</button>
+            <p id="localMigrationFeedback" class="text-xs font-semibold mt-3 hidden" role="status"></p>
+        </div>` : '';
     
     const logoutHtml = (window.isFirebaseActive && window.auth && window.auth.currentUser) ? `
         <button onclick="handleLogout()" class="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl transition font-medium text-left">
@@ -1571,6 +1588,8 @@ export function renderGenelIslemler() {
                 </div>
             </div>
 
+            ${recoveryHtml}
+
             <div class="app-panel p-5">
                 <h3 class="font-black text-gray-800 dark:text-white"><i class="fas fa-book text-indigo-600"></i> Kaynak Kitaplar</h3>
                 <p class="text-xs text-gray-500 mt-1 mb-3">Kaynakları sınıf ve ders düzeyine göre tanımlayın; ödev, ders kaydı ve konu denemelerinde listeden seçin.</p>
@@ -1621,6 +1640,33 @@ export function renderGenelIslemler() {
         </div>
     `;
     document.getElementById("dynamic-content").innerHTML = html;
+}
+
+export async function startLocalDataRecovery() {
+    const feedback = document.getElementById('localMigrationFeedback');
+    const button = document.getElementById('localMigrationButton');
+    if (!window.migrateLocalDataToCurrentAccount) return;
+    if (button) button.disabled = true;
+    if (feedback) {
+        feedback.textContent = 'Aktarım güvenli biçimde hazırlanıyor…';
+        feedback.className = 'text-xs font-semibold mt-3 text-indigo-600 dark:text-indigo-300';
+    }
+    try {
+        const result = await window.migrateLocalDataToCurrentAccount(document.getElementById('migrationAccountEmail')?.value);
+        if (feedback) {
+            feedback.textContent = result.message;
+            feedback.className = `text-xs font-semibold mt-3 ${result.ok ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`;
+        }
+        if (result.ok && button) button.classList.add('hidden');
+    } catch (err) {
+        console.error('Local data recovery failed:', err);
+        if (feedback) {
+            feedback.textContent = 'Aktarım sırasında bağlantı hatası oluştu. Yerel kayıtlar korunuyor.';
+            feedback.className = 'text-xs font-semibold mt-3 text-red-600 dark:text-red-400';
+        }
+    } finally {
+        if (button && !button.classList.contains('hidden')) button.disabled = false;
+    }
 }
 
 export function saveNewResourceBook() {
@@ -1771,6 +1817,7 @@ window.renderStudentSummaryPanel = renderStudentSummaryPanel;
 window.selectStudent = (id) => renderStudentSummaryPanel(id);
 window.renderStudentPanel = renderStudentPanel;
 window.renderGenelIslemler = renderGenelIslemler;
+window.startLocalDataRecovery = startLocalDataRecovery;
 window.renderReminderHome = renderReminderHome;
 window.updateTeacherBranches = updateTeacherBranches;
 window.updateTeacherName = updateTeacherName;
