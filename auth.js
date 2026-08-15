@@ -87,6 +87,15 @@ export function renderLoginScreen() {
         </div>
     </div>`;
     document.getElementById("dynamic-content").innerHTML = html;
+
+    const flashMessage = sessionStorage.getItem('canfenci_auth_flash_v1');
+    if (flashMessage) {
+        const loginError = document.getElementById('loginError');
+        if (loginError) {
+            loginError.textContent = flashMessage;
+            loginError.classList.remove('hidden');
+        }
+    }
 }
 
 export function switchAuthTab(mode) {
@@ -125,6 +134,7 @@ export async function handleLogin() {
     const email = document.getElementById("loginEmail").value.trim();
     const password = document.getElementById("loginPassword").value;
     const errDiv = document.getElementById("loginError");
+    sessionStorage.removeItem('canfenci_auth_flash_v1');
     errDiv.classList.add("hidden");
 
     if (!email || !password) {
@@ -136,14 +146,23 @@ export async function handleLogin() {
     try {
         showSyncStatus("Giriş yapılıyor...", false);
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        const user = userCredential.user;
+        let user = userCredential.user;
         
+        // Safari may initially expose a stale verification flag. Refresh the
+        // user from Firebase before deciding to reject an otherwise valid login.
+        await user.reload();
+        user = auth.currentUser || user;
+
         // Email Verification Check
         if (!user.emailVerified) {
-            await user.sendEmailVerification();
+            try {
+                await user.sendEmailVerification();
+            } catch (verificationError) {
+                console.warn('Verification email could not be resent:', verificationError);
+            }
+            sessionStorage.setItem('canfenci_auth_flash_v1', "E-posta adresiniz henüz doğrulanmamış. Yeni doğrulama e-postası gönderildi.");
             await auth.signOut();
-            errDiv.textContent = "E-posta adresiniz henüz doğrulanmamış. Yeni doğrulama e-postası gönderildi.";
-            errDiv.classList.remove("hidden");
+            renderLoginScreen();
             return;
         }
 
