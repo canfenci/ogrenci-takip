@@ -47,17 +47,24 @@ test('student deletion includes dependent cloud records', async () => {
   assert.match(students, /await batch\.commit\(\)/);
 });
 
-test('production cloud sync is enabled with a safe local-data fallback', async () => {
+test('production cloud sync isolates authenticated accounts from shared local data', async () => {
   const [firebaseConfig, store] = await Promise.all([
     readProjectFile('firebase-config.js'),
     readProjectFile('store.js')
   ]);
 
   assert.match(firebaseConfig, /const CLOUD_FEATURES_ENABLED = true/);
-  assert.match(firebaseConfig, /if \(!CLOUD_FEATURES_ENABLED \|\| store\.isSyncInitialized/);
-  assert.match(firebaseConfig, /store\.useFirestore = false/);
-  assert.match(firebaseConfig, /Hayır seçerseniz verileriniz yerel olarak görünmeye devam eder ve silinmez/);
+  assert.match(firebaseConfig, /store\.syncUserId === user\.uid/);
+  assert.match(firebaseConfig, /store\.useFirestore = true/);
+  assert.match(firebaseConfig, /LOCAL_DATA_OWNER_KEY/);
+  assert.match(firebaseConfig, /belongsToAnotherAccount/);
+  assert.match(firebaseConfig, /resetFirestoreSync/);
+  assert.match(firebaseConfig, /firestoreUnsubscribers/);
+  assert.match(firebaseConfig, /hydrateTeacherProfile/);
+  assert.match(firebaseConfig, /localStorage\.removeItem\('teacher_profile_completed_v1'\)/);
+  assert.match(firebaseConfig, /store\.syncUserId !== user\.uid/);
   assert.match(store, /useFirestore: false/);
+  assert.match(store, /syncUserId: null/);
 });
 
 test('first use requires a complete local teacher profile that remains editable in settings', async () => {
@@ -324,7 +331,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v69/);
+  assert.match(serviceWorker, /canfenci-cache-v70/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -336,7 +343,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v69/);
+  assert.match(serviceWorker, /canfenci-cache-v70/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -348,7 +355,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v69/);
+  assert.match(serviceWorker, /canfenci-cache-v70/);
 });
 
 test('exam assignment modal and student summary use shared professional surfaces', async () => {
