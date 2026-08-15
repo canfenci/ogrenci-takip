@@ -322,19 +322,19 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v62/);
+  assert.match(serviceWorker, /canfenci-cache-v63/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
   const [index, finance, serviceWorker] = await Promise.all([
     readProjectFile('index.html'), readProjectFile('finance.js'), readProjectFile('sw.js')
   ]);
-  assert.match(index, /--brand-600: #4F46E5/);
+  assert.match(index, /--brand-600: #394B87/);
   assert.match(index, /--success: #059669/);
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v62/);
+  assert.match(serviceWorker, /canfenci-cache-v63/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -346,7 +346,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v62/);
+  assert.match(serviceWorker, /canfenci-cache-v63/);
 });
 
 test('exam assignment modal and student summary use shared professional surfaces', async () => {
@@ -403,6 +403,17 @@ test('homework releases bypass stale browser and service-worker caches', async (
   assert.match(index, /import '\.\/homework\.js\?v=62'/);
   assert.match(uiHelpers, /updateViaCache: 'none'/);
   assert.match(uiHelpers, /reg\.update\(\)/);
+});
+
+test('premium design system uses editorial typography and restrained product surfaces', async () => {
+  const index = await readProjectFile('index.html');
+  assert.match(index, /family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800/);
+  assert.match(index, /--accent: #B58B4A/);
+  assert.match(index, /class="app-sidebar/);
+  assert.match(index, /class="app-workspace/);
+  assert.match(index, /width: 280px !important/);
+  assert.match(index, /border-width: 1px !important/);
+  assert.match(index, /Premium product skin/);
 });
 
 test('students guidance and homework share the unified application surfaces', async () => {
