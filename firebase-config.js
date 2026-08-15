@@ -59,21 +59,73 @@ export { db, auth, isFirebaseActive, CLOUD_FEATURES_ENABLED };
 import { store, STORAGE_KEY, SCHEDULE_KEY, DERS_KAYITLARI_KEY } from './store.js';
 import { showSyncStatus, handleFirebaseError } from './ui-helpers.js';
 
+const LOCAL_DATA_OWNER_KEY = 'canfenci_local_data_owner_uid_v1';
+const DEFAULT_TEACHER_BRANCHES = ["Türkçe", "Matematik", "Fen Bilimleri", "Sosyal Bilgiler"];
+
+function clearCloudState() {
+    store.globalStudents = [];
+    store.globalHomeworks = [];
+    store.globalSchedules = {};
+    store.globalLessons = {};
+    store.globalGroups = [];
+    store.currentStudentId = null;
+}
+
+async function hydrateTeacherProfile(user) {
+    const profileDoc = await db.collection("users").doc(user.uid).get();
+    const profile = profileDoc.exists ? profileDoc.data() : {};
+    const branches = Array.isArray(profile.branches) && profile.branches.length > 0
+        ? profile.branches
+        : DEFAULT_TEACHER_BRANCHES;
+
+    store.teacherBranches = branches;
+    store.teacherName = profile.name || "Öğretmen Adı";
+    store.teacherSchool = profile.school || "Belirtilmemiş Okul";
+    localStorage.setItem('teacher_branches_v1', JSON.stringify(branches));
+
+    if (profile.name) localStorage.setItem('teacher_name_v1', profile.name);
+    else localStorage.removeItem('teacher_name_v1');
+    if (profile.school) localStorage.setItem('teacher_school_v1', profile.school);
+    else localStorage.removeItem('teacher_school_v1');
+    if (profile.name && profile.school) localStorage.setItem('teacher_profile_completed_v1', 'true');
+    else localStorage.removeItem('teacher_profile_completed_v1');
+}
+
+export function resetFirestoreSync() {
+    (store.firestoreUnsubscribers || []).forEach(unsubscribe => {
+        try { unsubscribe(); } catch (err) { console.warn('Sync listener could not be closed:', err); }
+    });
+    store.firestoreUnsubscribers = [];
+    store.isSyncInitialized = false;
+    store.syncUserId = null;
+    store.useFirestore = false;
+    clearCloudState();
+}
+
 export async function initializeFirestoreSync() {
-    if (!CLOUD_FEATURES_ENABLED || store.isSyncInitialized || !isFirebaseActive) return;
+    if (!CLOUD_FEATURES_ENABLED || !isFirebaseActive) return;
     const user = auth.currentUser;
     if (!user) return;
+    if (store.isSyncInitialized && store.syncUserId === user.uid) return;
+    if (store.isSyncInitialized || store.syncUserId) resetFirestoreSync();
+
     store.isSyncInitialized = true;
-    store.useFirestore = false;
+    store.syncUserId = user.uid;
+    // Never expose shared browser-local records while an authenticated account
+    // is waiting for its own Firestore snapshot.
+    store.useFirestore = true;
+    clearCloudState();
 
     showSyncStatus("Veriler buluttan yükleniyor...", false);
 
     try {
+        await hydrateTeacherProfile(user);
         let initialStudentsSnapshotHandled = false;
 
         // Listen to students. Cloud mode is enabled only after the first snapshot
         // and the local-to-cloud migration choice have been resolved.
-        db.collection("students").where("userId", "==", user.uid).onSnapshot(async snapshot => {
+        const unsubscribeStudents = db.collection("students").where("userId", "==", user.uid).onSnapshot(async snapshot => {
+            if (store.syncUserId !== user.uid) return;
             store.globalStudents = [];
             snapshot.forEach(doc => store.globalStudents.push(doc.data()));
 
@@ -86,17 +138,23 @@ export async function initializeFirestoreSync() {
                     console.warn('Local migration data could not be read:', err);
                 }
 
-                if (snapshot.empty && localStudents.length > 0) {
-                    const approved = confirm("Bulut hesabınız henüz boş. Bu cihazdaki mevcut öğrenci, ödev, ders ve program kayıtlarını güvenli bulut hesabınıza aktarmak ister misiniz?\n\nHayır seçerseniz verileriniz yerel olarak görünmeye devam eder ve silinmez.");
+                const localDataOwner = localStorage.getItem(LOCAL_DATA_OWNER_KEY);
+                const belongsToAnotherAccount = localDataOwner && localDataOwner !== user.uid;
+
+                if (snapshot.empty && localStudents.length > 0 && !belongsToAnotherAccount) {
+                    const approved = confirm(`Bulut hesabınız (${user.email || 'mevcut hesap'}) henüz boş. Bu cihazdaki mevcut öğrenci, ödev, ders ve program kayıtlarını bu hesaba aktarmak ister misiniz?\n\nYalnızca bu kayıtlar bu hesaba aitse Evet'i seçin. Hayır seçerseniz yerel kayıtlar silinmez ve çevrimdışı moddan erişilebilir.`);
                     if (approved) {
-                        await runMigration();
-                        store.useFirestore = true;
+                        const migrated = await runMigration();
+                        if (migrated) localStorage.setItem(LOCAL_DATA_OWNER_KEY, user.uid);
                     } else {
-                        store.useFirestore = false;
-                        showSyncStatus("Yerel kayıtlar korunuyor; bulut aktarımı yapılmadı.", false);
+                        showSyncStatus("Bulut hesabı boş; yerel kayıtlar bu hesaba aktarılmadı.", false);
                     }
-                } else {
-                    store.useFirestore = true;
+                } else if (!snapshot.empty) {
+                    // A populated cloud account is the authoritative owner of
+                    // legacy local data on this browser.
+                    localStorage.setItem(LOCAL_DATA_OWNER_KEY, user.uid);
+                } else if (belongsToAnotherAccount) {
+                    showSyncStatus("Bu hesap için bulut kaydı bulunmuyor.", false);
                 }
             }
 
@@ -111,9 +169,11 @@ export async function initializeFirestoreSync() {
             console.error("Students sync error:", err);
             handleFirebaseError(err);
         });
+        store.firestoreUnsubscribers.push(unsubscribeStudents);
 
         // Listen to homeworks
-        db.collection("homeworks").where("userId", "==", user.uid).onSnapshot(snapshot => {
+        const unsubscribeHomeworks = db.collection("homeworks").where("userId", "==", user.uid).onSnapshot(snapshot => {
+            if (store.syncUserId !== user.uid) return;
             store.globalHomeworks = [];
             snapshot.forEach(doc => store.globalHomeworks.push(doc.data()));
             
@@ -125,9 +185,11 @@ export async function initializeFirestoreSync() {
         }, err => {
             console.error("Homeworks sync error:", err);
         });
+        store.firestoreUnsubscribers.push(unsubscribeHomeworks);
 
         // Listen to schedules
-        db.collection("schedules").where("userId", "==", user.uid).onSnapshot(snapshot => {
+        const unsubscribeSchedules = db.collection("schedules").where("userId", "==", user.uid).onSnapshot(snapshot => {
+            if (store.syncUserId !== user.uid) return;
             store.globalSchedules = {};
             snapshot.forEach(doc => {
                 const data = doc.data();
@@ -139,9 +201,11 @@ export async function initializeFirestoreSync() {
         }, err => {
             console.error("Schedules sync error:", err);
         });
+        store.firestoreUnsubscribers.push(unsubscribeSchedules);
 
         // Listen to lesson records
-        db.collection("lessons").where("userId", "==", user.uid).onSnapshot(snapshot => {
+        const unsubscribeLessons = db.collection("lessons").where("userId", "==", user.uid).onSnapshot(snapshot => {
+            if (store.syncUserId !== user.uid) return;
             store.globalLessons = {};
             snapshot.forEach(doc => {
                 const data = doc.data();
@@ -155,9 +219,11 @@ export async function initializeFirestoreSync() {
         }, err => {
             console.error("Lessons sync error:", err);
         });
+        store.firestoreUnsubscribers.push(unsubscribeLessons);
 
         // Listen to groups
-        db.collection("groups").where("userId", "==", user.uid).onSnapshot(snapshot => {
+        const unsubscribeGroups = db.collection("groups").where("userId", "==", user.uid).onSnapshot(snapshot => {
+            if (store.syncUserId !== user.uid) return;
             store.globalGroups = [];
             snapshot.forEach(doc => {
                 store.globalGroups.push(doc.data());
@@ -168,10 +234,12 @@ export async function initializeFirestoreSync() {
         }, err => {
             console.error("Groups sync error:", err);
         });
+        store.firestoreUnsubscribers.push(unsubscribeGroups);
 
         // Listen to teacher settings (branches & name)
         if (user) {
-            db.collection("users").doc(user.uid).onSnapshot(doc => {
+            const unsubscribeUser = db.collection("users").doc(user.uid).onSnapshot(doc => {
+                if (store.syncUserId !== user.uid) return;
                 if (doc.exists) {
                     const data = doc.data();
                     let updated = false;
@@ -206,6 +274,7 @@ export async function initializeFirestoreSync() {
             }, err => {
                 console.error("Users settings sync error:", err);
             });
+            store.firestoreUnsubscribers.push(unsubscribeUser);
         }
 
         showSyncStatus("Firebase bağlantısı hazır.", false);
@@ -216,15 +285,15 @@ export async function initializeFirestoreSync() {
 }
 
 export async function runMigration() {
-    if (!CLOUD_FEATURES_ENABLED) return;
+    if (!CLOUD_FEATURES_ENABLED) return false;
     try {
         const user = auth.currentUser;
-        if (!user) return;
+        if (!user) return false;
         const userId = user.uid;
         
         const localStudents = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
         const localGroups = JSON.parse(localStorage.getItem("student_groups_v1")) || [];
-        if (localStudents.length === 0 && localGroups.length === 0) return;
+        if (localStudents.length === 0 && localGroups.length === 0) return false;
 
         showSyncStatus("Yerel veriler buluta aktarılıyor...", false);
 
@@ -258,12 +327,15 @@ export async function runMigration() {
         }
 
         showSyncStatus("✅ Aktarım başarıyla tamamlandı!", false);
+        return true;
     } catch (err) {
         console.error("Migration error:", err);
         showSyncStatus("⚠️ Aktarım sırasında hata oluştu.", true);
+        return false;
     }
 }
 
 // Bind to window for global access
 window.initializeFirestoreSync = initializeFirestoreSync;
 window.runMigration = runMigration;
+window.resetFirestoreSync = resetFirestoreSync;

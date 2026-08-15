@@ -647,6 +647,7 @@
                                 });
                             }
                         } else {
+                            if (window.resetFirestoreSync) window.resetFirestoreSync();
                             if (window.renderLoginScreen) window.renderLoginScreen();
                         }
                     });

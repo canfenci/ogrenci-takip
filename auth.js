@@ -263,8 +263,8 @@ export function continueOffline() {
 export async function handleLogout() {
     if (confirm("Oturumu kapatmak istediğinize emin misiniz?")) {
         try {
+            if (window.resetFirestoreSync) window.resetFirestoreSync();
             await auth.signOut();
-            store.isSyncInitialized = false;
             window.location.reload();
         } catch (err) {
             console.error("Sign out error:", err);

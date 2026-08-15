@@ -341,6 +341,8 @@ export const store = {
     currentSortOrder: "default",
     useFirestore: false,
     isSyncInitialized: false,
+    syncUserId: null,
+    firestoreUnsubscribers: [],
     teacherBranches: initialBranches,
     teacherName: localStorage.getItem('teacher_name_v1') || "Öğretmen Adı",
     teacherSchool: localStorage.getItem('teacher_school_v1') || "Belirtilmemiş Okul"
