@@ -41,8 +41,22 @@ export function deleteStudyTask(studentId, gun, taskIdx) {
     }
 }
 
-export function autoPopulateStudyPlan(studentId) {
-    if (!confirm("Öğrencinin performansına göre haftalık ders çalışma programı otomatik olarak doldurulacaktır. Mevcut program silinecektir. Emin misiniz?")) return;
+export function buildBranchStudyPlan(subject) {
+    return {
+        "Pazartesi": [`${subject} - Eksik konu tekrarı`, `${subject} - 30 soru`],
+        "Salı": [`${subject} - Konu testi`],
+        "Çarşamba": [`${subject} - Yanlış soruların analizi ve tekrar çözümü`],
+        "Perşembe": [`${subject} - Kaynak kitaptan çalışma`],
+        "Cuma": [`${subject} - Konu denemesi`],
+        "Cumartesi": [`${subject} - Haftalık tekrar ve gelişim değerlendirmesi`],
+        "Pazar": ["Dinlenme ve Kitap Okuma"]
+    };
+}
+
+export function autoPopulateStudyPlan(studentId, mode = 'general') {
+    const selectedBranch = mode.startsWith('branch:') ? mode.slice('branch:'.length).trim() : '';
+    const planName = selectedBranch ? `${selectedBranch} branş programı` : 'genel çalışma programı';
+    if (!confirm(`Öğrenci için ${planName} otomatik olarak doldurulacaktır. Mevcut program silinecektir. Emin misiniz?`)) return;
     const students = loadStudentsData();
     const sIdx = students.findIndex(s => s.id === studentId);
     if (sIdx === -1) return;
@@ -88,7 +102,7 @@ export function autoPopulateStudyPlan(studentId) {
     const secondWeakest = sortedSubjects[1];
     
     // Prepare recommended plan
-    const plan = {
+    const plan = selectedBranch ? buildBranchStudyPlan(selectedBranch) : {
         "Pazartesi": [],
         "Salı": [],
         "Çarşamba": [],
@@ -98,23 +112,25 @@ export function autoPopulateStudyPlan(studentId) {
         "Pazar": ["Dinlenme ve Kitap Okuma"]
     };
     
-    // Add weakest subject tasks
-    plan["Pazartesi"].push(`${weakest.name} - Konu Çalışması & 40 Soru`);
-    plan["Çarşamba"].push(`${weakest.name} - Soru Çözümü (50 Soru)`);
-    plan["Cuma"].push(`${weakest.name} - Hata Analizi ve Tekrar`);
-    
-    // Add second weakest
-    plan["Salı"].push(`${secondWeakest.name} - Konu Tekrarı & 45 Soru`);
-    plan["Perşembe"].push(`${secondWeakest.name} - Soru Çözümü (50 Soru)`);
-    
-    // Add other subjects or general assignments
-    plan["Pazartesi"].push("Türkçe - Paragraf Soru Çözümü (20 Soru)");
-    plan["Salı"].push("Kitap Okuma (30 dk)");
-    plan["Çarşamba"].push("Türkçe - Paragraf Soru Çözümü (20 Soru)");
-    plan["Perşembe"].push("Kitap Okuma (30 dk)");
-    plan["Cuma"].push("Türkçe - Dil Bilgisi Tekrarı");
-    plan["Cumartesi"].push("Haftalık Genel Deneme Çözümü");
-    plan["Cumartesi"].push("Deneme Analizi ve Yanlış Soru Sıfırlama");
+    if (!selectedBranch) {
+        // Add weakest subject tasks
+        plan["Pazartesi"].push(`${weakest.name} - Konu Çalışması & 40 Soru`);
+        plan["Çarşamba"].push(`${weakest.name} - Soru Çözümü (50 Soru)`);
+        plan["Cuma"].push(`${weakest.name} - Hata Analizi ve Tekrar`);
+
+        // Add second weakest
+        plan["Salı"].push(`${secondWeakest.name} - Konu Tekrarı & 45 Soru`);
+        plan["Perşembe"].push(`${secondWeakest.name} - Soru Çözümü (50 Soru)`);
+
+        // Add other subjects or general assignments
+        plan["Pazartesi"].push("Türkçe - Paragraf Soru Çözümü (20 Soru)");
+        plan["Salı"].push("Kitap Okuma (30 dk)");
+        plan["Çarşamba"].push("Türkçe - Paragraf Soru Çözümü (20 Soru)");
+        plan["Perşembe"].push("Kitap Okuma (30 dk)");
+        plan["Cuma"].push("Türkçe - Dil Bilgisi Tekrarı");
+        plan["Cumartesi"].push("Haftalık Genel Deneme Çözümü");
+        plan["Cumartesi"].push("Deneme Analizi ve Yanlış Soru Sıfırlama");
+    }
     
     s.studyPlan = plan;
     saveStudentsData(students);

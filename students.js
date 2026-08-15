@@ -795,6 +795,10 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
             }
         }
         const studyAdviceHtml = adviceList.join('');
+        const teacherProgramBranches = Array.isArray(store.teacherBranches) ? store.teacherBranches : [];
+        const studyPlanModeOptions = teacherProgramBranches.map((branch, index) => `
+            <option value="branch:${escapeHtml(branch)}" ${index === 0 ? 'selected' : ''}>${escapeHtml(branch)} Branş Programı</option>
+        `).join('');
         
         // 2. Haftalık Çalışma Takvimi
         const gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -1196,13 +1200,18 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
                             <h3 class="section-heading text-indigo-650 dark:text-indigo-400 font-bold text-lg">
                                 <i class="fas fa-calendar-alt"></i> Ders Çalışma Programı
                             </h3>
-                            <p class="text-sm text-gray-500">Deneme başarılarına göre önerilen haftalık ders programı.</p>
+                            <p class="text-sm text-gray-500">Ayarlar'da seçtiğiniz derslere göre branş veya genel çalışma programı oluşturun.</p>
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+                            <label class="sr-only" for="studyPlanMode">Çalışma programı türü</label>
+                            <select id="studyPlanMode" class="student-form-input min-h-[44px] sm:min-w-[230px]">
+                                ${studyPlanModeOptions}
+                                <option value="general">Genel Çalışma Programı</option>
+                            </select>
                             <button onclick="exportStudyPlanToPdf('${id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-1.5 shadow min-h-[44px]">
                                 <i class="fas fa-file-pdf text-base"></i> Programı PDF Kaydet
                             </button>
-                            <button onclick="autoPopulateStudyPlan('${id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-1.5 shadow min-h-[44px]">
+                            <button onclick="autoPopulateStudyPlan('${id}', document.getElementById('studyPlanMode').value)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-1.5 shadow min-h-[44px]">
                                 <i class="fas fa-magic text-base"></i> Programı Otomatik Doldur
                             </button>
                         </div>
