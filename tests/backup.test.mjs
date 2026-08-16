@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BACKUP_FORMAT, buildFullBackup, backupFileName } from '../backup.js';
+import { readFile } from 'node:fs/promises';
+import { BACKUP_FORMAT, buildFullBackup, backupFileName, combineRestoreData, summarizeBackupData, validateFullBackup } from '../backup.js';
 
 test('buildFullBackup includes all application data and accurate counts', () => {
     const backup = buildFullBackup({
@@ -35,4 +36,37 @@ test('buildFullBackup includes all application data and accurate counts', () => 
 
 test('backupFileName uses a stable dated json name', () => {
     assert.equal(backupFileName(new Date('2026-08-15T23:59:00.000Z')), 'canfenci_tam_yedek_2026-08-15.json');
+});
+
+test('validateFullBackup rejects malformed and duplicate records', () => {
+    const valid = buildFullBackup({ students: [{ id: 's1' }] });
+    assert.equal(validateFullBackup(valid).ok, true);
+    valid.data.students.push({ id: 's1' });
+    assert.match(validateFullBackup(valid).error, /yinelenen/);
+    assert.equal(validateFullBackup([]).ok, false);
+    const malformedSchedule = buildFullBackup({ schedules: { 'bad/id': [] } });
+    assert.match(validateFullBackup(malformedSchedule).error, /geçersiz öğrenci/);
+});
+
+test('combineRestoreData merges by id or completely replaces data', () => {
+    const current = { teacherProfile: { name: 'Eski' }, students: [{ id: 's1', name: 'Eski' }], homeworks: [], schedules: { s1: [] }, lessons: {}, groups: [], resourceBooks: [], reminderSettings: {}, reminderHistory: {} };
+    const incoming = { teacherProfile: { school: 'Okul' }, students: [{ id: 's1', name: 'Yeni' }, { id: 's2' }], homeworks: [], schedules: { s2: [] }, lessons: {}, groups: [], resourceBooks: [], reminderSettings: {}, reminderHistory: {} };
+    const merged = combineRestoreData(current, incoming, 'merge');
+    assert.equal(merged.students.length, 2);
+    assert.equal(merged.students.find(item => item.id === 's1').name, 'Yeni');
+    assert.deepEqual(merged.teacherProfile, { name: 'Eski', school: 'Okul' });
+    assert.deepEqual(Object.keys(merged.schedules).sort(), ['s1', 's2']);
+    assert.deepEqual(combineRestoreData(current, incoming, 'replace'), incoming);
+    assert.equal(summarizeBackupData(incoming).students, 2);
+});
+
+test('cloud restore stamps ownership and replacement deletes only current user documents', async () => {
+    const restoreSource = await readFile(new URL('../backup-restore.js', import.meta.url), 'utf8');
+    const studentsSource = await readFile(new URL('../students.js', import.meta.url), 'utf8');
+    assert.match(restoreSource, /where\('userId', '==', userId\)/);
+    assert.match(restoreSource, /userId: user\.uid/);
+    assert.match(restoreSource, /user\.emailVerified/);
+    assert.match(studentsSource, /if \(mode === 'replace'\) exportBackup\(\)/);
+    assert.match(studentsSource, /restoreAccountEmail/);
+    assert.match(studentsSource, /restoreSensitiveData/);
 });

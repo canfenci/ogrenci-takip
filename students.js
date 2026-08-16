@@ -10,7 +10,7 @@ import { validateStudentInput } from './data-validation.js';
 import { renderLessonReminderCenter } from './lesson-reminders.js';
 import { calculateTopicExamProgress } from './topic-exam-insights.js';
 import { addResourceBook, deleteResourceBook, loadResourceBooks } from './resource-books.js';
-import { backupFileName, buildFullBackup } from './backup.js';
+import { backupFileName, buildFullBackup, summarizeBackupData, validateFullBackup } from './backup.js';
 
 let selectedSettingsResourceGrade = '';
 
@@ -491,55 +491,88 @@ export function showImportModal() {
     const modal = document.createElement('div');
     modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4";
     modal.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-xl border">
-            <h2 class="text-xl font-bold mb-2">📂 Manuel Geri Yükle</h2>
-            <p class="text-xs text-gray-500 mb-3">Lütfen daha önce indirdiğiniz JSON yedek dosyasını seçiniz.</p>
-            <input type="file" id="restoreFile" accept=".json" class="w-full border p-2.5 rounded my-2 min-h-[44px]">
-            <button onclick="importBackup()" class="bg-blue-600 hover:bg-blue-700 text-white w-full py-2.5 rounded-xl font-bold min-h-[44px] mt-2">Yükle</button>
+        <div class="app-modal bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-lg w-full shadow-xl border max-h-[92vh] overflow-y-auto">
+            <h2 class="text-xl font-black mb-2">Tam Yedeği Geri Yükle</h2>
+            <p class="text-xs text-gray-500 mb-3">Canfenci tam yedek JSON dosyasını seçin. Dosya doğrulanmadan hiçbir veri değiştirilmez.</p>
+            <input type="file" id="restoreFile" accept="application/json,.json" onchange="previewBackupFile()" class="student-form-input w-full my-2 min-h-[44px]">
+            <div id="restorePreview" class="hidden mt-3 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/10 p-3 text-sm"></div>
+            <fieldset id="restoreOptions" class="hidden mt-4 space-y-3">
+                <legend class="text-sm font-black mb-2">Geri yükleme yöntemi</legend>
+                <label class="flex gap-2 p-3 rounded-xl border"><input type="radio" name="restoreMode" value="merge" checked class="mt-1"><span><strong>Mevcut verilerle birleştir</strong><small class="block text-gray-500">Mevcut kayıtlar korunur; aynı kimlikli kayıtlar yedekteki sürümle güncellenir.</small></span></label>
+                <label class="flex gap-2 p-3 rounded-xl border border-red-200 dark:border-red-900"><input type="radio" name="restoreMode" value="replace" class="mt-1"><span><strong>Mevcut verilerin yerine koy</strong><small class="block text-gray-500">Yedekte bulunmayan mevcut kayıtlar silinir. Önce otomatik güvenlik yedeği indirilir.</small></span></label>
+                <label for="restoreAccountEmail" class="block text-xs font-bold">Onaylamak için açık hesabın e-posta adresini yazın</label>
+                <input id="restoreAccountEmail" type="email" autocomplete="off" class="student-form-input" placeholder="${escapeHtml(auth.currentUser?.email || 'Yerel kullanım için YEREL yazın')}">
+                <label class="flex gap-2 text-xs"><input id="restoreSensitiveData" type="checkbox" class="mt-0.5"><span>Yedek dosyasının kişisel öğrenci verileri içerdiğini ve doğru hesaba yüklediğimi onaylıyorum.</span></label>
+            </fieldset>
+            <p id="restoreFeedback" class="hidden mt-3 text-sm font-semibold" role="status"></p>
+            <button id="restoreSubmitButton" onclick="importBackup()" disabled class="btn-primary disabled:opacity-50 w-full py-2.5 min-h-[44px] mt-4">Geri Yüklemeyi Başlat</button>
             <button onclick="this.closest('.fixed').remove()" class="mt-2 w-full border rounded-xl py-2.5 min-h-[44px]">İptal</button>
         </div>
     `;
     document.body.appendChild(modal);
 }
 
-export function importBackup() {
+let pendingRestoreBackup = null;
+
+export function previewBackupFile() {
     const file = document.getElementById('restoreFile').files[0];
     if (!file) return;
+    const feedback = document.getElementById('restoreFeedback');
+    if (file.size > 10 * 1024 * 1024) {
+        feedback.textContent = 'Yedek dosyası 10 MB sınırını aşıyor.';
+        feedback.className = 'mt-3 text-sm font-semibold text-red-600';
+        return;
+    }
     const reader = new FileReader();
     reader.onload = e => {
         try {
             const data = JSON.parse(e.target.result);
-            if (Array.isArray(data)) {
-                const normalized = data.map(s => {
-                    return {
-                        id: s.id || "std" + Date.now() + Math.floor(Math.random() * 100),
-                        adSoyad: s.adSoyad || "",
-                        okul: s.okul || "",
-                        sinif: s.sinif || "8",
-                        veliTel: s.veliTel || "",
-                        dersUcreti: s.dersUcreti || s.aylikUcret || s.ucret || 0,
-                        hedefLise: s.hedefLise || "",
-                        hedefNet: s.hedefNet || 0,
-                        denemeler: s.denemeler || [],
-                        studyPlan: s.studyPlan || {},
-                        errorResets: s.errorResets || {},
-                        growthPlan: s.growthPlan || {},
-                        weeklyGoals: s.weeklyGoals || {},
-                        weeklyGoalProgress: s.weeklyGoalProgress || {}
-                    };
-                });
-                saveStudentsData(normalized);
-                alert("Veriler başarıyla içe aktarıldı ve yüklendi!");
-                document.querySelector('.fixed')?.remove();
-                renderHomeScreen();
-            } else {
-                alert("Geçersiz yedek dosyası formatı!");
-            }
+            const validation = validateFullBackup(data);
+            if (!validation.ok) throw new Error(validation.error);
+            pendingRestoreBackup = data;
+            const summary = summarizeBackupData(data.data);
+            document.getElementById('restorePreview').innerHTML = `<strong>Yedek doğrulandı</strong><div class="mt-1 text-xs">${summary.students} öğrenci · ${summary.homeworks} ödev · ${summary.lessonRecords} ders kaydı · ${summary.schedules} program · ${summary.groups} grup · ${summary.resourceBooks} kaynak kitap</div><div class="mt-2 text-xs">Kaynak hesap: ${escapeHtml(data.source?.accountEmail || 'Belirtilmemiş')} · Tarih: ${escapeHtml(new Date(data.exportedAt).toLocaleString('tr-TR'))}</div>`;
+            document.getElementById('restorePreview').classList.remove('hidden');
+            document.getElementById('restoreOptions').classList.remove('hidden');
+            document.getElementById('restoreSubmitButton').disabled = false;
+            feedback.className = 'hidden';
         } catch (err) {
-            alert("Dosya okuma veya ayrıştırma hatası: " + err.message);
+            pendingRestoreBackup = null;
+            feedback.textContent = 'Dosya doğrulanamadı: ' + err.message;
+            feedback.className = 'mt-3 text-sm font-semibold text-red-600';
         }
     };
     reader.readAsText(file);
+}
+
+export async function importBackup() {
+    const feedback = document.getElementById('restoreFeedback');
+    const button = document.getElementById('restoreSubmitButton');
+    if (!pendingRestoreBackup || !feedback || !button) return;
+    const expected = auth.currentUser?.email || 'YEREL';
+    const entered = document.getElementById('restoreAccountEmail')?.value.trim() || '';
+    const confirmed = document.getElementById('restoreSensitiveData')?.checked;
+    if (entered.toLocaleLowerCase('tr-TR') !== expected.toLocaleLowerCase('tr-TR') || !confirmed) {
+        feedback.textContent = 'Açık hesabın e-posta adresini doğru yazın ve kişisel veri onay kutusunu işaretleyin.';
+        feedback.className = 'mt-3 text-sm font-semibold text-red-600';
+        return;
+    }
+    const mode = document.querySelector('input[name="restoreMode"]:checked')?.value || 'merge';
+    button.disabled = true;
+    feedback.textContent = 'Yedek güvenli biçimde geri yükleniyor. Bu pencereyi kapatmayın…';
+    feedback.className = 'mt-3 text-sm font-semibold text-indigo-600';
+    try {
+        if (mode === 'replace') exportBackup();
+        await window.restoreFullBackup(pendingRestoreBackup, mode);
+        feedback.textContent = 'Geri yükleme tamamlandı. Veriler yenileniyor…';
+        feedback.className = 'mt-3 text-sm font-semibold text-green-600';
+        setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+        console.error('Backup restore failed:', err);
+        feedback.textContent = 'Geri yükleme tamamlanamadı: ' + err.message;
+        feedback.className = 'mt-3 text-sm font-semibold text-red-600';
+        button.disabled = false;
+    }
 }
 
 export async function renderStudentPanel(id, origin = store.studentPanelOrigin || 'guidance') {
@@ -1617,6 +1650,16 @@ export function renderGenelIslemler() {
             ${recoveryHtml}
 
             <div class="app-panel p-5">
+                <h3 class="font-black text-gray-800 dark:text-white"><i class="fas fa-database text-indigo-600 mr-1"></i> Veri Yedekleme ve Geri Yükleme</h3>
+                <p class="text-xs text-gray-500 mt-1">Tüm hesap verilerinizi JSON dosyası olarak indirin veya daha önce alınmış tam yedeği güvenli biçimde geri yükleyin.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                    <button type="button" onclick="exportBackup()" class="btn-primary min-h-[44px]"><i class="fas fa-download mr-1"></i> Tam Yedeği İndir</button>
+                    <button type="button" onclick="showImportModal()" class="btn-secondary min-h-[44px]"><i class="fas fa-upload mr-1"></i> Tam Yedeği Geri Yükle</button>
+                </div>
+                <p class="text-xs text-amber-700 dark:text-amber-300 mt-3"><i class="fas fa-lock mr-1"></i> Yedek dosyası kişisel öğrenci verileri içerir; güvenli bir yerde saklayın.</p>
+            </div>
+
+            <div class="app-panel p-5">
                 <h3 class="font-black text-gray-800 dark:text-white"><i class="fas fa-book text-indigo-600"></i> Kaynak Kitaplar</h3>
                 <p class="text-xs text-gray-500 mt-1 mb-3">Kaynakları sınıf ve ders düzeyine göre tanımlayın; ödev, ders kaydı ve konu denemelerinde listeden seçin.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1846,6 +1889,7 @@ window.hideReportMenu = hideReportMenu;
 window.switchStudentTab = switchStudentTab;
 window.exportBackup = exportBackup;
 window.showImportModal = showImportModal;
+window.previewBackupFile = previewBackupFile;
 window.importBackup = importBackup;
 window.renderStudentSummaryPanel = renderStudentSummaryPanel;
 window.selectStudent = (id) => renderStudentSummaryPanel(id);
