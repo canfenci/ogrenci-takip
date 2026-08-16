@@ -246,8 +246,8 @@ export function renderSchedulePage() {
                             <h3 class="font-black text-gray-850 dark:text-white">Öğrenci Programı</h3>
                             <p class="text-sm text-gray-500 dark:text-gray-400">Seçili öğrencinin haftalık çizelgesi</p>
                         </div>
-                        <div class="flex items-center gap-3 flex-wrap">
-                            <div class="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-xl border dark:border-gray-700">
+                        <div class="flex flex-col lg:flex-row lg:items-center gap-3 w-full lg:w-auto min-w-0">
+                            <div class="grid grid-cols-2 bg-gray-100 dark:bg-gray-900 p-1 rounded-xl border dark:border-gray-700 w-full lg:w-auto min-w-0">
                                 <button onclick="setScheduleViewMode('excel')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${viewMode === 'excel' ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-750 dark:hover:text-gray-300'}">
                                     <i class="fas fa-calendar-week"></i> Haftalık Çizelge
                                 </button>
@@ -255,13 +255,13 @@ export function renderSchedulePage() {
                                     <i class="fas fa-th-list"></i> Ajanda (Kart)
                                 </button>
                             </div>
-                            <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 p-1.5 rounded-xl border dark:border-gray-700">
+                            <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 p-1.5 rounded-xl border dark:border-gray-700 w-full lg:w-auto min-w-0">
                                 <label class="text-xs font-black text-gray-600 dark:text-gray-450 whitespace-nowrap">Öğrenci:</label>
-                                <select id="scheduleStudentSelect" class="student-form-input text-xs font-bold py-1 px-3 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg" style="width: auto !important; padding: 4px 10px !important;">
+                                <select id="scheduleStudentSelect" class="student-form-input text-xs font-bold py-1 px-3 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg min-w-0" style="padding: 4px 10px !important;">
                                     ${students.map(s => `<option value="${s.id}" ${s.id === selectedStudentId ? 'selected' : ''}>${escapeHtml(s.adSoyad)}</option>`).join('')}
                                 </select>
                             </div>
-                            <button onclick="showAddScheduleModal('${selectedStudentId}')" class="btn-primary px-4 py-2.5 text-xs flex items-center gap-1.5 min-h-[44px]">
+                            <button onclick="showAddScheduleModal('${selectedStudentId}')" class="btn-primary px-4 py-2.5 text-xs flex items-center justify-center gap-1.5 min-h-[44px] w-full lg:w-auto">
                                 <i class="fas fa-plus-circle"></i> Ders Ekle
                             </button>
                         </div>

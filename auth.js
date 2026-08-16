@@ -13,7 +13,7 @@ export function renderLoginScreen() {
     if (bottomNav) bottomNav.style.display = 'none';
     const mainContent = document.querySelector('#app-root > div.w-full.md\\:w-3\\/4');
     if (mainContent) {
-        mainContent.className = "w-full p-6 overflow-y-auto pb-6";
+        mainContent.className = "app-workspace w-full p-6 overflow-y-auto pb-6";
     }
 
     const html = `
@@ -377,7 +377,7 @@ export function restoreNavigationLayout() {
     if (bottomNav) bottomNav.style.display = '';
     const mainContent = document.querySelector('#app-root > div.w-full.md\\:w-3\\/4');
     if (mainContent) {
-        mainContent.className = "w-full md:w-3/4 px-5 py-6 md:p-8 pb-36 md:pb-8 overflow-y-auto";
+        mainContent.className = "app-workspace w-full md:w-3/4 px-5 py-6 md:p-8 pb-36 md:pb-8 overflow-y-auto";
     }
 }
 
