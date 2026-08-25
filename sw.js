@@ -1,4 +1,4 @@
-const CACHE_NAME = "canfenci-cache-v81";
+const CACHE_NAME = "canfenci-cache-v82";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",

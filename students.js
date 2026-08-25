@@ -163,14 +163,21 @@ export async function deleteStudent(id) {
                 if (window.showSyncStatus) window.showSyncStatus("Öğrenci ve bağlı kayıtlar siliniyor...", false);
                 const batch = window.db.batch();
                 batch.delete(window.db.collection("students").doc(id));
-                batch.delete(window.db.collection("schedules").doc(id));
-                batch.delete(window.db.collection("lessons").doc(id));
 
-                const homeworkSnapshot = await window.db.collection("homeworks")
-                    .where("userId", "==", user.uid)
-                    .where("studentId", "==", id)
-                    .get();
-                homeworkSnapshot.forEach(doc => batch.delete(doc.ref));
+                // Dependent documents are optional. Query only documents owned
+                // by the current teacher so a missing schedule or lesson record
+                // cannot cause Firestore to reject and roll back the whole batch.
+                const dependentSnapshots = await Promise.all(
+                    ["schedules", "lessons", "homeworks"].map(collectionName =>
+                        window.db.collection(collectionName)
+                            .where("userId", "==", user.uid)
+                            .where("studentId", "==", id)
+                            .get()
+                    )
+                );
+                dependentSnapshots.forEach(snapshot => {
+                    snapshot.forEach(doc => batch.delete(doc.ref));
+                });
 
                 const affectedGroups = (store.globalGroups || []).filter(group =>
                     Array.isArray(group.studentIds) && group.studentIds.includes(id)
@@ -197,7 +204,8 @@ export async function deleteStudent(id) {
             } catch (err) {
                 console.error("deleteStudent error", err);
                 if (window.handleFirebaseError) window.handleFirebaseError(err);
-                else alert("Öğrenci silinemedi: " + err.message);
+                if (window.showSyncStatus) window.showSyncStatus("⚠️ Öğrenci silinemedi; hiçbir kayıt değiştirilmedi", true);
+                alert("Öğrenci silinemedi. İnternet bağlantınızı kontrol edip tekrar deneyin.");
             }
             return;
         }
