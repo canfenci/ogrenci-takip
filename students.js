@@ -142,12 +142,20 @@ export function getSortedStudents(students, order) {
 
 export function setSortOrder(order) {
     store.currentSortOrder = order;
-    renderHomeScreen();
+    if (store.currentPage === "reminderHome") {
+        renderReminderHome();
+    } else {
+        renderHomeScreen();
+    }
 }
 
 export function setFilter(sinif) {
     store.activeFilter = sinif;
-    renderHomeScreen();
+    if (store.currentPage === "reminderHome") {
+        renderReminderHome();
+    } else {
+        renderHomeScreen();
+    }
 }
 
 export async function deleteStudent(id) {
@@ -1550,11 +1558,434 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
     }
 }
 
+// ==================== DASHBOARD HELPERS & CALCULATORS ====================
+
+function getInitials(name) {
+    if (!name) return 'Ö';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+}
+
+export function getDashboardMetrics(now = new Date()) {
+    const students = loadStudentsData();
+    const todayStr = now.toISOString().slice(0, 10);
+    const dayNames = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+    const todayName = dayNames[now.getDay()];
+
+    let todayLessonsCount = 0;
+    let pendingHomeworkCount = 0;
+    let overdueHomeworkCount = 0;
+    let recentExamsCount = 0;
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    students.forEach(student => {
+        const schedule = loadSchedule(student.id) || [];
+        const todayLessons = schedule.filter(l => l.aktif !== false && l.gun === todayName);
+        todayLessonsCount += todayLessons.length;
+
+        const homeworks = getStudentOdevler(student) || [];
+        homeworks.forEach(hw => {
+            if (hw.durum === 'verildi') {
+                pendingHomeworkCount++;
+                if (hw.bitisTarihi && todayStr > hw.bitisTarihi) {
+                    overdueHomeworkCount++;
+                }
+            }
+        });
+
+        const exams = student.denemeler || [];
+        exams.forEach(ex => {
+            if (ex.tarih && ex.tarih >= fourteenDaysAgo) {
+                recentExamsCount++;
+            }
+        });
+    });
+
+    return {
+        todayLessonsCount,
+        pendingHomeworkCount,
+        overdueHomeworkCount,
+        recentExamsCount,
+        studentCount: students.length
+    };
+}
+
+export function getDashboardPriorityItems(now = new Date()) {
+    const students = loadStudentsData();
+    const todayStr = now.toISOString().slice(0, 10);
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const dayNames = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+    const todayName = dayNames[now.getDay()];
+
+    const items = [];
+
+    students.forEach(student => {
+        const homeworks = getStudentOdevler(student) || [];
+        const schedule = loadSchedule(student.id) || [];
+        const exams = student.denemeler || [];
+
+        // Check 1: Overdue homework (Kritik)
+        const overdue = homeworks.filter(hw => hw.durum === 'verildi' && hw.bitisTarihi && todayStr > hw.bitisTarihi);
+        if (overdue.length > 0) {
+            items.push({
+                studentId: student.id,
+                studentName: student.adSoyad,
+                grade: student.sinif,
+                type: 'critical',
+                badgeText: 'Kritik',
+                badgeClass: 'cf-badge-danger',
+                icon: 'fa-exclamation-circle',
+                message: `${overdue.length} gecikmiş ödev (${escapeHtml(overdue[0].konu || 'Ödev')})`,
+                weight: 100 + overdue.length
+            });
+            return;
+        }
+
+        // Check 2: Today's lesson (Bugün)
+        const todayLessons = schedule.filter(l => l.aktif !== false && l.gun === todayName);
+        if (todayLessons.length > 0) {
+            const firstLesson = todayLessons[0];
+            items.push({
+                studentId: student.id,
+                studentName: student.adSoyad,
+                grade: student.sinif,
+                type: 'today',
+                badgeText: 'Bugün',
+                badgeClass: 'cf-badge-primary',
+                icon: 'fa-calendar-check',
+                message: `Bugün saat ${escapeHtml(firstLesson.saat || '')}'de ders (${escapeHtml(firstLesson.dersAdi || 'Özel Ders')})`,
+                weight: 80
+            });
+            return;
+        }
+
+        // Check 3: Homework due today/tomorrow (Dikkat)
+        const dueSoon = homeworks.filter(hw => hw.durum === 'verildi' && (hw.bitisTarihi === todayStr || hw.bitisTarihi === tomorrowStr));
+        if (dueSoon.length > 0) {
+            items.push({
+                studentId: student.id,
+                studentName: student.adSoyad,
+                grade: student.sinif,
+                type: 'warning',
+                badgeText: 'Dikkat',
+                badgeClass: 'cf-badge-warning',
+                icon: 'fa-clock',
+                message: `Ödev teslimi yaklaşıyor (${escapeHtml(dueSoon[0].konu || 'Ödev')})`,
+                weight: 60
+            });
+            return;
+        }
+
+        // Check 4: General Exam Drop or Rise (Dikkat / Gelişim)
+        const generalExams = exams.filter(e => e.tip === 'genel').sort((a, b) => String(a.tarih || '').localeCompare(String(b.tarih || '')));
+        if (generalExams.length >= 2) {
+            const latest = generalExams.at(-1);
+            const prev = generalExams.at(-2);
+            const diff = (Number(latest.toplamNet) || 0) - (Number(prev.toplamNet) || 0);
+            if (diff <= -3) {
+                items.push({
+                    studentId: student.id,
+                    studentName: student.adSoyad,
+                    grade: student.sinif,
+                    type: 'warning',
+                    badgeText: 'Dikkat',
+                    badgeClass: 'cf-badge-warning',
+                    icon: 'fa-chart-line-down',
+                    message: `Son denemede ${Math.abs(diff).toFixed(1)} net gerileme`,
+                    weight: 50 + Math.abs(diff)
+                });
+                return;
+            } else if (diff >= 3) {
+                items.push({
+                    studentId: student.id,
+                    studentName: student.adSoyad,
+                    grade: student.sinif,
+                    type: 'growth',
+                    badgeText: 'Gelişim',
+                    badgeClass: 'cf-badge-success',
+                    icon: 'fa-arrow-trend-up',
+                    message: `Son denemede +${diff.toFixed(1)} net artış`,
+                    weight: 30 + diff
+                });
+                return;
+            }
+        }
+    });
+
+    return items.sort((a, b) => b.weight - a.weight).slice(0, 5);
+}
+
+export function getStudentCardSummary(student) {
+    const exams = (student.denemeler || []).filter(e => e.tip === 'genel').sort((a, b) => String(a.tarih || '').localeCompare(String(b.tarih || '')));
+    const latestExam = exams.at(-1) || null;
+    const previousExam = exams.at(-2) || null;
+
+    const latestNet = latestExam && Number.isFinite(Number(latestExam.toplamNet)) ? Number(latestExam.toplamNet).toFixed(1) : null;
+    const targetNet = student.hedefNet && Number.isFinite(Number(student.hedefNet)) ? Number(student.hedefNet).toFixed(0) : null;
+
+    const homeworks = getStudentOdevler(student) || [];
+    const activeHwCount = homeworks.filter(hw => hw.durum === 'verildi').length;
+
+    let trend = null;
+    if (latestExam && previousExam) {
+        const diff = (Number(latestExam.toplamNet) || 0) - (Number(previousExam.toplamNet) || 0);
+        if (diff >= 1) trend = { type: 'up', label: '↑ Yükseliyor', color: 'text-green-600 dark:text-green-400' };
+        else if (diff <= -1) trend = { type: 'down', label: '↓ Düşüyor', color: 'text-red-500 dark:text-red-400' };
+        else trend = { type: 'stable', label: '→ Stabil', color: 'text-blue-600 dark:text-blue-400' };
+    }
+
+    return {
+        latestNet,
+        targetNet,
+        activeHwCount,
+        trend
+    };
+}
+
+export function filterDashboardStudents(query) {
+    store.dashboardSearchQuery = (query || '').toLowerCase().trim();
+    const studentCards = document.querySelectorAll('.cf-student-card-item');
+    let visibleCount = 0;
+    studentCards.forEach(card => {
+        const name = card.getAttribute('data-name') || '';
+        const match = !store.dashboardSearchQuery || name.toLowerCase().includes(store.dashboardSearchQuery);
+        card.style.display = match ? '' : 'none';
+        if (match) visibleCount++;
+    });
+    const emptyNotice = document.getElementById('dashboardStudentsEmptySearch');
+    if (emptyNotice) {
+        emptyNotice.style.display = (visibleCount === 0 && studentCards.length > 0) ? 'block' : 'none';
+    }
+}
+
 export function renderReminderHome() {
     store.currentPage = "reminderHome";
     if (window.currentPage) window.currentPage = "reminderHome";
     updateMobileNavActive('mobile-nav-reminders');
-    document.getElementById("dynamic-content").innerHTML = `<div class="space-y-6">${renderLessonReminderCenter()}</div>`;
+
+    const students = loadStudentsData();
+    const metrics = getDashboardMetrics();
+    const priorityItems = getDashboardPriorityItems();
+
+    let filtered = students;
+    if (store.activeFilter !== "all") {
+        filtered = students.filter(s => s.sinif === store.activeFilter);
+    }
+    const sorted = getSortedStudents(filtered, store.currentSortOrder);
+
+    // 1. Metric Cards HTML
+    const metricCardsHtml = `
+        <div class="cf-dashboard-grid mb-6">
+            <div class="cf-card p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="cf-metric-label">Bugünkü Dersler</span>
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold"><i class="fas fa-calendar-check"></i></div>
+                </div>
+                <div class="cf-metric-value text-2xl mt-2">${metrics.todayLessonsCount}</div>
+                <div class="text-xs text-gray-500 mt-1">${metrics.todayLessonsCount > 0 ? metrics.todayLessonsCount + ' ders planlandı' : 'Bugün ders yok'}</div>
+            </div>
+
+            <div class="cf-card p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="cf-metric-label">Bekleyen Ödev</span>
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm font-bold"><i class="fas fa-tasks"></i></div>
+                </div>
+                <div class="cf-metric-value text-2xl mt-2">${metrics.pendingHomeworkCount}</div>
+                <div class="text-xs text-gray-500 mt-1">${metrics.pendingHomeworkCount > 0 ? 'Öğrenci teslimi bekliyor' : 'Bekleyen ödev yok'}</div>
+            </div>
+
+            <div class="cf-card p-4 flex flex-col justify-between ${metrics.overdueHomeworkCount > 0 ? 'border-red-300 dark:border-red-800/60 bg-red-50/20 dark:bg-red-950/10' : ''}">
+                <div class="flex items-center justify-between">
+                    <span class="cf-metric-label">Geciken Ödev</span>
+                    <div class="w-8 h-8 rounded-lg ${metrics.overdueHomeworkCount > 0 ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'} flex items-center justify-center text-sm font-bold"><i class="fas fa-triangle-exclamation"></i></div>
+                </div>
+                <div class="cf-metric-value text-2xl mt-2 ${metrics.overdueHomeworkCount > 0 ? 'text-red-600 dark:text-red-400' : ''}">${metrics.overdueHomeworkCount}</div>
+                <div class="text-xs ${metrics.overdueHomeworkCount > 0 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-500'} mt-1">${metrics.overdueHomeworkCount > 0 ? 'Acil kontrol gerekiyor' : 'Geciken ödev yok'}</div>
+            </div>
+
+            <div class="cf-card p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="cf-metric-label">Son Denemeler</span>
+                    <div class="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-sm font-bold"><i class="fas fa-file-signature"></i></div>
+                </div>
+                <div class="cf-metric-value text-2xl mt-2">${metrics.recentExamsCount}</div>
+                <div class="text-xs text-gray-500 mt-1">${metrics.recentExamsCount > 0 ? 'Son 14 günde kaydedildi' : 'Kayıt bulunmuyor'}</div>
+            </div>
+        </div>
+    `;
+
+    // 2. Priority List HTML
+    const prioritySectionHtml = `
+        <div class="cf-card p-5 mb-6">
+            <div class="flex items-center justify-between mb-3.5">
+                <div class="flex items-center gap-2">
+                    <div class="w-2.5 h-2.5 rounded-full bg-[#FF9F1C]"></div>
+                    <h3 class="font-black text-base text-gray-900 dark:text-white">Bugün İlgilenmeniz Gerekenler</h3>
+                </div>
+                <span class="text-xs font-semibold text-gray-500">${priorityItems.length} konu</span>
+            </div>
+
+            ${priorityItems.length > 0 ? `
+                <div class="flex flex-col gap-2.5">
+                    ${priorityItems.map(item => `
+                        <div onclick="selectStudent('${item.studentId}')" class="cf-priority-item">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="cf-badge ${item.badgeClass} shrink-0"><i class="fas ${item.icon}"></i> ${item.badgeText}</span>
+                                <div class="min-w-0 truncate">
+                                    <span class="font-bold text-sm text-gray-900 dark:text-white mr-1">${escapeHtml(item.studentName)}:</span>
+                                    <span class="text-xs text-gray-600 dark:text-gray-300">${item.message}</span>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400 text-xs shrink-0"></i>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : `
+                <div class="cf-panel-soft text-center py-5">
+                    <i class="fas fa-check-circle text-green-500 text-2xl mb-1.5"></i>
+                    <p class="text-sm font-bold text-gray-800 dark:text-gray-200">Bugün acil ilgi gerektiren bir durum bulunmuyor.</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Tüm ders ve ödev süreçleri planlanan akışında devam ediyor.</p>
+                </div>
+            `}
+        </div>
+    `;
+
+    // 3. Students Section Filters & Cards
+    const filterChipsHtml = `
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <button onclick="setFilter('all')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition border min-h-[34px] whitespace-nowrap ${store.activeFilter === 'all' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-300'}">Tümü (${students.length})</button>
+            <button onclick="setFilter('5')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition border min-h-[34px] whitespace-nowrap ${store.activeFilter === '5' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-300'}">5. Sınıf</button>
+            <button onclick="setFilter('6')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition border min-h-[34px] whitespace-nowrap ${store.activeFilter === '6' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-300'}">6. Sınıf</button>
+            <button onclick="setFilter('7')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition border min-h-[34px] whitespace-nowrap ${store.activeFilter === '7' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-300'}">7. Sınıf</button>
+            <button onclick="setFilter('8')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition border min-h-[34px] whitespace-nowrap ${store.activeFilter === '8' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-300'}">8. Sınıf</button>
+        </div>
+    `;
+
+    const sortButtonsHtml = `
+        <div class="flex items-center gap-1.5">
+            <button onclick="setSortOrder('default')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition border min-h-[34px] ${store.currentSortOrder === 'default' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'}">Varsayılan</button>
+            <button onclick="setSortOrder('net-desc')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition border min-h-[34px] ${store.currentSortOrder === 'net-desc' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'}">Net (Yüksek↓)</button>
+            <button onclick="setSortOrder('net-asc')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition border min-h-[34px] ${store.currentSortOrder === 'net-asc' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'}">Net (Düşük↑)</button>
+        </div>
+    `;
+
+    const studentCardsHtml = sorted.length === 0
+        ? '<div class="cf-panel-soft text-center py-8 col-span-full text-gray-500">Bu filtreye uygun öğrenci bulunamadı.</div>'
+        : sorted.map(s => {
+            const sinifGoster = s.sinif ? `${escapeHtml(s.sinif)}. Sınıf` : "Sınıf yok";
+            const okulGoster = s.okul ? escapeHtml(s.okul) : "Okul belirtilmemiş";
+            const initials = getInitials(s.adSoyad);
+            const summary = getStudentCardSummary(s);
+
+            const netText = summary.latestNet !== null ? summary.latestNet : '—';
+            const targetText = summary.targetNet !== null ? summary.targetNet : '—';
+            const hwText = summary.activeHwCount > 0 ? `${summary.activeHwCount} aktif` : '0';
+            const trendHtml = summary.trend
+                ? `<span class="font-bold ${summary.trend.color}">${summary.trend.label}</span>`
+                : '<span class="text-gray-400 dark:text-gray-500">—</span>';
+
+            return `
+                <div onclick="selectStudent('${s.id}')" data-name="${escapeHtml(s.adSoyad || '')}" class="cf-student-card cf-student-card-item p-4 gap-3.5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="cf-avatar">${initials}</div>
+                            <div class="min-w-0">
+                                <h4 class="font-black text-base text-gray-900 dark:text-white truncate">${escapeHtml(s.adSoyad)}</h4>
+                                <p class="text-xs text-gray-500 truncate">${sinifGoster} · ${okulGoster}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
+                            <button onclick="editStudent('${s.id}')" class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 p-1.5 rounded-lg min-w-[36px] min-h-[36px] flex items-center justify-center transition" title="Düzenle" aria-label="Öğrenciyi düzenle"><i class="fas fa-pen text-xs"></i></button>
+                            <button onclick="deleteStudent('${s.id}')" class="text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-1.5 rounded-lg min-w-[36px] min-h-[36px] flex items-center justify-center transition" title="Sil" aria-label="Öğrenciyi sil"><i class="fas fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-2 pt-2 border-t border-gray-150/40 dark:border-gray-800 text-center">
+                        <div class="cf-stat-box">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Son Net</div>
+                            <div class="text-sm font-black text-gray-800 dark:text-white mt-0.5">${netText}</div>
+                        </div>
+                        <div class="cf-stat-box">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Hedef</div>
+                            <div class="text-sm font-black text-gray-800 dark:text-white mt-0.5">${targetText}</div>
+                        </div>
+                        <div class="cf-stat-box">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Ödev</div>
+                            <div class="text-sm font-black ${summary.activeHwCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-white'} mt-0.5">${hwText}</div>
+                        </div>
+                        <div class="cf-stat-box">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Trend</div>
+                            <div class="text-xs font-black mt-0.5 truncate">${trendHtml}</div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs font-bold text-blue-600 dark:text-blue-400 pt-1">
+                        <span><i class="fas fa-chart-line mr-1"></i> Öğrenci Kokpiti</span>
+                        <i class="fas fa-arrow-right text-[10px]"></i>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    const studentsSectionHtml = `
+        <div class="cf-card p-5 mb-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="font-black text-base text-gray-900 dark:text-white">Öğrenciler</h3>
+                    <p class="text-xs text-gray-500">${sorted.length} kayıtlı öğrenci · Hızlı arama ve gelişim takibi</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="relative w-full md:w-64">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" id="dashboardStudentSearch" oninput="filterDashboardStudents(this.value)" placeholder="Öğrenci ara..." class="cf-input pl-8 py-1.5 text-xs w-full min-h-[36px]">
+                    </div>
+                    <button onclick="showAddStudentModal()" class="cf-btn-primary py-1.5 px-3 text-xs min-h-[36px] whitespace-nowrap"><i class="fas fa-plus text-[10px]"></i> Ekle</button>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pt-3 border-t border-gray-150/40 dark:border-gray-800">
+                ${filterChipsHtml}
+                ${sortButtonsHtml}
+            </div>
+
+            <div id="dashboardStudentsEmptySearch" class="cf-panel-soft text-center py-6 text-gray-500 hidden mb-3">
+                Aramanızla eşleşen öğrenci bulunamadı.
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                ${studentCardsHtml}
+            </div>
+        </div>
+    `;
+
+    // 4. Lesson Reminder Section
+    const reminderCenterHtml = `
+        <div class="mb-6">
+            ${renderLessonReminderCenter()}
+        </div>
+    `;
+
+    // Final Assembly
+    const teacherGreeting = store.teacherName ? `, ${escapeHtml(store.teacherName)}` : '';
+    document.getElementById("dynamic-content").innerHTML = `
+        <div class="cf-page">
+            <header class="cf-page-header">
+                <div>
+                    <h2 class="cf-page-title">Hoş Geldiniz${teacherGreeting}</h2>
+                    <p class="cf-page-subtitle">Bugünkü özel ders durumunuz ve öğrenci gelişim özetleriniz.</p>
+                </div>
+            </header>
+
+            ${metricCardsHtml}
+            ${prioritySectionHtml}
+            ${studentsSectionHtml}
+            ${reminderCenterHtml}
+        </div>
+    `;
 }
 
 export function renderGenelIslemler() {
@@ -1905,6 +2336,7 @@ window.renderStudentPanel = renderStudentPanel;
 window.renderGenelIslemler = renderGenelIslemler;
 window.startLocalDataRecovery = startLocalDataRecovery;
 window.renderReminderHome = renderReminderHome;
+window.filterDashboardStudents = filterDashboardStudents;
 window.updateTeacherBranches = updateTeacherBranches;
 window.updateTeacherName = updateTeacherName;
 window.updateTeacherSchool = updateTeacherSchool;

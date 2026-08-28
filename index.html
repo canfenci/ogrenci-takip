@@ -38,6 +38,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <style>
         :root {
+            /* Legacy Brand Variables */
             --brand-500: #5167A9;
             --brand-600: #394B87;
             --brand-700: #2C3B70;
@@ -54,6 +55,53 @@
             --warning: #D97706;
             --danger: #DC2626;
             --info: #2563EB;
+
+            /* CanFenci Color Tokens */
+            --cf-navy-950: #042447;
+            --cf-navy-900: #06366F;
+            --cf-navy-800: #0A407D;
+
+            --cf-blue-700: #08438C;
+            --cf-blue-600: #0B4EA2;
+            --cf-blue-500: #1768C5;
+
+            --cf-orange-500: #FF9F1C;
+            --cf-orange-100: #FFF4DE;
+
+            --cf-green-600: #12854A;
+            --cf-green-500: #18A058;
+            --cf-green-100: #E8F8EF;
+
+            --cf-red-600: #C93838;
+            --cf-red-500: #E24C4C;
+            --cf-red-100: #FDECEC;
+
+            --cf-purple-500: #7C63C6;
+            --cf-purple-100: #F1EEFA;
+
+            --cf-surface-page: #F4F8FC;
+            --cf-surface-card: #FFFFFF;
+            --cf-surface-soft: #EEF7FB;
+            --cf-surface-muted: #F8FAFC;
+
+            --cf-text-primary: #172033;
+            --cf-text-secondary: #64748B;
+            --cf-text-muted: #94A3B8;
+
+            --cf-border-default: #DCE6F0;
+            --cf-border-strong: #C7D6E5;
+
+            /* CanFenci Radius Tokens */
+            --cf-radius-sm: 8px;
+            --cf-radius-md: 12px;
+            --cf-radius-lg: 16px;
+            --cf-radius-xl: 20px;
+            --cf-radius-pill: 999px;
+
+            /* CanFenci Shadow Tokens */
+            --cf-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+            --cf-shadow-md: 0 6px 18px rgba(15, 23, 42, 0.08);
+            --cf-shadow-lg: 0 14px 32px rgba(15, 23, 42, 0.10);
         }
         .skip-link { position: fixed; left: 1rem; top: -4rem; z-index: 10000; background: #111827; color: white; padding: .75rem 1rem; border-radius: .5rem; }
         .skip-link:focus { top: 1rem; }
@@ -473,19 +521,19 @@
             }
         }
         /* Premium product skin */
-        .app-sidebar { width: 280px !important; flex: 0 0 280px; background: linear-gradient(180deg, #151D31 0%, #111827 100%) !important; border-right: 1px solid rgba(255,255,255,.06); box-shadow: 18px 0 50px rgba(15,23,42,.08) !important; }
-        .app-sidebar .logo-canfenci .can-part { color: #FFFFFF; }
-        .app-sidebar .logo-canfenci .fenci-part { color: #D4B170; }
-        .app-sidebar .logo-deneme { color: #98A2B3; font-weight: 500; letter-spacing: .01em; }
+        .app-sidebar { width: 280px !important; flex: 0 0 280px; background: linear-gradient(180deg, var(--cf-navy-950, #042447) 0%, var(--cf-navy-900, #06366F) 100%) !important; border-right: 1px solid rgba(255,255,255,.08); box-shadow: 18px 0 50px rgba(15,23,42,.08) !important; position: sticky; top: 0; height: 100dvh; overflow-y: auto; z-index: 40; }
+        .app-sidebar .logo-canfenci .can-part { color: #FFFFFF !important; }
+        .app-sidebar .logo-canfenci .fenci-part { color: var(--cf-orange-500, #FF9F1C) !important; }
+        .app-sidebar .logo-deneme { color: #94A3B8; font-weight: 500; letter-spacing: .01em; }
         .app-sidebar > div:first-child { border-color: rgba(255,255,255,.1) !important; }
-        .app-sidebar .sidebar-btn { width: 100%; color: #B7C0D1 !important; border-radius: .625rem; font-weight: 600; }
-        .app-sidebar .sidebar-btn .sidebar-icon { color: #7F8BA3 !important; }
-        .app-sidebar .sidebar-btn:hover { background: rgba(255,255,255,.06) !important; color: #FFFFFF !important; transform: none !important; }
-        .app-sidebar .sidebar-btn:hover .sidebar-icon { color: #D4B170 !important; }
-        .app-sidebar .sidebar-btn.active { position: relative; background: rgba(255,255,255,.1) !important; color: #FFFFFF !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06) !important; }
-        .app-sidebar .sidebar-btn.active::before { content: ''; position: absolute; left: 0; width: 3px; height: 22px; border-radius: 0 3px 3px 0; background: #D4B170; }
-        .app-sidebar .sidebar-btn.active .sidebar-icon { color: #D4B170 !important; }
-        .app-workspace { flex: 1 1 auto !important; width: auto !important; background: transparent; }
+        .app-sidebar .sidebar-btn { width: 100%; color: #DCE6F0 !important; border-radius: .625rem; font-weight: 600; min-height: 44px; }
+        .app-sidebar .sidebar-btn .sidebar-icon { color: #94A3B8 !important; }
+        .app-sidebar .sidebar-btn:hover { background: rgba(255,255,255,.08) !important; color: #FFFFFF !important; transform: translateX(3px) !important; }
+        .app-sidebar .sidebar-btn:hover .sidebar-icon { color: var(--cf-orange-500, #FF9F1C) !important; }
+        .app-sidebar .sidebar-btn.active { position: relative; background: var(--cf-blue-600, #0B4EA2) !important; color: #FFFFFF !important; box-shadow: 0 4px 14px rgba(11, 78, 162, 0.4) !important; }
+        .app-sidebar .sidebar-btn.active::before { content: ''; position: absolute; left: 0; width: 4px; height: 22px; border-radius: 0 4px 4px 0; background: var(--cf-orange-500, #FF9F1C); }
+        .app-sidebar .sidebar-btn.active .sidebar-icon { color: #FFFFFF !important; }
+        .app-workspace { flex: 1 1 auto !important; width: auto !important; background: var(--cf-surface-page); min-height: 100dvh; display: flex; flex-direction: column; }
         .app-page { gap: 1.15rem; }
         .app-page-title { font-size: 1.55rem; font-weight: 800; letter-spacing: -.035em; }
         .app-page-subtitle { color: #7B8496; }
@@ -500,42 +548,538 @@
         .app-modal { border-radius: 1rem; box-shadow: 0 30px 80px rgba(15,23,42,.28); }
         .app-data-table th { background: #F5F6F9; color: #778195; font-weight: 700; }
         .mobile-nav-bar { background: rgba(255,255,255,.94) !important; border-color: #DDE2EA !important; box-shadow: 0 -10px 30px rgba(15,23,42,.06) !important; }
-        .mobile-nav-btn.active, .mobile-nav-btn.active i { color: var(--brand-600) !important; }
-        .mobile-nav-btn::after { background-color: var(--accent); }
-        body.dark { background: #101522 !important; color: #E8ECF4 !important; }
-        body.dark .app-sidebar { background: #0C1120 !important; }
-        body.dark .app-panel, body.dark .app-modal { background: #171E2E; border-color: #293246; }
+        .mobile-nav-btn.active, .mobile-nav-btn.active i { color: var(--cf-blue-600, #0B4EA2) !important; }
+        .mobile-nav-btn::after { background-color: var(--cf-orange-500, #FF9F1C); }
+        body.dark { background: #0C1120 !important; color: #E8ECF4 !important; }
+        body.dark .app-sidebar { background: #042447 !important; }
+        body.dark .app-panel, body.dark .app-modal { background: #151D31; border-color: #243048; }
         body.dark .student-form-input, body.dark .modal-input, body.dark select.modal-input { background: #141B2A !important; border-color: #344057 !important; }
         body.dark .mobile-nav-bar { background: rgba(16,21,34,.96) !important; border-color: #293246 !important; }
+
+        /* ==================== CanFenci App Shell Styles ==================== */
+        .cf-app-shell {
+            background-color: var(--cf-surface-page);
+            min-height: 100dvh;
+        }
+
+        .cf-topbar {
+            height: 56px;
+            min-height: 56px;
+            background: linear-gradient(110deg, var(--cf-navy-900, #06366F) 0%, var(--cf-navy-800, #0A407D) 55%, var(--cf-blue-700, #08438C) 100%) !important;
+            color: #FFFFFF;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 16px rgba(4, 36, 71, 0.12);
+        }
+
+        @media (max-width: 767px) {
+            .cf-topbar {
+                height: 50px;
+                min-height: 50px;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+
+        .cf-topbar-title {
+            font-family: 'Manrope', 'Inter', sans-serif !important;
+            font-weight: 800;
+            font-size: 1.05rem;
+            letter-spacing: -0.02em;
+            color: #FFFFFF;
+        }
+
+        .cf-topbar-subtitle {
+            font-size: 0.725rem;
+            color: rgba(220, 230, 240, 0.75);
+            font-weight: 500;
+        }
+
+        .cf-main {
+            background-color: var(--cf-surface-page);
+        }
+
+        .cf-main-content {
+            background-color: var(--cf-surface-page);
+        }
+
+        body.dark .cf-main, body.dark .cf-main-content {
+            background-color: #0C1120 !important;
+        }
+
+        /* ==================== CanFenci Semantic UI Components ==================== */
+        body.dark {
+            --cf-surface-page: #0C1120;
+            --cf-surface-card: #151D31;
+            --cf-surface-soft: #1B2640;
+            --cf-surface-muted: #101728;
+
+            --cf-text-primary: #F8FAFC;
+            --cf-text-secondary: #94A3B8;
+            --cf-text-muted: #64748B;
+
+            --cf-border-default: #243048;
+            --cf-border-strong: #334366;
+
+            --cf-orange-100: rgba(255, 159, 28, 0.15);
+            --cf-green-100: rgba(24, 160, 88, 0.15);
+            --cf-red-100: rgba(226, 76, 76, 0.15);
+            --cf-purple-100: rgba(124, 99, 198, 0.15);
+
+            --cf-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+            --cf-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.35);
+            --cf-shadow-lg: 0 14px 32px rgba(0, 0, 0, 0.45);
+        }
+
+        .cf-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            width: 100%;
+        }
+
+        .cf-page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.25rem;
+        }
+
+        .cf-page-title {
+            font-family: 'Manrope', 'Inter', sans-serif !important;
+            font-size: 1.65rem;
+            line-height: 1.25;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--cf-text-primary);
+            margin: 0;
+        }
+
+        .cf-page-subtitle {
+            margin-top: 0.35rem;
+            color: var(--cf-text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .cf-card {
+            background-color: var(--cf-surface-card) !important;
+            border: 1px solid var(--cf-border-default) !important;
+            border-radius: var(--cf-radius-lg) !important;
+            box-shadow: var(--cf-shadow-sm) !important;
+            padding: 1.25rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--cf-text-primary);
+        }
+
+        .cf-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding-bottom: 0.85rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--cf-border-default);
+        }
+
+        .cf-panel {
+            background-color: var(--cf-surface-card) !important;
+            border: 1px solid var(--cf-border-default) !important;
+            border-radius: var(--cf-radius-lg) !important;
+            padding: 1.25rem;
+            box-shadow: var(--cf-shadow-sm) !important;
+            color: var(--cf-text-primary);
+        }
+
+        .cf-panel-soft {
+            background-color: var(--cf-surface-soft) !important;
+            border: 1px solid var(--cf-border-default) !important;
+            border-radius: var(--cf-radius-md) !important;
+            padding: 1rem 1.25rem;
+            color: var(--cf-text-primary);
+        }
+
+        .cf-metric {
+            background-color: var(--cf-surface-card) !important;
+            border: 1px solid var(--cf-border-default) !important;
+            border-radius: var(--cf-radius-md) !important;
+            padding: 1rem 1.15rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-shadow: var(--cf-shadow-sm) !important;
+        }
+
+        .cf-metric-label {
+            color: var(--cf-text-secondary);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .cf-metric-value {
+            margin-top: 0.35rem;
+            color: var(--cf-text-primary);
+            font-size: 1.35rem;
+            font-weight: 800;
+            line-height: 1.2;
+            font-family: 'Manrope', 'Inter', sans-serif !important;
+        }
+
+        /* Dashboard Components */
+        .cf-dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.875rem;
+        }
+
+        @media (min-width: 1024px) {
+            .cf-dashboard-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1rem;
+            }
+        }
+
+        .cf-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: var(--cf-radius-pill);
+            font-size: 0.725rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .cf-badge-primary {
+            background-color: var(--cf-blue-50, #EBF3FC);
+            color: var(--cf-blue-700, #08438C);
+            border: 1px solid rgba(11, 78, 162, 0.2);
+        }
+
+        .cf-badge-warning {
+            background-color: var(--cf-orange-100, #FFF4DE);
+            color: #B45309;
+            border: 1px solid rgba(255, 159, 28, 0.25);
+        }
+
+        .cf-badge-danger {
+            background-color: var(--cf-red-100, #FDE8E8);
+            color: var(--cf-red-600, #C93838);
+            border: 1px solid rgba(201, 56, 56, 0.25);
+        }
+
+        .cf-badge-success {
+            background-color: var(--cf-green-100, #E8F8EF);
+            color: var(--cf-green-600, #12854A);
+            border: 1px solid rgba(18, 133, 74, 0.25);
+        }
+
+        body.dark .cf-badge-primary {
+            background-color: rgba(23, 104, 197, 0.2);
+            color: #93C5FD;
+            border-color: rgba(23, 104, 197, 0.35);
+        }
+
+        body.dark .cf-badge-warning {
+            background-color: rgba(255, 159, 28, 0.18);
+            color: #FCD34D;
+            border-color: rgba(255, 159, 28, 0.3);
+        }
+
+        body.dark .cf-badge-danger {
+            background-color: rgba(201, 56, 56, 0.2);
+            color: #FCA5A5;
+            border-color: rgba(201, 56, 56, 0.35);
+        }
+
+        body.dark .cf-badge-success {
+            background-color: rgba(18, 133, 74, 0.2);
+            color: #86EFAC;
+            border-color: rgba(18, 133, 74, 0.35);
+        }
+
+        .cf-priority-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            border-radius: var(--cf-radius-md);
+            background-color: var(--cf-surface-card);
+            border: 1px solid var(--cf-border-default);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .cf-priority-item:hover {
+            border-color: var(--cf-blue-500);
+            transform: translateX(3px);
+            box-shadow: var(--cf-shadow-sm);
+        }
+
+        .cf-student-card {
+            background-color: var(--cf-surface-card);
+            border: 1px solid var(--cf-border-default);
+            border-radius: var(--cf-radius-lg);
+            padding: 1.15rem;
+            box-shadow: var(--cf-shadow-sm);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .cf-student-card:hover {
+            border-color: var(--cf-blue-500);
+            transform: translateY(-2px);
+            box-shadow: var(--cf-shadow-md);
+        }
+
+        .cf-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: var(--cf-radius-md);
+            background: linear-gradient(135deg, var(--cf-navy-900), var(--cf-blue-600));
+            color: #FFFFFF;
+            font-weight: 800;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(4, 36, 71, 0.15);
+        }
+
+        .cf-stat-box {
+            background-color: var(--cf-surface-soft);
+            border-radius: var(--cf-radius-sm);
+            padding: 0.5rem 0.65rem;
+            text-align: center;
+            border: 1px solid var(--cf-border-default);
+        }
+
+        .cf-btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            min-height: 44px;
+            padding: 0.65rem 1.25rem;
+            border-radius: var(--cf-radius-md) !important;
+            background-color: var(--cf-blue-600) !important;
+            color: #FFFFFF !important;
+            font-weight: 700;
+            font-size: 0.875rem;
+            border: 1px solid var(--cf-blue-700) !important;
+            box-shadow: var(--cf-shadow-sm) !important;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-decoration: none;
+            outline: none;
+        }
+
+        .cf-btn-primary:hover {
+            background-color: var(--cf-blue-700) !important;
+            box-shadow: var(--cf-shadow-md) !important;
+            transform: translateY(-1px);
+        }
+
+        .cf-btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .cf-btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            min-height: 44px;
+            padding: 0.65rem 1.25rem;
+            border-radius: var(--cf-radius-md) !important;
+            background-color: var(--cf-surface-card) !important;
+            color: var(--cf-blue-600) !important;
+            font-weight: 700;
+            font-size: 0.875rem;
+            border: 1px solid var(--cf-border-strong) !important;
+            box-shadow: var(--cf-shadow-sm) !important;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-decoration: none;
+            outline: none;
+        }
+
+        .cf-btn-secondary:hover {
+            background-color: var(--cf-surface-soft) !important;
+            border-color: var(--cf-blue-500) !important;
+            color: var(--cf-blue-700) !important;
+        }
+
+        .cf-btn-ghost {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            min-height: 44px;
+            padding: 0.65rem 1rem;
+            border-radius: var(--cf-radius-md) !important;
+            background-color: transparent !important;
+            color: var(--cf-text-secondary) !important;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border: 1px solid transparent !important;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-decoration: none;
+            outline: none;
+        }
+
+        .cf-btn-ghost:hover {
+            background-color: var(--cf-surface-soft) !important;
+            color: var(--cf-text-primary) !important;
+        }
+
+        .cf-btn-danger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            min-height: 44px;
+            padding: 0.65rem 1.25rem;
+            border-radius: var(--cf-radius-md) !important;
+            background-color: var(--cf-red-500) !important;
+            color: #FFFFFF !important;
+            font-weight: 700;
+            font-size: 0.875rem;
+            border: 1px solid var(--cf-red-600) !important;
+            box-shadow: var(--cf-shadow-sm) !important;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-decoration: none;
+            outline: none;
+        }
+
+        .cf-btn-danger:hover {
+            background-color: var(--cf-red-600) !important;
+            box-shadow: var(--cf-shadow-md) !important;
+            transform: translateY(-1px);
+        }
+
+        .cf-input, .cf-select {
+            min-height: 44px;
+            width: 100%;
+            padding: 0.65rem 0.9rem;
+            border-radius: var(--cf-radius-md) !important;
+            background-color: var(--cf-surface-card) !important;
+            border: 1px solid var(--cf-border-strong) !important;
+            color: var(--cf-text-primary) !important;
+            font-size: 0.925rem;
+            transition: all 0.2s ease-in-out;
+            outline: none;
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        .cf-input:focus, .cf-select:focus {
+            border-color: var(--cf-blue-500) !important;
+            box-shadow: 0 0 0 3px rgba(23, 104, 197, 0.16) !important;
+        }
+
+        .cf-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: var(--cf-radius-pill) !important;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border: 1px solid var(--cf-border-default);
+            background-color: var(--cf-surface-muted);
+            color: var(--cf-text-secondary);
+        }
+
+        .cf-chip-success {
+            background-color: var(--cf-green-100) !important;
+            border-color: rgba(24, 160, 88, 0.3) !important;
+            color: var(--cf-green-600) !important;
+        }
+
+        .cf-chip-warning {
+            background-color: var(--cf-orange-100) !important;
+            border-color: rgba(255, 159, 28, 0.35) !important;
+            color: #C07000 !important;
+        }
+
+        .cf-chip-danger {
+            background-color: var(--cf-red-100) !important;
+            border-color: rgba(226, 76, 76, 0.3) !important;
+            color: var(--cf-red-600) !important;
+        }
+
+        .cf-chip-info {
+            background-color: var(--cf-surface-soft) !important;
+            border-color: rgba(23, 104, 197, 0.25) !important;
+            color: var(--cf-blue-600) !important;
+        }
+
+        .cf-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .cf-status-dot.is-online, .cf-status-dot.is-success { background-color: var(--cf-green-500); }
+        .cf-status-dot.is-warning { background-color: var(--cf-orange-500); }
+        .cf-status-dot.is-danger { background-color: var(--cf-red-500); }
+        .cf-status-dot.is-neutral { background-color: var(--cf-text-muted); }
+
+        .cf-divider {
+            height: 1px;
+            width: 100%;
+            background-color: var(--cf-border-default);
+            margin: 1rem 0;
+            border: 0;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased">
     <a class="skip-link" href="#dynamic-content">Ana içeriğe geç</a>
-    <div id="app-root" class="flex flex-col md:flex-row min-h-[100dvh]">
-        <div class="app-sidebar hidden md:flex w-full md:w-1/4 bg-white dark:bg-gray-800 shadow-lg p-5 flex-col gap-6">
-            <div class="flex items-center gap-2 border-b pb-4 mb-2">
-                <img src="icons/icon-192x192.png" alt="Canfenci Logo" class="w-11 h-11 rounded-xl shadow-sm" onerror="this.style.display='none'">
-                <div class="text-xl font-extrabold">
-                    <span class="logo-canfenci">
-                        <span class="can-part">Can</span><span class="fenci-part">fenci</span>
-                    </span>
-                    <span class="logo-deneme block text-sm">Öğrenci Takip Sistemi</span>
+    <div id="app-root" class="cf-app-shell flex flex-col md:flex-row min-h-[100dvh]">
+        <!-- Desktop Sidebar -->
+        <div class="app-sidebar cf-sidebar hidden md:flex w-full md:w-1/4 p-5 flex-col gap-5 select-none" aria-label="Ana Menü">
+            <div class="cf-sidebar-brand flex items-center gap-3 border-b border-white/10 pb-4">
+                <img src="icons/icon-192x192.png" alt="Canfenci Logo" class="w-10 h-10 rounded-xl shadow-md" onerror="this.style.display='none'">
+                <div class="flex flex-col">
+                    <div class="text-xl font-black leading-tight">
+                        <span class="logo-canfenci">
+                            <span class="can-part">Can</span><span class="fenci-part">fenci</span>
+                        </span>
+                    </div>
+                    <span class="logo-deneme block text-xs font-semibold tracking-wide mt-0.5">Öğrenci Takip Sistemi</span>
                 </div>
             </div>
-            <div class="flex flex-col gap-2">
-                <button id="sidebar-nav-reminders" onclick="renderReminderHome()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-home sidebar-icon text-xl"></i> Ana Sayfa</button>
-                <button id="sidebar-nav-home" onclick="renderHomeScreen()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users sidebar-icon text-xl"></i> Öğrenciler</button>
-                <button id="sidebar-nav-guidance" onclick="renderGuidancePage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-compass sidebar-icon text-xl"></i> Rehberlik</button>
-                <button id="sidebar-nav-groups" onclick="renderGroupsPage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-users-cog sidebar-icon text-xl"></i> Sınıf & Gruplar</button>
-                <button id="sidebar-nav-schedule" onclick="renderSchedulePage()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-calendar-alt sidebar-icon text-xl"></i> Ders Programı</button>
-                <button id="sidebar-nav-homework" onclick="renderOdevTakibi()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-tasks sidebar-icon text-xl"></i> Ödev Takibi</button>
-                <button id="sidebar-nav-lessons" onclick="renderDersKayitlari()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-book-open sidebar-icon text-xl"></i> Ders Kayıtları</button>
-                <button onclick="showDenemeAtaModal()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-copy sidebar-icon text-xl"></i> Deneme Ata</button>
-                <button onclick="toggleTheme()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-moon sidebar-icon text-xl"></i> <span id="themeBtnText">Koyu Mod</span></button>
-                <button id="sidebar-nav-general" onclick="renderGenelIslemler()" class="sidebar-btn gap-3 py-3 text-sm"><i class="fas fa-cog sidebar-icon text-xl"></i> Ayarlar</button>
-            </div>
-            <div class="text-xs text-gray-400 dark:text-gray-555 mt-auto pt-4 text-center">
-                <i class="fas fa-flask"></i> PWA Standartlarında
+            
+            <nav class="flex flex-col gap-1 flex-1 overflow-y-auto" aria-label="Sayfa Navigasyonu">
+                <button id="sidebar-nav-reminders" onclick="renderReminderHome()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm active"><i class="fas fa-home sidebar-icon text-lg"></i> <span>Ana Sayfa</span></button>
+                <button id="sidebar-nav-home" onclick="renderHomeScreen()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-users sidebar-icon text-lg"></i> <span>Öğrenciler</span></button>
+                <button id="sidebar-nav-guidance" onclick="renderGuidancePage()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-compass sidebar-icon text-lg"></i> <span>Rehberlik</span></button>
+                <button id="sidebar-nav-groups" onclick="renderGroupsPage()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-users-cog sidebar-icon text-lg"></i> <span>Sınıf & Gruplar</span></button>
+                <button id="sidebar-nav-schedule" onclick="renderSchedulePage()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-calendar-alt sidebar-icon text-lg"></i> <span>Ders Programı</span></button>
+                <button id="sidebar-nav-homework" onclick="renderOdevTakibi()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-tasks sidebar-icon text-lg"></i> <span>Ödev Takibi</span></button>
+                <button id="sidebar-nav-lessons" onclick="renderDersKayitlari()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-book-open sidebar-icon text-lg"></i> <span>Ders Kayıtları</span></button>
+                <button onclick="showDenemeAtaModal()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-copy sidebar-icon text-lg"></i> <span>Deneme Ata</span></button>
+                <button onclick="toggleTheme()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-moon sidebar-icon text-lg"></i> <span id="themeBtnText">Koyu Mod</span></button>
+                <button id="sidebar-nav-general" onclick="renderGenelIslemler()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-cog sidebar-icon text-lg"></i> <span>Ayarlar</span></button>
+            </nav>
+
+            <div class="cf-sidebar-footer text-xs text-blue-200/50 mt-auto pt-3 border-t border-white/10 text-center flex flex-col gap-1">
+                <div class="font-medium text-blue-200/70"><i class="fas fa-graduation-cap text-[#FF9F1C] mr-1"></i> Gelişimi Birlikte Planlayalım</div>
+                <div class="text-[10px] text-blue-200/40">CanFenci Coaching Platform</div>
             </div>
         </div>
 
@@ -567,32 +1111,60 @@
             </button>
         </div>
 
-        <div class="app-workspace w-full md:w-3/4 px-5 py-6 md:p-8 pb-36 md:pb-8 overflow-y-auto">
-            <div id="offlineIndicator" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-2 rounded-full text-sm shadow-xl font-semibold hidden flex items-center gap-2">
-                <i class="fas fa-wifi-slash"></i> Çevrimdışı Çalışılıyor (Verileriniz yerel kaydediliyor)
-            </div>
-            <div id="pwaUpdateBanner" class="fixed bottom-16 right-4 z-50 bg-blue-600 text-white px-4 py-3 rounded-xl text-sm shadow-2xl font-semibold hidden flex items-center gap-3">
-                <span>✨ Yeni bir sürüm mevcut!</span>
-                <button onclick="window.location.reload(true)" class="bg-white text-blue-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">Yenile</button>
-            </div>
-            <div id="pwaInstallBanner" class="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 bg-gradient-to-r from-primary to-secondary text-white p-4 rounded-2xl shadow-2xl hidden flex flex-col gap-2">
-                <div class="flex items-start justify-between">
-                    <div class="flex items-center gap-2">
-                        <img src="icons/icon-192x192.png" class="w-10 h-10 rounded-xl bg-white p-1" alt="Canfenci">
-                        <div>
-                            <h4 class="font-bold text-sm">Canfenci Takip Sistemi</h4>
-                            <p class="text-xs opacity-90">Uygulamayı ana ekrana ekleyin</p>
-                        </div>
+        <!-- Main Workspace (Topbar + Main Content Surface) -->
+        <div class="app-workspace cf-main w-full md:w-3/4 flex-1 flex flex-col min-w-0">
+            <!-- Dark Blue Top Bar -->
+            <header class="cf-topbar shrink-0 flex items-center justify-between px-4 md:px-8 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="md:hidden flex items-center gap-2">
+                        <img src="icons/icon-192x192.png" alt="Canfenci Logo" class="w-8 h-8 rounded-lg shadow-sm" onerror="this.style.display='none'">
+                        <span class="font-black text-white text-base">Can<span class="text-[#FF9F1C]">fenci</span></span>
                     </div>
-                    <button onclick="dismissPWAInstall()" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+                    <div class="hidden md:flex flex-col">
+                        <div class="flex items-center gap-2">
+                            <span class="cf-topbar-title">CanFenci</span>
+                            <span class="text-blue-300/40 text-xs font-bold">/</span>
+                            <span class="text-blue-100 font-semibold text-xs tracking-wide">Öğrenci Takip & Rehberlik</span>
+                        </div>
+                        <span class="cf-topbar-subtitle">Özel ders öğrenci gelişim ve koçluk sistemi</span>
+                    </div>
                 </div>
-                <div class="flex gap-2 justify-end mt-1">
-                    <button onclick="dismissPWAInstall()" class="px-3 py-1.5 text-xs font-medium text-white/90 hover:text-white">Daha Sonra</button>
-                    <button onclick="triggerPWAInstall()" class="px-4 py-1.5 bg-white text-primary rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">Yükle</button>
+
+                <div class="cf-topbar-actions flex items-center gap-2">
+                    <button onclick="toggleTheme()" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition border border-white/15 min-h-[36px]" aria-label="Temayı Değiştir" title="Açık/Koyu Mod">
+                        <i class="fas fa-moon"></i>
+                    </button>
                 </div>
+            </header>
+
+            <!-- Main Content Scroll Area -->
+            <div class="cf-main-content flex-1 px-4 py-5 md:px-8 md:py-7 pb-36 md:pb-8 overflow-y-auto">
+                <div id="offlineIndicator" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-2 rounded-full text-sm shadow-xl font-semibold hidden flex items-center gap-2">
+                    <i class="fas fa-wifi-slash"></i> Çevrimdışı Çalışılıyor (Verileriniz yerel kaydediliyor)
+                </div>
+                <div id="pwaUpdateBanner" class="fixed bottom-16 right-4 z-50 bg-blue-600 text-white px-4 py-3 rounded-xl text-sm shadow-2xl font-semibold hidden flex items-center gap-3">
+                    <span>✨ Yeni bir sürüm mevcut!</span>
+                    <button onclick="window.location.reload(true)" class="bg-white text-blue-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">Yenile</button>
+                </div>
+                <div id="pwaInstallBanner" class="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 bg-gradient-to-r from-primary to-secondary text-white p-4 rounded-2xl shadow-2xl hidden flex flex-col gap-2">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center gap-2">
+                            <img src="icons/icon-192x192.png" class="w-10 h-10 rounded-xl bg-white p-1" alt="Canfenci">
+                            <div>
+                                <h4 class="font-bold text-sm">Canfenci Takip Sistemi</h4>
+                                <p class="text-xs opacity-90">Uygulamayı ana ekrana ekleyin</p>
+                            </div>
+                        </div>
+                        <button onclick="dismissPWAInstall()" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="flex gap-2 justify-end mt-1">
+                        <button onclick="dismissPWAInstall()" class="px-3 py-1.5 text-xs font-medium text-white/90 hover:text-white">Daha Sonra</button>
+                        <button onclick="triggerPWAInstall()" class="px-4 py-1.5 bg-white text-primary rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">Yükle</button>
+                    </div>
+                </div>
+                <div id="syncStatus" class="fixed bottom-4 right-4 z-50 bg-gray-800 text-white px-3 py-1 rounded-full text-xs shadow-lg hidden"></div>
+                <main id="dynamic-content" tabindex="-1" aria-live="polite" class="max-w-[1280px] mx-auto w-full"></main>
             </div>
-            <div id="syncStatus" class="fixed bottom-4 right-4 z-50 bg-gray-800 text-white px-3 py-1 rounded-full text-xs shadow-lg hidden"></div>
-            <main id="dynamic-content" tabindex="-1" aria-live="polite"></main>
         </div>
     </div>
 
