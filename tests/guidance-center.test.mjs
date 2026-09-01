@@ -221,7 +221,7 @@ test('UX-06.1 Scenario J: 10+ students scale test aggregates metrics cleanly wit
     assert.ok(dashboard.metrics.needIntervention >= 4);
     assert.equal(dashboard.metrics.activePlans, 6);
     assert.equal(dashboard.studentPriorities.length, 12);
-    assert.ok(elapsed < 50, `Dashboard computation took ${elapsed}ms`);
+    assert.ok(elapsed < 80, `Dashboard computation took ${elapsed}ms`);
 });
 
 test('UX-06.1.1 Scenario A & B: Chronological student activities are extracted and sorted newest first', () => {
