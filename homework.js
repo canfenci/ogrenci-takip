@@ -8,6 +8,7 @@ import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
 import { buildHomeworkErrorTopics } from './homework-error-topics.js';
 import { buildWorkPerformance } from './work-performance-insights.js';
+import { buildHomeworkDashboard, filterHomeworkDashboard } from './homework-dashboard-insights.js';
 
 export function hideNavigationElements() {
     const sidebar = document.querySelector('#app-root > div.hidden.md\\:flex');
@@ -192,51 +193,72 @@ export function importHwResult(studentId, hwId, dogru, yanlis) {
     window.location.href = window.location.origin + window.location.pathname + "?page=odevler";
 }
 
-export function renderOdevTakibi() {
+export function renderOdevTakibi(studentId = null, filters = {}) {
     store.currentPage = "odevTakibi";
     if (window.currentPage) window.currentPage = "odevTakibi";
     updateMobileNavActive('mobile-nav-homework');
     const students = loadStudentsData();
+    const activeFilters = {
+        status: filters.status || 'all',
+        query: filters.query || '',
+        grade: filters.grade || '',
+        studentId: studentId || filters.studentId || ''
+    };
+    window._homeworkDashboardFilters = activeFilters;
     if (students.length === 0) {
         document.getElementById("dynamic-content").innerHTML = `
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 text-center text-gray-500">
-                Henüz öğrenci eklenmemiş. Lütfen önce öğrenci ekleyin.
-            </div>
+            <div class="app-page"><div class="app-panel p-8 text-center"><i class="fas fa-list-check text-2xl text-gray-400"></i><h2 class="mt-3 text-lg font-black">Henüz ödev eklenmedi.</h2><p class="mt-1 text-sm text-gray-500">İlk ödevi oluşturarak öğrenci çalışma takibini başlatabilirsiniz.</p><button onclick="showOdevAtaModal()" class="btn-primary mt-5 min-h-[44px] px-4"><i class="fas fa-plus mr-1"></i> Yeni Ödev</button></div></div>
         `;
         return;
     }
-    const todayStr = new Date().toISOString().slice(0, 10);
-    let cardsHtml = '<div class="grid md:grid-cols-2 gap-4">';
-    for (let s of students) {
-        const odevler = getStudentOdevler(s);
-        const bekleyenCount = odevler.filter(o => o.durum === 'verildi').length;
-        const tamamlananCount = odevler.filter(o => o.durum === 'tamamlandi').length;
-        const gecikenCount = odevler.filter(o => o.durum === 'verildi' && todayStr > o.bitisTarihi).length;
-        
-        cardsHtml += `
-            <div class="app-panel p-5 transition cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700" onclick="renderStudentOdevDetay('${s.id}')">
-                <div class="flex justify-between items-center mb-1">
-                    <h3 class="text-xl font-bold">${escapeHtml(s.adSoyad)}</h3>
-                    <i class="fas fa-chevron-right text-gray-400"></i>
-                </div>
-                <p class="text-sm text-gray-500 mb-3">${escapeHtml(s.okul)} | ${s.sinif ? s.sinif + '. Sınıf' : 'Sınıf belirtilmemiş'}</p>
-                <div class="flex gap-2 flex-wrap">
-                    <span class="status-pill status-pill-warning"><i class="fas fa-clock"></i> ${bekleyenCount} bekleyen</span>
-                    <span class="status-pill status-pill-success"><i class="fas fa-check"></i> ${tamamlananCount} tamamlanan</span>
-                    ${gecikenCount > 0 ? `<span class="status-pill status-pill-danger"><i class="fas fa-triangle-exclamation"></i> ${gecikenCount} geciken</span>` : ''}
-                </div>
+    const dashboard = buildHomeworkDashboard(students, getStudentOdevler);
+    const visibleRecords = filterHomeworkDashboard(dashboard.records, activeFilters);
+    const statusFilters = [
+        ['all', 'Tümü', dashboard.metrics.total], ['active', 'Aktif', dashboard.metrics.active],
+        ['overdue', 'Geciken', dashboard.metrics.overdue], ['today', 'Bugün', dashboard.metrics.dueToday],
+        ['upcoming', 'Yaklaşan', dashboard.metrics.upcoming], ['completed', 'Tamamlanan', dashboard.metrics.completed]
+    ];
+    const statusStyles = {
+        overdue: 'border-red-200 text-red-700 dark:border-red-900/60 dark:text-red-300',
+        today: 'border-amber-200 text-amber-700 dark:border-amber-900/60 dark:text-amber-300',
+        upcoming: 'border-amber-200 text-amber-700 dark:border-amber-900/60 dark:text-amber-300',
+        completed: 'border-emerald-200 text-emerald-700 dark:border-emerald-900/60 dark:text-emerald-300',
+        active: 'border-blue-200 text-blue-700 dark:border-blue-900/60 dark:text-blue-300'
+    };
+    const renderDate = date => date ? new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short' }).format(new Date(`${date}T00:00:00`)) : 'Tarih belirtilmedi';
+    const rowsHtml = visibleRecords.map(({ homework, student, due }) => `
+        <article class="border-b border-gray-100 px-5 py-4 transition hover:bg-slate-50/70 dark:border-gray-700 dark:hover:bg-slate-800/40 last:border-0">
+            <div class="hidden md:grid md:grid-cols-[minmax(170px,.85fr)_minmax(240px,1.35fr)_minmax(150px,.8fr)_minmax(130px,.65fr)_auto] md:items-center md:gap-4">
+                <div><p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p><p class="mt-1 text-xs text-gray-500">${escapeHtml(student.sinif ? `${student.sinif}. Sınıf` : 'Sınıf yok')}</p></div>
+                <div><p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</p><p class="mt-1 text-xs text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p></div>
+                <div><p class="text-xs text-gray-400">Teslim</p><p class="mt-1 text-sm font-semibold">${escapeHtml(renderDate(homework.bitisTarihi))}</p></div>
+                <span class="inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}"><i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>${escapeHtml(due.label)}</span>
+                <div class="flex justify-end gap-2"><button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" ${due.key === 'completed' ? 'disabled' : ''} class="btn-secondary min-h-[44px] px-3 text-sm disabled:opacity-40"><i class="fas fa-pen mr-1"></i> Sonuç Gir</button><button onclick="renderStudentOdevDetay('${student.id}')" class="min-h-[44px] px-2 text-sm font-bold text-indigo-600 dark:text-indigo-300">Detay</button></div>
             </div>
-        `;
-    }
-    cardsHtml += '</div>';
-    
-    const html = `
-        <div class="app-page"><header class="app-page-header"><div><h2 class="app-page-title">Ödev Takibi</h2><p class="app-page-subtitle">Ödevleri atayın ve tamamlanma durumlarını takip edin.</p></div>
-            <button onclick="showOdevAtaModal()" class="btn-primary px-5 py-2.5 flex items-center gap-2 min-h-[44px]">
-                <i class="fas fa-plus"></i> Ödev Ata
-            </button></header>${cardsHtml}</div>
-    `;
+            <div class="md:hidden"><div class="flex items-start justify-between gap-3"><div><p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p><h3 class="mt-1 font-bold text-base">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</h3></div><span class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}"><i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>${escapeHtml(due.label)}</span></div><p class="mt-2 text-sm text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p><div class="mt-3 flex items-center justify-between gap-3"><p class="text-xs text-gray-500">Teslim: <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(renderDate(homework.bitisTarihi))}</span></p><div class="flex gap-2"><button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" ${due.key === 'completed' ? 'disabled' : ''} class="btn-secondary min-h-[44px] px-3 text-sm disabled:opacity-40">Sonuç Gir</button><button onclick="renderStudentOdevDetay('${student.id}')" class="min-h-[44px] px-2 text-sm font-bold text-indigo-600 dark:text-indigo-300">Detay</button></div></div></div>
+        </article>`).join('');
+    const metricCards = [
+        ['fa-list-check', 'Aktif ödevler', dashboard.metrics.active, 'Teslim veya sonuç bekliyor'],
+        ['fa-triangle-exclamation', 'Gecikenler', dashboard.metrics.overdue, dashboard.metrics.overdue ? 'Müdahale gerekiyor' : 'Geciken ödev yok'],
+        ['fa-clock', 'Yaklaşan teslim', dashboard.metrics.dueToday + dashboard.metrics.upcoming, dashboard.metrics.dueToday ? `${dashboard.metrics.dueToday} bugün teslim` : 'Önümüzdeki 3 gün'],
+        ['fa-chart-pie', 'Tamamlanma oranı', dashboard.metrics.completionRate === null ? '—' : `%${dashboard.metrics.completionRate}`, dashboard.metrics.total ? `${dashboard.metrics.completed} / ${dashboard.metrics.total} tamamlandı` : 'Ödev kaydı yok']
+    ];
+    const html = `<div class="app-page pb-28 sm:pb-8"><header class="app-page-header"><div><h2 class="app-page-title">Ödev Takibi</h2><p class="app-page-subtitle">Öğrencilerin aktif ve tamamlanan ödevlerini yönetin.</p></div><button onclick="showOdevAtaModal()" class="btn-primary min-h-[44px] px-5"><i class="fas fa-plus mr-1"></i> Yeni Ödev</button></header>
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">${metricCards.map(([icon, label, value, detail]) => `<article class="app-panel p-4"><div class="flex items-center gap-2 text-gray-400"><i class="fas ${icon} text-xs"></i><p class="text-[11px] font-black uppercase tracking-[.08em]">${label}</p></div><p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">${value}</p><p class="mt-1 text-xs text-gray-500">${detail}</p></article>`).join('')}</section>
+        <section class="app-panel p-4"><div class="flex flex-wrap gap-2">${statusFilters.map(([key, label, count]) => `<button onclick="updateHomeworkDashboardFilters({status:'${key}'})" class="min-h-[40px] rounded-full border px-3 text-sm font-bold transition ${activeFilters.status === key ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 text-gray-600 hover:border-indigo-300 dark:border-gray-700 dark:text-gray-300'}">${label}${count ? ` <span class="ml-1 opacity-75">${count}</span>` : ''}</button>`).join('')}</div><div class="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_150px_220px]"><label class="relative"><span class="sr-only">Ödev veya öğrenci ara</span><i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i><input value="${escapeHtml(activeFilters.query)}" oninput="updateHomeworkDashboardFilters({query:this.value})" class="student-form-input min-h-[44px] pl-10" placeholder="Öğrenci, konu veya kaynak ara"></label><select onchange="updateHomeworkDashboardFilters({grade:this.value})" class="student-form-input min-h-[44px]"><option value="">Tüm sınıflar</option>${['5','6','7','8'].map(grade => `<option value="${grade}" ${activeFilters.grade === grade ? 'selected' : ''}>${grade}. Sınıf</option>`).join('')}</select><select onchange="updateHomeworkDashboardFilters({studentId:this.value})" class="student-form-input min-h-[44px]"><option value="">Tüm öğrenciler</option>${students.map(student => `<option value="${student.id}" ${activeFilters.studentId === student.id ? 'selected' : ''}>${escapeHtml(student.adSoyad)}</option>`).join('')}</select></div></section>
+        ${dashboard.metrics.overdue && activeFilters.status !== 'overdue' ? `<button onclick="updateHomeworkDashboardFilters({status:'overdue'})" class="mt-4 flex w-full items-center justify-between rounded-xl border border-red-200 bg-red-50/50 px-4 py-3 text-left transition hover:bg-red-50 dark:border-red-900/60 dark:bg-red-950/10"><span class="flex items-center gap-2 font-bold text-red-700 dark:text-red-300"><i class="fas fa-triangle-exclamation"></i>Müdahale gerekiyor</span><span class="text-sm font-semibold text-red-700 dark:text-red-300">${dashboard.metrics.overdue} geciken ödev <i class="fas fa-arrow-right ml-1"></i></span></button>` : ''}
+        <section class="app-panel mt-4 overflow-hidden"><div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-700"><div><h3 class="text-lg font-black">Aktif ödevler</h3><p class="mt-1 text-sm text-gray-500">${activeFilters.status === 'all' ? 'Öncelik sırasına göre listelenir.' : `${visibleRecords.length} ödev bulundu.`}</p></div><span class="text-xs font-bold text-gray-400">${visibleRecords.length} kayıt</span></div>${rowsHtml || `<div class="px-5 py-10 text-center"><i class="fas fa-filter text-xl text-gray-400"></i><p class="mt-3 font-bold">Bu filtrelere uygun ödev bulunamadı.</p><p class="mt-1 text-sm text-gray-500">Filtreleri temizleyerek tüm ödevleri görebilirsiniz.</p></div>`}</section></div>`;
     document.getElementById("dynamic-content").innerHTML = html;
+}
+
+export function updateHomeworkDashboardFilters(nextFilters = {}) {
+    const current = window._homeworkDashboardFilters || {};
+    renderOdevTakibi(nextFilters.studentId ?? current.studentId ?? null, { ...current, ...nextFilters });
+}
+
+export function openHomeworkResultFromBoard(studentId, homeworkId) {
+    window._homeworkDashboardReturn = { ...(window._homeworkDashboardFilters || {}), studentId: window._homeworkDashboardFilters?.studentId || '' };
+    showEnterOdevSonucModal(studentId, homeworkId);
 }
 
 export function renderStudentOdevDetay(studentId, performanceFilter = 'all') {
@@ -461,6 +483,15 @@ export function saveManualOdevResult(studentId, hwId) {
         wrong
     });
     if (wrong > 0 && errorTopics.length === 0) return alert('Yanlış yapılan ana konuyu seçin.');
+    const returnToDashboard = window._homeworkDashboardReturn;
+    const renderAfterSave = () => {
+        if (returnToDashboard) {
+            window._homeworkDashboardReturn = null;
+            renderOdevTakibi(returnToDashboard.studentId || null, returnToDashboard);
+        } else {
+            renderStudentOdevDetay(studentId);
+        }
+    };
     if (store.useFirestore && isFirebaseActive) {
         db.collection("homeworks").doc(hwId).update({
             durum: "tamamlandi",
@@ -469,7 +500,7 @@ export function saveManualOdevResult(studentId, hwId) {
             yanlisKonular: errorTopics
         }).then(() => {
             document.getElementById('homeworkResultModal')?.remove();
-            renderStudentOdevDetay(studentId);
+            renderAfterSave();
         }).catch(err => console.error(err));
     } else {
         const students = loadStudentsData();
@@ -485,7 +516,7 @@ export function saveManualOdevResult(studentId, hwId) {
             }
         }
         document.getElementById('homeworkResultModal')?.remove();
-        renderStudentOdevDetay(studentId);
+        renderAfterSave();
     }
 }
 
@@ -666,6 +697,7 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
 export function closeOdevAtaModal() {
     document.getElementById('odevAtaModal')?.remove();
     window._odevDersContext = null;
+    window._homeworkReturnToCockpit = null;
 }
 
 export function onOdevGradeChanged(grade, preSelectedStudentIds = null) {
@@ -808,10 +840,14 @@ export function submitBatchOdev() {
         saveStudentsData(students);
     }
     const lessonContext = window._odevDersContext;
+    const cockpitReturnStudentId = window._homeworkReturnToCockpit;
+    const cockpitReturnOrigin = window._homeworkReturnOrigin || 'home';
     showSyncStatus(`✅ ${selectedStudentIds.length} öğrenciye ${window._geciciOdevListesi.length} ödev atandı`, false);
     closeOdevAtaModal();
     if (lessonContext && selectedStudentIds.length === 1 && window.renderDersDetay) {
         window.renderDersDetay(selectedStudentIds[0]);
+    } else if (cockpitReturnStudentId && window.renderStudentCockpit) {
+        window.renderStudentCockpit(cockpitReturnStudentId, cockpitReturnOrigin);
     } else {
         renderOdevTakibi();
     }
@@ -825,6 +861,8 @@ window.renderParentHwEntry = renderParentHwEntry;
 window.submitParentHwResult = submitParentHwResult;
 window.importHwResult = importHwResult;
 window.renderOdevTakibi = renderOdevTakibi;
+window.updateHomeworkDashboardFilters = updateHomeworkDashboardFilters;
+window.openHomeworkResultFromBoard = openHomeworkResultFromBoard;
 window.renderStudentOdevDetay = renderStudentOdevDetay;
 window.deleteOdev = deleteOdev;
 window.sendSingleHwReminder = sendSingleHwReminder;
@@ -844,3 +882,6 @@ window.submitBatchOdev = submitBatchOdev;
 window._geciciOdevListesi = [];
 window._currentOdevStudentId = null;
 window._odevDersContext = null;
+window._homeworkDashboardFilters = null;
+window._homeworkDashboardReturn = null;
+window._homeworkReturnToCockpit = null;
