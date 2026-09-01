@@ -443,6 +443,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     const unitCatalog = getUnitsAndTopicsBySinifAndDers(studentSinif, homeworkDers);
     const unitList = unitCatalog.map(u => u.unite);
 
+    const isEditing = odev.durum === 'tamamlandi';
     const initialWrong = Number(odev.yanlis) || 0;
     const initialCorrect = Number(odev.dogru) || 0;
     const existingErrors = normalizeHomeworkErrorAnalysis(odev);
@@ -456,7 +457,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
         <div class="app-modal max-w-lg max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
             <div class="app-modal-header">
                 <div>
-                    <h2 class="app-page-title text-xl">Ödev Sonucu Gir</h2>
+                    <h2 class="app-page-title text-xl">${isEditing ? 'Ödev Sonucunu ve Yanlış Analizini Düzenle' : 'Ödev Sonucu Gir'}</h2>
                     <p class="app-page-subtitle">${escapeHtml(odev.konu)} · ${escapeHtml(odev.yayin)} (${escapeHtml(student.adSoyad || '')})</p>
                 </div>
                 <button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Pencereyi kapat">
@@ -473,6 +474,10 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                         <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Yanlış Sayısı</label>
                         <input type="number" id="manualWrong" min="0" value="${initialWrong}" class="student-form-input min-h-[44px]">
                     </div>
+                </div>
+
+                <div id="zeroWrongWarning" class="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-lg border border-amber-200 dark:border-amber-800 font-medium hidden">
+                    <i class="fas fa-exclamation-triangle mr-1"></i> Yanlış sayısını 0 yaptığınız için kayıtlı yanlış analizi kaydedildiğinde kaldırılacaktır.
                 </div>
 
                 <!-- Error Analysis Section (Ünite + Konu Odaklı) -->
@@ -502,7 +507,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                 <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2">
                     <button onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary flex-1 py-2.5 min-h-[44px]">İptal</button>
                     <button onclick="saveManualOdevResult('${studentId}', '${hwId}')" class="btn-primary flex-1 py-2.5 min-h-[44px]">
-                        <i class="fas fa-check mr-1"></i> Sonucu Kaydet
+                        <i class="fas fa-check mr-1"></i> ${isEditing ? 'Güncellemeleri Kaydet' : 'Sonucu Kaydet'}
                     </button>
                 </div>
             </div>
@@ -512,6 +517,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     document.body.appendChild(modal);
 
     const wrongInput = document.getElementById('manualWrong');
+    const zeroWarning = document.getElementById('zeroWrongWarning');
     const analysisSection = document.getElementById('errorAnalysisSection');
     const rowsContainer = document.getElementById('errorRowsContainer');
     const addRowBtn = document.getElementById('addErrorRowBtn');
@@ -543,7 +549,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
             ? data.hataNedenleriKeys
             : (Array.isArray(data.hataNedenleri) ? data.hataNedenleri.map(normalizeHataNedeniKey) : []);
 
-        const unitOptionsHtml = unitList.map(u => `<option value="${escapeHtml(u)}" ${u === defaultUnit ? 'selected' : ''}>${escapeHtml(u)}</option>`).join('') + `<option value="__custom__">✍️ Manuel Gir</option>`;
+        const unitOptionsHtml = unitList.map(u => `<option value="${escapeHtml(u)}" ${u === defaultUnit ? 'selected' : ''}>${escapeHtml(u)}</option>`).join('') + `<option value="__custom__" ${defaultUnit && !unitList.includes(defaultUnit) ? 'selected' : ''}>✍️ Manuel Gir</option>`;
 
         rowDiv.innerHTML = `
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
@@ -553,7 +559,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                     <select class="error-unit-select student-form-input text-xs min-h-[38px] py-1.5 font-bold">
                         ${unitOptionsHtml}
                     </select>
-                    <input type="text" class="error-unit-custom student-form-input text-xs min-h-[38px] py-1.5 mt-1 hidden" placeholder="Ünite adını yazın">
+                    <input type="text" class="error-unit-custom student-form-input text-xs min-h-[38px] py-1.5 mt-1 ${defaultUnit && !unitList.includes(defaultUnit) ? '' : 'hidden'}" placeholder="Ünite adını yazın" value="${defaultUnit && !unitList.includes(defaultUnit) ? escapeHtml(defaultUnit) : ''}">
                 </div>
 
                 <!-- Konu Seçimi -->
@@ -694,11 +700,15 @@ export function showEnterOdevSonucModal(studentId, hwId) {
         const wrongVal = parseInt(wrongInput.value) || 0;
         if (wrongVal > 0) {
             analysisSection.classList.remove('hidden');
+            zeroWarning.classList.add('hidden');
             if (rowsContainer.children.length === 0) {
                 renderErrorRow({ adet: wrongVal });
             }
         } else {
             analysisSection.classList.add('hidden');
+            if (existingErrors.length > 0) {
+                zeroWarning.classList.remove('hidden');
+            }
         }
         updateSumValidation();
     });
@@ -778,7 +788,7 @@ export function saveManualOdevResult(studentId, hwId) {
         });
 
         if (totalCount > wrong) {
-            alert(`Analiz edilen yanlış toplamı (${totalCount}) genel yanlış sayısını (${wrong}) geçemez. Lütfen adetleri kontrol edin.`);
+            alert(`Yanlış analizindeki toplam adet (${totalCount}), ödevdeki toplam yanlış sayısını (${wrong}) geçemez. Lütfen adetleri kontrol edin.`);
             return;
         }
 
@@ -793,8 +803,13 @@ export function saveManualOdevResult(studentId, hwId) {
     }
 
     const returnToDashboard = window._homeworkDashboardReturn;
+    const returnToDetailId = window._homeworkDetailReturnId;
+
     const renderAfterSave = () => {
-        if (returnToDashboard) {
+        if (returnToDetailId === hwId) {
+            window._homeworkDetailReturnId = null;
+            openHomeworkDetailModal(studentId, hwId);
+        } else if (returnToDashboard) {
             window._homeworkDashboardReturn = null;
             renderOdevTakibi(returnToDashboard.studentId || null, returnToDashboard);
         } else {
@@ -837,109 +852,118 @@ export function openHomeworkDetailModal(studentId, homeworkId) {
     const homework = getStudentOdevler(student).find(o => o.id === homeworkId);
     if (!homework) return;
 
-    const reportData = buildHomeworkReportData({ student, homework });
-    if (!reportData) return;
+    const reportData = buildHomeworkReportData({
+        student,
+        homework,
+        teacherProfile: {
+            name: store.teacherName,
+            school: store.teacherSchool
+        }
+    });
 
-    const isCompleted = reportData.isCompleted;
-    const totalAns = Math.max(1, reportData.correct + reportData.wrong + reportData.emptyCount);
-    const correctPct = Math.round((reportData.correct / totalAns) * 100);
-    const wrongPct = Math.round((reportData.wrong / totalAns) * 100);
-    const emptyPct = 100 - correctPct - wrongPct;
+    const isCompleted = homework.durum === 'tamamlandi';
+    const accuracy = reportData.successRate || 0;
+    const net = reportData.net || 0;
 
     const modalHtml = `
-        <div id="homeworkDetailModal" class="app-modal-backdrop fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="if(event.target===this) closeHomeworkDetailModal()">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-gray-100 dark:border-gray-700 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <div class="app-modal-backdrop" onclick="closeHomeworkDetailModal()">
+            <div class="app-modal max-w-lg max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
                 <!-- Header -->
-                <div class="flex items-center justify-between border-b dark:border-gray-700 pb-3 mb-4">
+                <div class="app-modal-header border-b border-gray-100 dark:border-gray-800 pb-3">
                     <div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">CanFenci</span>
-                            <span class="text-xs font-bold text-gray-400 dark:text-gray-500">Ödev Değerlendirmesi</span>
-                        </div>
-                        <h2 class="text-lg font-black text-gray-900 dark:text-white mt-1">Öğrenci Performans Raporu</h2>
+                        <span class="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">CanFenci</span>
+                        <span class="text-xs text-gray-400 dark:text-gray-500 font-medium ml-1">Ödev Değerlendirmesi</span>
+                        <h2 class="app-page-title text-xl mt-0.5">Öğrenci Performans Raporu</h2>
                     </div>
-                    <button onclick="closeHomeworkDetailModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center" aria-label="Kapat">
-                        <i class="fas fa-times text-base"></i>
+                    <button onclick="closeHomeworkDetailModal()" class="app-modal-close" aria-label="Pencereyi kapat">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
 
-                <!-- Student & Homework Meta Info -->
-                <div class="space-y-3">
-                    <div class="p-3.5 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-gray-200/80 dark:border-gray-700 flex items-center justify-between">
+                <!-- Body -->
+                <div class="app-modal-body space-y-4 pt-3">
+                    <!-- Student & Meta Info Card -->
+                    <div class="bg-gray-50 dark:bg-gray-900/60 p-3.5 rounded-xl border border-gray-200/70 dark:border-gray-800 flex justify-between items-center">
                         <div>
-                            <span class="text-xs font-black text-gray-400 uppercase tracking-wider block">Öğrenci</span>
-                            <span class="font-bold text-base text-gray-900 dark:text-white">${escapeHtml(reportData.studentName)}</span>
-                            <span class="text-xs font-bold text-gray-500 dark:text-gray-400 ml-2">(${escapeHtml(reportData.sinif)})</span>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">Öğrenci</span>
+                            <span class="text-sm font-bold text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</span>
+                            <span class="text-xs text-gray-500 ml-1">(${escapeHtml(student.sinif)}. Sınıf)</span>
                         </div>
                         <div class="text-right">
-                            <span class="text-xs font-black text-gray-400 uppercase tracking-wider block">Tarih</span>
-                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">${reportData.reportDate}</span>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">Tarih</span>
+                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">${reportData.reportDate}</span>
                         </div>
                     </div>
 
-                    <div class="p-3.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200/80 dark:border-gray-700">
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <span class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Ödev Detayı</span>
-                                <h3 class="font-black text-base text-gray-900 dark:text-white mt-0.5">${escapeHtml(reportData.konu)}${reportData.calismaDetayi ? ` · <span class="text-sm font-bold text-gray-700 dark:text-gray-300">${escapeHtml(reportData.calismaDetayi)}</span>` : ''}</h3>
-                            </div>
-                            <span class="text-xs font-bold px-2.5 py-1 rounded-full ${isCompleted ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800'}">
+                    <!-- Homework Info Card -->
+                    <div class="p-3.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black uppercase tracking-wider text-blue-700 dark:text-blue-300">Ödev Detayı</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${isCompleted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'}">
                                 ${isCompleted ? 'Tamamlandı' : 'Bekliyor'}
                             </span>
                         </div>
-                        <div class="mt-2.5 pt-2 border-t border-gray-100 dark:border-gray-700/60 grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            <div><span class="font-semibold text-gray-400">Yayın:</span> <span class="font-bold text-gray-800 dark:text-gray-200">${escapeHtml(reportData.yayin)}</span></div>
-                            <div><span class="font-semibold text-gray-400">Tür:</span> <span class="font-bold text-gray-800 dark:text-gray-200">${escapeHtml(reportData.tur)}</span></div>
-                            <div><span class="font-semibold text-gray-400">Veriliş:</span> ${reportData.baslamaTarihi || '—'}</div>
-                            <div><span class="font-semibold text-gray-400">Teslim:</span> ${reportData.bitisTarihi || '—'}</div>
+                        <div class="text-sm font-bold text-gray-800 dark:text-gray-100">
+                            ${escapeHtml(reportData.konu)}${reportData.calismaDetayi ? ` · ${escapeHtml(reportData.calismaDetayi)}` : ''}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400 pt-1">
+                            <div><span class="text-gray-400">Yayın:</span> ${escapeHtml(reportData.yayin)}</div>
+                            <div><span class="text-gray-400">Tür:</span> ${escapeHtml(reportData.tur)}</div>
+                            <div><span class="text-gray-400">Veriliş:</span> ${escapeHtml(reportData.baslamaTarihi || '-')}</div>
+                            <div><span class="text-gray-400">Teslim:</span> ${escapeHtml(reportData.bitisTarihi || '-')}</div>
                         </div>
                     </div>
 
+                    <!-- Performance Summary -->
                     ${isCompleted ? `
-                        <!-- Performance Metrics -->
-                        <div>
-                            <span class="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1.5">Performans Özeti</span>
-                            <div class="grid grid-cols-4 gap-2">
-                                <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/60 text-center">
-                                    <span class="block text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase">Doğru</span>
-                                    <span class="text-xl font-black text-emerald-600 dark:text-emerald-400">${reportData.correct}</span>
+                        <div class="space-y-2">
+                            <span class="text-xs font-black uppercase tracking-wider text-gray-500 block">Performans Özeti</span>
+                            <div class="grid grid-cols-4 gap-2 text-center">
+                                <div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                                    <div class="text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-300">Doğru</div>
+                                    <div class="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">${reportData.correct}</div>
                                 </div>
-                                <div class="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/60 text-center">
-                                    <span class="block text-[10px] font-black text-red-700 dark:text-red-400 uppercase">Yanlış</span>
-                                    <span class="text-xl font-black text-red-600 dark:text-red-400">${reportData.wrong}</span>
+                                <div class="p-2.5 bg-rose-50 dark:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-900/50">
+                                    <div class="text-[10px] font-black uppercase text-rose-800 dark:text-rose-300">Yanlış</div>
+                                    <div class="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">${reportData.wrong}</div>
                                 </div>
-                                <div class="p-3 rounded-xl bg-slate-50 dark:bg-gray-850 border border-slate-200 dark:border-gray-700 text-center">
-                                    <span class="block text-[10px] font-black text-slate-600 dark:text-gray-400 uppercase">Boş</span>
-                                    <span class="text-xl font-black text-slate-700 dark:text-gray-300">${reportData.emptyCount}</span>
+                                <div class="p-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                                    <div class="text-[10px] font-black uppercase text-gray-600 dark:text-gray-400">Boş</div>
+                                    <div class="text-lg font-black text-gray-700 dark:text-gray-300 mt-0.5">${reportData.emptyCount}</div>
                                 </div>
-                                <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/60 text-center">
-                                    <span class="block text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase">Net</span>
-                                    <span class="text-xl font-black text-blue-600 dark:text-blue-400">${reportData.net.toFixed(2)}</span>
+                                <div class="p-2.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900/50">
+                                    <div class="text-[10px] font-black uppercase text-blue-800 dark:text-blue-300">Net</div>
+                                    <div class="text-lg font-black text-blue-600 dark:text-blue-400 mt-0.5">${net.toFixed(2)}</div>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="bg-gray-100 dark:bg-gray-700/60 p-2.5 rounded-xl space-y-1.5 mt-2">
+                                <div class="flex justify-between text-xs font-bold">
+                                    <span class="text-gray-700 dark:text-gray-300">Soru Dağılımı</span>
+                                    <span class="text-blue-600 dark:text-blue-400">%${accuracy} Başarı</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-600 h-2.5 rounded-full overflow-hidden flex">
+                                    <div class="bg-emerald-500 h-full" style="width: ${reportData.totalQuestions > 0 ? (reportData.correct / reportData.totalQuestions * 100) : 0}%" title="Doğru"></div>
+                                    <div class="bg-rose-500 h-full" style="width: ${reportData.totalQuestions > 0 ? (reportData.wrong / reportData.totalQuestions * 100) : 0}%" title="Yanlış"></div>
+                                    <div class="bg-gray-400 h-full" style="width: ${reportData.totalQuestions > 0 ? (reportData.emptyCount / reportData.totalQuestions * 100) : 0}%" title="Boş"></div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Progress Distribution Bar -->
-                        <div class="p-3 bg-slate-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/70 dark:border-gray-700">
-                            <div class="flex items-center justify-between text-xs font-bold mb-1.5">
-                                <span class="text-gray-600 dark:text-gray-300">Soru Dağılımı</span>
-                                <span class="text-blue-600 dark:text-blue-400 font-black">%${reportData.successRate} Başarı</span>
+                        <!-- Teacher Evaluation Text -->
+                        <div class="p-3.5 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-200/60 dark:border-blue-900/50 space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-black uppercase tracking-wider text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                                    <i class="fas fa-chart-line text-blue-600 dark:text-blue-400"></i> Akademik Değerlendirme
+                                </span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white">
+                                    ${reportData.evalStatus}
+                                </span>
                             </div>
-                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 flex overflow-hidden">
-                                <div class="bg-emerald-500 h-3" style="width: ${correctPct}%" title="Doğru: %${correctPct}"></div>
-                                <div class="bg-red-500 h-3" style="width: ${wrongPct}%" title="Yanlış: %${wrongPct}"></div>
-                                <div class="bg-gray-400 h-3" style="width: ${emptyPct}%" title="Boş: %${emptyPct}"></div>
-                            </div>
-                        </div>
-
-                        <!-- Academic Evaluation -->
-                        <div class="p-3.5 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-200/60 dark:border-blue-900/50">
-                            <div class="flex items-center gap-2 mb-1">
-                                <i class="fas fa-chart-line text-blue-600 dark:text-blue-400 text-xs"></i>
-                                <span class="text-xs font-black uppercase tracking-wider text-blue-900 dark:text-blue-200">Akademik Değerlendirme</span>
-                                <span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-600 text-white ml-auto">${escapeHtml(reportData.evalStatus)}</span>
-                            </div>
-                            <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed mt-1">${escapeHtml(reportData.evalMessage)}</p>
+                            <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                                ${escapeHtml(reportData.evalMessage)}
+                            </p>
                         </div>
 
                         <!-- Error Topics if any -->
@@ -994,15 +1018,18 @@ export function openHomeworkDetailModal(studentId, homeworkId) {
                     <!-- Actions -->
                     ${isCompleted ? `
                         <div class="pt-2 space-y-2">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <button onclick="downloadHomeworkPdfReport('${studentId}', '${homeworkId}')" class="btn-primary py-3 px-3 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1.5 shadow-md">
-                                    <i class="fas fa-file-pdf"></i> PDF Raporu İndir
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <button onclick="downloadHomeworkPdfReport('${studentId}', '${homeworkId}')" class="btn-primary py-2.5 px-2 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1 shadow-md">
+                                    <i class="fas fa-file-pdf"></i> PDF İndir
                                 </button>
-                                <button onclick="shareHomeworkReport('${studentId}', '${homeworkId}')" class="border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100 py-3 px-3 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1.5 transition">
+                                <button onclick="shareHomeworkReport('${studentId}', '${homeworkId}')" class="border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100 py-2.5 px-2 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1 transition">
                                     <i class="fas fa-share-nodes"></i> Paylaş
                                 </button>
-                                <button onclick="sendHomeworkReportWhatsApp('${studentId}', '${homeworkId}')" class="border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100 py-3 px-3 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1.5 transition">
+                                <button onclick="sendHomeworkReportWhatsApp('${studentId}', '${homeworkId}')" class="border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100 py-2.5 px-2 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1 transition">
                                     <i class="fab fa-whatsapp"></i> WhatsApp
+                                </button>
+                                <button onclick="window._homeworkDetailReturnId = '${homeworkId}'; closeHomeworkDetailModal(); showEnterOdevSonucModal('${studentId}', '${homeworkId}');" class="border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 bg-amber-50/50 dark:bg-amber-950/30 hover:bg-amber-100 py-2.5 px-2 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1 transition" title="Sonuç ve yanlış analizini düzenle">
+                                    <i class="fas fa-pen-to-square"></i> Düzenle
                                 </button>
                             </div>
                             <p class="text-[11px] text-gray-500 dark:text-gray-400 text-center pt-1"><i class="fas fa-info-circle mr-1 text-blue-500"></i>WhatsApp mesajını açtıktan sonra indirdiğiniz PDF raporunu görüşmeye ekleyebilirsiniz.</p>

@@ -12,6 +12,7 @@ import {
   HATA_NEDENLERI
 } from '../homework-error-topics.js';
 import { getCockpitData } from '../student-cockpit-insights.js';
+import { buildHomeworkReportData } from '../homework-report-insights.js';
 
 test('curriculum: returns correct unit list for 8th grade science', () => {
   const units = getUnitListBySinifAndDers('8', 'Fen Bilimleri');
@@ -187,4 +188,173 @@ test('validates error analysis totals against general wrong count', () => {
   const invalid = validateErrorAnalysisTotal(items, 4);
   assert.equal(invalid.isValid, false);
   assert.equal(invalid.sum, 5);
+});
+
+// ==================== UX-05.5 SPECIFIC TESTS ====================
+
+test('UX-05.5 Scenario A: legacy homework without error analysis can have analysis added post-completion', () => {
+  const legacyHw = {
+    id: 'hw_legacy',
+    durum: 'tamamlandi',
+    dogru: 32,
+    yanlis: 6,
+    toplamSoru: 40,
+    yanlisKonular: [] // initially empty
+  };
+
+  // Normalization on empty returns empty list ready for user to add rows
+  const initial = normalizeHomeworkErrorAnalysis(legacyHw);
+  assert.deepEqual(initial, []);
+
+  // Teacher adds 2 error rows post-completion
+  const updatedErrorTopics = buildHomeworkErrorTopics({
+    wrong: 6,
+    entries: [
+      { unite: 'Basınç', konu: 'Katı Basıncı', adet: 4, hataNedenleri: ['bilgi_eksikligi'] },
+      { unite: 'Basınç', konu: 'Sıvı Basıncı', adet: 2, hataNedenleri: ['dikkatsizlik'] }
+    ]
+  });
+
+  legacyHw.yanlisKonular = updatedErrorTopics;
+  const postEdit = normalizeHomeworkErrorAnalysis(legacyHw);
+  assert.equal(postEdit.length, 2);
+  assert.equal(postEdit[0].unite, 'Basınç');
+  assert.equal(postEdit[0].konu, 'Katı Basıncı');
+  assert.equal(postEdit[0].adet, 4);
+  assert.deepEqual(postEdit[0].hataNedenleriKeys, ['bilgi_eksikligi']);
+  assert.equal(postEdit[1].konu, 'Sıvı Basıncı');
+  assert.equal(postEdit[1].adet, 2);
+  assert.deepEqual(postEdit[1].hataNedenleriKeys, ['dikkatsizlik']);
+});
+
+test('UX-05.5 Scenario B: existing analysis is normalized and prefilled for editing', () => {
+  const existingHw = {
+    id: 'hw_existing',
+    durum: 'tamamlandi',
+    dogru: 34,
+    yanlis: 4,
+    yanlisKonular: [
+      { unite: 'Basınç', konu: 'Katı Basıncı', adet: 2, hataNedenleri: ['bilgi_eksikligi', 'dikkatsizlik'] },
+      { unite: 'Basınç', konu: 'Gaz Basıncı', adet: 2, hataNedenleri: ['islem_hatasi'] }
+    ]
+  };
+
+  const prefill = normalizeHomeworkErrorAnalysis(existingHw);
+  assert.equal(prefill.length, 2);
+  assert.equal(prefill[0].unite, 'Basınç');
+  assert.equal(prefill[0].konu, 'Katı Basıncı');
+  assert.equal(prefill[0].adet, 2);
+  assert.deepEqual(prefill[0].hataNedenleriKeys, ['bilgi_eksikligi', 'dikkatsizlik']);
+  assert.deepEqual(prefill[0].hataNedenleri, ['Bilgi Eksikliği', 'Dikkatsizlik']);
+});
+
+test('UX-05.5 Scenario C: multiple error causes can be edited and stored as canonical keys', () => {
+  const editedEntries = [
+    {
+      unite: 'DNA ve Genetik Kod',
+      konu: 'Kalıtım',
+      adet: 3,
+      hataNedenleri: ['bilgi_eksikligi', 'dikkatsizlik', 'yanlis_okuma']
+    }
+  ];
+
+  const saved = buildHomeworkErrorTopics({ wrong: 3, entries: editedEntries });
+  assert.equal(saved.length, 1);
+  assert.deepEqual(saved[0].hataNedenleri, ['bilgi_eksikligi', 'dikkatsizlik', 'yanlis_okuma']);
+});
+
+test('UX-05.5 Scenario D: validation prevents saving when total analyzed exceeds general wrong count', () => {
+  const entries = [
+    { unite: 'Basınç', konu: 'Katı Basıncı', adet: 4 },
+    { unite: 'Basınç', konu: 'Sıvı Basıncı', adet: 3 } // total = 7
+  ];
+
+  const check = validateErrorAnalysisTotal(entries, 6);
+  assert.equal(check.isValid, false);
+  assert.equal(check.sum, 7);
+  assert.equal(check.exceededBy, 1);
+});
+
+test('UX-05.5 Scenario E: when wrong count becomes 0, error analysis is cleared', () => {
+  const cleared = buildHomeworkErrorTopics({
+    wrong: 0,
+    entries: [
+      { unite: 'Basınç', konu: 'Katı Basıncı', adet: 2, hataNedenleri: ['bilgi_eksikligi'] }
+    ]
+  });
+
+  assert.deepEqual(cleared, []);
+});
+
+test('UX-05.5 Scenario F: PDF report generator reflects edited error topics and reasons', () => {
+  const student = { id: 's1', adSoyad: 'Zeynep Kaya', sinif: '8' };
+  const homework = {
+    id: 'hw1',
+    konu: 'Basınç',
+    yayin: 'CanFenci',
+    durum: 'tamamlandi',
+    dogru: 36,
+    yanlis: 4,
+    yanlisKonular: [
+      { unite: 'Basınç', konu: 'Katı Basıncı', adet: 2, hataNedenleri: ['bilgi_eksikligi'] },
+      { unite: 'Basınç', konu: 'Sıvı Basıncı', adet: 2, hataNedenleri: ['dikkatsizlik'] }
+    ]
+  };
+
+  const reportData = buildHomeworkReportData({
+    student,
+    homework,
+    teacherProfile: { name: 'Murat Canbaş', school: 'CanFenci Akademi' }
+  });
+
+  assert.equal(reportData.yanlisKonular.length, 2);
+  assert.equal(reportData.yanlisKonular[0].unite, 'Basınç');
+  assert.equal(reportData.yanlisKonular[0].konu, 'Katı Basıncı');
+  assert.deepEqual(reportData.yanlisKonular[0].hataNedenleri, ['Bilgi Eksikliği']);
+});
+
+test('UX-05.5 Scenario G: Cockpit mostFrequentError recalculates dynamically after error topic edit', () => {
+  const student = {
+    id: 's1',
+    adSoyad: 'Mert Yılmaz',
+    sinif: '8',
+    hedefNet: 80,
+    denemeler: [],
+    odevler: [
+      {
+        id: 'hw1',
+        durum: 'tamamlandi',
+        dogru: 30,
+        yanlis: 4,
+        yanlisKonular: [
+          { unite: 'Basınç', konu: 'Katı Basıncı', adet: 4, hataNedenleri: ['dikkatsizlik'] }
+        ]
+      }
+    ]
+  };
+
+  let cockpit = getCockpitData({
+    student,
+    homeworks: student.odevler,
+    summary: { latestNet: 75, upcomingLesson: null, homeworkCompletionRate: 100, homeworkCount: 1, completedHomeworkCount: 1 },
+    analysis: { strongestSubject: null, weakestSubject: null, priorityTopics: [] }
+  });
+
+  assert.equal(cockpit.mostFrequentError.key, 'dikkatsizlik');
+  assert.equal(cockpit.mostFrequentError.count, 4);
+
+  // Edit homework errors: change to bilgi_eksikligi
+  student.odevler[0].yanlisKonular = [
+    { unite: 'Basınç', konu: 'Katı Basıncı', adet: 4, hataNedenleri: ['bilgi_eksikligi'] }
+  ];
+
+  cockpit = getCockpitData({
+    student,
+    homeworks: student.odevler,
+    summary: { latestNet: 75, upcomingLesson: null, homeworkCompletionRate: 100, homeworkCount: 1, completedHomeworkCount: 1 },
+    analysis: { strongestSubject: null, weakestSubject: null, priorityTopics: [] }
+  });
+
+  assert.equal(cockpit.mostFrequentError.key, 'bilgi_eksikligi');
+  assert.equal(cockpit.mostFrequentError.count, 4);
 });
