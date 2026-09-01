@@ -116,19 +116,19 @@ export function lgsPuanHesapla(genelDenemeler) {
     return Math.min(500, Math.max(100, Math.round(toplamPuan / genelDenemeler.length)));
 }
 
-export function showDenemeAtaModal() {
+export function showDenemeAtaModal(preSelectedStudentId = null) {
     denemeAtaMode = "branş";
     batchBransSoruSayisi = 0;
     batchGenelDersSayilari = {};
     GENEL_DERSLER_KEY.forEach(d => batchGenelDersSayilari[d] = 0);
-    renderDenemeAtaModal();
+    renderDenemeAtaModal(preSelectedStudentId);
 }
 
-export function renderDenemeAtaModal() {
+export function renderDenemeAtaModal(preSelectedStudentId = null) {
     const students = loadStudentsData();
     const studentCheckboxes = students.map(s => `
         <label class="flex items-center gap-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer transition">
-            <input type="checkbox" value="${s.id}" data-grade="${escapeHtml(s.sinif || '')}" class="studentCheck rounded border-gray-300 dark:border-gray-650 text-blue-600">
+            <input type="checkbox" value="${s.id}" data-grade="${escapeHtml(s.sinif || '')}" ${s.id === preSelectedStudentId ? 'checked' : ''} class="studentCheck rounded border-gray-300 dark:border-gray-650 text-blue-600">
             <span class="text-sm font-medium text-gray-805 dark:text-gray-200">${escapeHtml(s.adSoyad)} (${escapeHtml(s.okul)}${s.sinif ? ', ' + s.sinif + '. sınıf' : ''})</span>
         </label>
     `).join('');
@@ -214,6 +214,15 @@ export function renderDenemeAtaModal() {
     modalDiv.id = 'denemeAtaModal';
     modalDiv.innerHTML = modalHtml;
     document.body.appendChild(modalDiv);
+
+    if (preSelectedStudentId) {
+        const selectedStudent = students.find(student => student.id === preSelectedStudentId);
+        const gradeSelect = document.getElementById('bransSinif');
+        if (selectedStudent && gradeSelect) {
+            gradeSelect.value = selectedStudent.sinif || '';
+            window.updateTopicExamOptions?.();
+        }
+    }
     
     document.getElementById('tabBransBtn').addEventListener('click', () => {
         denemeAtaMode = 'branş';

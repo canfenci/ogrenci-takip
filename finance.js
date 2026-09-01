@@ -143,6 +143,7 @@ export function renderFinanceReport() {
 
 export function renderDersKayitlari() {
     store.currentPage = "dersKayitlari";
+    window._dersKayitOrigin = 'list';
     updateMobileNavActive('mobile-nav-lessons');
     const students = loadStudentsData();
     if (students.length === 0) {
@@ -174,8 +175,9 @@ export function renderDersKayitlari() {
     `;
 }
 
-export function renderDersDetay(studentId) {
+export function renderDersDetay(studentId, origin = 'list') {
     store.currentPage = "dersDetay";
+    window._dersKayitOrigin = origin === 'cockpit' ? 'cockpit' : (window._dersKayitOrigin || origin);
     window._currentDersKayitStudentId = studentId;
     updateMobileNavActive('mobile-nav-lessons');
     const students = loadStudentsData();
@@ -307,7 +309,7 @@ export function renderDersDetay(studentId) {
         <div class="app-page">
             <header class="app-page-header">
                 <div><h2 class="app-page-title">${escapeHtml(student.adSoyad)}</h2><p class="app-page-subtitle">Ders kayıtları ve ödeme durumu</p></div>
-                <button onclick="renderDersKayitlari()" class="bg-gray-500 text-white px-4 py-2.5 rounded-xl flex items-center gap-1 font-semibold min-h-[44px]">
+                <button onclick="${window._dersKayitOrigin === 'cockpit' ? `renderStudentCockpit('${studentId}', window._cockpitReturnOrigin || 'home')` : 'renderDersKayitlari()'}" class="bg-gray-500 text-white px-4 py-2.5 rounded-xl flex items-center gap-1 font-semibold min-h-[44px]">
                     <i class="fas fa-arrow-left"></i> Geri
                 </button>
             </header>
