@@ -40,6 +40,7 @@ const ASSETS_TO_CACHE = [
   "./work-performance-insights.js",
   "./homework-dashboard-insights.js",
   "./homework-weeks-insights.js",
+  "./guidance-center-insights.js",
   "./growth.js",
   "./groups.js"
 ];
