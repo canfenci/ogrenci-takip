@@ -2,6 +2,7 @@
 
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { registerTurkishFont } from './homework-report-font.js';
+import { normalizeHomeworkErrorAnalysis, normalizeHataNedeniLabel } from './homework-error-topics.js';
 
 export function normalizeReportFilename({ studentName = 'Ogrenci', homeworkTitle = 'Odev', date = '' }) {
     const trMap = {
@@ -90,7 +91,7 @@ export function buildHomeworkReportData({ student, homework }) {
         evalBadgeColor,
         evalMessage,
         teacherNote: homework.ogretmenNotu || homework.not || '',
-        yanlisKonular: Array.isArray(homework.yanlisKonular) ? homework.yanlisKonular : [],
+        yanlisKonular: normalizeHomeworkErrorAnalysis(homework),
         reportDate: formattedReportDate,
         reportDateIso: todayDate.toISOString().slice(0, 10)
     };
@@ -336,20 +337,33 @@ export function generateHomeworkPdf(reportData, jsPDFInstance = null) {
     if (reportData.yanlisKonular && reportData.yanlisKonular.length > 0) {
         doc.setFillColor(254, 242, 242);
         doc.setDrawColor(254, 202, 202);
-        doc.roundedRect(margin, curY, contentWidth, 22, 3, 3, 'FD');
+        doc.roundedRect(margin, curY, contentWidth, 24, 3, 3, 'FD');
 
         doc.setFontSize(8);
         doc.setFont(fontName, 'bold');
         doc.setTextColor(185, 28, 28);
-        doc.text(safeText('TEKRAR EDİLMESİ GEREKEN KONULAR'), margin + 6, curY + 6);
+        doc.text(safeText('TEKRAR EDİLMESİ GEREKEN KONULAR & HATA ANALİZİ'), margin + 6, curY + 6);
 
-        const topicsTxt = reportData.yanlisKonular.map(item => `${safeText(item.konu)}${item.altKonu ? ` > ${safeText(item.altKonu)}` : ''} (${item.adet} Yanlış)`).join(', ');
-        doc.setFontSize(8.5);
+        const displayItems = reportData.yanlisKonular.slice(0, 4);
+        const remainingCount = reportData.yanlisKonular.length - displayItems.length;
+        let topicsTxt = displayItems.map(item => {
+            const mainTitle = item.unite || item.konu || 'Genel';
+            const subTitle = (item.konu && item.unite && item.konu !== item.unite) ? item.konu : (item.altKonu || '');
+            const topicPart = `${safeText(mainTitle)}${subTitle ? ` · ${safeText(subTitle)}` : ''} (${item.adet} Yanlış)`;
+            const reasons = (item.hataNedenleri || []).map(normalizeHataNedeniLabel).filter(Boolean);
+            const reasonsPart = reasons.length > 0 ? ` [${reasons.map(safeText).join(' · ')}]` : '';
+            return `${topicPart}${reasonsPart}`;
+        }).join('  |  ');
+        if (remainingCount > 0) {
+            topicsTxt += ` (+${remainingCount} diğer alan)`;
+        }
+
+        doc.setFontSize(8);
         doc.setFont(fontName, 'normal');
         doc.setTextColor(153, 27, 27);
         const splitTopics = doc.splitTextToSize(topicsTxt, contentWidth - 12);
         doc.text(splitTopics, margin + 6, curY + 13);
-        curY += 26;
+        curY += 28;
     }
 
     // 9. Teacher Note (if present)

@@ -1,6 +1,8 @@
 // Öğrenci Kokpiti için yalnızca görüntüleme/selector hesapları.
 // Veri yazma, Firebase ve mevcut analiz motorları bu modülün dışında tutulur.
 
+import { normalizeHomeworkErrorAnalysis, normalizeHataNedeniLabel, normalizeHataNedeniKey } from './homework-error-topics.js';
+
 const number = value => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -39,15 +41,28 @@ export function getCockpitData({ student, homeworks = [], summary, analysis, tim
     const strongest = analysis.strongestSubject?.successRate !== null ? analysis.strongestSubject : null;
     const weakest = analysis.weakestSubject?.successRate !== null ? analysis.weakestSubject : null;
     const criticalTopic = analysis.priorityTopics?.[0] || null;
-    const errorCounts = {};
+    const errorCountsByKey = {};
     (student.denemeler || []).forEach(exam => (exam.sorular || []).forEach(question => {
         if (!question.hataKodu || question.durum === 'dogru') return;
-        errorCounts[question.hataKodu] = (errorCounts[question.hataKodu] || 0) + 1;
+        const key = normalizeHataNedeniKey(question.hataKodu);
+        if (key) {
+            errorCountsByKey[key] = (errorCountsByKey[key] || 0) + 1;
+        }
     }));
-    const errorCandidates = Object.entries(errorCounts)
+    (student.odevler || homeworks || []).forEach(hw => {
+        const errorList = normalizeHomeworkErrorAnalysis(hw);
+        errorList.forEach(err => {
+            (err.hataNedenleriKeys || []).forEach(key => {
+                if (key) {
+                    errorCountsByKey[key] = (errorCountsByKey[key] || 0) + (Number(err.adet) || 1);
+                }
+            });
+        });
+    });
+    const errorCandidates = Object.entries(errorCountsByKey)
         .sort((a, b) => number(b[1]) - number(a[1]));
     const mostFrequentError = errorCandidates[0]
-        ? { label: errorCandidates[0][0], count: number(errorCandidates[0][1]) }
+        ? { key: errorCandidates[0][0], label: normalizeHataNedeniLabel(errorCandidates[0][0]), count: number(errorCandidates[0][1]) }
         : null;
     const trendDelta = recentExams.length >= 2
         ? round(number(recentExams.at(-1).toplamNet) - number(recentExams[0].toplamNet))

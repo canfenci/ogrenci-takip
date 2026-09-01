@@ -160,3 +160,57 @@ test('generateHomeworkPdf produces an A4 PDF document using mock jsPDF', () => {
     assert.equal(doc.options.format, 'a4');
     assert.equal(doc.options.orientation, 'portrait');
 });
+
+test('generateHomeworkPdf formats multiple error topics and reasons cleanly', () => {
+    const reportData = {
+        studentName: 'Zeynep Çelik',
+        sinif: '8. Sınıf',
+        konu: 'Basınç',
+        calismaDetayi: 'Kazanım Testi',
+        yayin: 'CanFenci Yayınları',
+        tur: 'Konu Denemesi',
+        reportDate: '01.09.2026',
+        isCompleted: true,
+        correct: 15,
+        wrong: 5,
+        emptyCount: 0,
+        net: 13.33,
+        successRate: 75,
+        evalStatus: 'Yeterli / İyi',
+        evalMessage: 'Konu pekiştirilmelidir.',
+        teacherNote: 'İyi gayret.',
+        yanlisKonular: [
+            { konu: 'Katı Basıncı', altKonu: 'Piezometre', adet: 3, hataNedenleri: ['Bilgi Eksikliği', 'Dikkatsizlik'] },
+            { konu: 'Sıvı Basıncı', altKonu: 'U Borusu', adet: 2, hataNedenleri: ['Soruyu Yanlış Okuma'] }
+        ]
+    };
+
+    let renderedText = [];
+    class MockJsPDF {
+        constructor(options) {
+            this.options = options;
+        }
+        addFileToVFS() {}
+        addFont() {}
+        setFont() {}
+        setFontSize() {}
+        setTextColor() {}
+        setFillColor() {}
+        setDrawColor() {}
+        rect() {}
+        roundedRect() {}
+        line() {}
+        text(txt) {
+            if (Array.isArray(txt)) renderedText.push(...txt);
+            else renderedText.push(txt);
+        }
+        splitTextToSize(txt) { return [txt]; }
+    }
+
+    const doc = generateHomeworkPdf(reportData, MockJsPDF);
+    assert.equal(doc.options.format, 'a4');
+    const combined = renderedText.join(' ');
+    assert.match(combined, /Katı Basıncı/);
+    assert.match(combined, /Bilgi Eksikliği/);
+    assert.match(combined, /Dikkatsizlik/);
+});

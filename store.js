@@ -265,6 +265,168 @@ export function getKonuListesiBySinifAndDers(sinif, ders) {
     return [];
 }
 
+
+export const CURRICULUM_UNITS = {
+    "8": {
+        "Fen Bilimleri": [
+            { unite: "Mevsimler ve İklim", konular: ["Mevsimlerin Oluşumu", "İklim ve Hava Hareketleri"] },
+            { unite: "DNA ve Genetik Kod", konular: ["DNA ve Genetik Kod", "Kalıtım", "Mutasyon ve Modifikasyon", "Adaptasyon", "Biyoteknoloji"] },
+            { unite: "Basınç", konular: ["Katı Basıncı", "Sıvı Basıncı", "Gaz Basıncı"] },
+            { unite: "Madde ve Endüstri", konular: ["Periyodik Sistem", "Fiziksel ve Kimyasal Değişimler", "Kimyasal Tepkimeler", "Asitler ve Bazlar", "Maddenin Isı ile Etkileşimi (Özısı)", "Türkiye'de Kimya Endüstrisi"] },
+            { unite: "Basit Makineler", konular: ["Kaldıraçlar", "Makaralar", "Eğik Düzlem", "Çıkrık, Dişli Çark ve Kasnaklar"] },
+            { unite: "Enerji Dönüşümleri ve Çevre Bilimi", konular: ["Besin Zinciri ve Enerji Akışı", "Fotosentez ve Solunum", "Madde Döngüleri ve Çevre Sorunları", "Sürdürülebilir Kalkınma"] },
+            { unite: "Elektrik Yükleri ve Elektrik Enerjisi", konular: ["Elektrik Yükleri ve Elektriklenme", "Elektrik Yüklü Cisimler", "Elektrik Enerjisinin Dönüşümü"] }
+        ],
+        "Matematik": [
+            { unite: "Çarpanlar ve Katlar / Üslü İfadeler", konular: ["Çarpanlar ve Katlar (EBOB-EKOK)", "Üslü İfadeler"] },
+            { unite: "Kareköklü İfadeler ve Veri Analizi", konular: ["Kareköklü İfadeler", "Veri Analizi"] },
+            { unite: "Basit Olayların Olma Olasılığı ve Cebir", konular: ["Basit Olayların Olma Olasılığı", "Cebirsel İfadeler ve Özdeşlikler"] },
+            { unite: "Doğrusal Denklemler ve Eşitsizlikler", konular: ["Doğrusal Denklemler ve Grafik", "Eğim", "Eşitsizlikler"] },
+            { unite: "Üçgenler ve Eşlik-Benzerlik", konular: ["Üçgenler (Açı-Kenar Bağıntıları)", "Pisagor Bağıntısı", "Eşlik ve Benzerlik"] },
+            { unite: "Dönüşüm Geometrisi ve Geometrik Cisimler", konular: ["Dönüşüm Geometrisi", "Geometrik Cisimler (Prizma, Silindir, Koni, Piramit)"] }
+        ],
+        "Türkçe": [
+            { unite: "Fiilimsiler ve Dil Bilgisi", konular: ["Fiilimsiler", "Cümlenin Ögeleri", "Fiilde Çatı", "Cümle Türleri", "Anlatım Bozuklukları"] },
+            { unite: "Anlam Bilgisi", konular: ["Sözcükte Anlam", "Cümlede Anlam", "Paragrafta Anlam"] },
+            { unite: "Metin Türleri ve Söz Sanatları", konular: ["Metin Türleri", "Söz Sanatları"] },
+            { unite: "Yazım ve Noktalama", konular: ["Yazım Kuralları", "Noktalama İşaretleri"] },
+            { unite: "Sözel Mantık ve Görsel Yorumlama", konular: ["Sözel Mantık (Akıl Yürütme)", "Görsel ve Grafik Okuma"] }
+        ],
+        "Sosyal Bilgiler": [
+            { unite: "Bir Kahraman Doğuyor", konular: ["Mustafa Kemal'in Öğrenim Hayatı", "Mustafa Kemal'in Askerlik Hayatı"] },
+            { unite: "Milli Uyanış: Bağımsızlık Yolunda Atılan Adımlar", konular: ["Birinci Dünya Savaşı", "Mondros ve Cemiyetler", "Kuvâ-yı Milliye ve Kongreler", "BMM'nin Açılması ve İsyanlar", "Sevr Antlaşması"] },
+            { unite: "Milli Bir Destan: Ya İstiklal Ya Ölüm!", konular: ["Doğu ve Güney Cepheleri", "Batı Cephesi", "Mudanya ve Lozan"] },
+            { unite: "Atatürkçülük ve Çağdaşlaşan Türkiye", konular: ["Atatürk İlkeleri", "Siyasi Alandaki İnkılaplar", "Hukuk, Eğitim ve Kültür İnkılapları", "Ekonomi ve Toplum İnkılapları"] },
+            { unite: "Demokratikleşme Çabaları", konular: ["Çok Partili Hayata Geçiş Denemeleri", "Mustafa Kemal'e Suikast Girişimi"] },
+            { unite: "Atatürk Dönemi Türk Dış Politikası", konular: ["Dış Politika Temel İlkeleri", "Musul, Hatay ve Boğazlar Meselesi"] },
+            { unite: "Atatürk'ün Ölümü ve Sonrası", konular: ["Atatürk'ün Vefatı", "İkinci Dünya Savaşı ve Türkiye"] }
+        ]
+    },
+    "7": {
+        "Fen Bilimleri": [
+            { unite: "Güneş Sistemi ve Ötesi", konular: ["Uzay Araştırmaları", "Gök Cisimleri"] },
+            { unite: "Hücre ve Bölünmeler", konular: ["Hücre", "Mitoz", "Mayoz"] },
+            { unite: "Kuvvet ve Enerji", konular: ["Kütle ve Ağırlık İlişkisi", "Kuvvet, İş ve Enerji İlişkisi", "Enerji Dönüşümleri"] },
+            { unite: "Saf Madde ve Karışımlar", konular: ["Maddenin Tanecikli Yapısı", "Saf Maddeler", "Karışımlar", "Karışımların Ayrılması"] },
+            { unite: "Işığın Madde ile Etkileşimi", konular: ["Işığın Soğurulması", "Aynalar", "Işığın Kırılması ve Mercekler"] },
+            { unite: "Canlılarda Üreme, Büyüme ve Gelişme", konular: ["İnsanda Üreme, Büyüme ve Gelişme", "Bitki ve Hayvanlarda Üreme, Büyüme ve Gelişme"] },
+            { unite: "Elektrik Devreleri", konular: ["Ampullerin Bağlanma Şekilleri", "Elektrik Akımı ve Gerilim"] }
+        ],
+        "Matematik": [
+            { unite: "Tam Sayılarla İşlemler", konular: ["Tam Sayılarla Toplama ve Çıkarma", "Tam Sayılarla Çarpma ve Bölme", "Tam Sayı Problemleri"] },
+            { unite: "Rasyonel Sayılar", konular: ["Rasyonel Sayılar", "Rasyonel Sayılarla İşlemler", "Rasyonel Sayı Problemleri"] },
+            { unite: "Cebirsel İfadeler ve Eşitlik", konular: ["Cebirsel İfadeler", "Eşitlik ve Denklem"] },
+            { unite: "Oran ve Orantı / Yüzdeler", konular: ["Oran ve Orantı", "Yüzdeler"] },
+            { unite: "Doğrular, Açılar ve Çokgenler", konular: ["Doğrular ve Açılar", "Çokgenler", "Çember ve Daire"] },
+            { unite: "Veri Analizi ve Cisimler", konular: ["Veri Analizi", "Cisimlerin Farklı Yönlerden Görünümü"] }
+        ],
+        "Türkçe": [
+            { unite: "Fiiller ve Dil Bilgisi", konular: ["Fiiller", "Fiilde Yapı ve Ekler", "Zarflar", "Anlatım Bozuklukları"] },
+            { unite: "Anlam Bilgisi", konular: ["Sözcükte Anlam", "Cümlede Anlam", "Paragrafta Anlam"] },
+            { unite: "Yazım ve Noktalama", konular: ["Yazım Kuralları", "Noktalama İşaretleri"] }
+        ],
+        "Sosyal Bilgiler": [
+            { unite: "İletişim ve İnsan İlişkileri", konular: ["İletişim ve İnsan İlişkileri", "Medya ve İletişim"] },
+            { unite: "Türk Tarihinde Yolculuk", konular: ["Beylikten Cihan Devletine", "Osmanlı Devleti Kültürü"] },
+            { unite: "Ülkemizde Nüfus", konular: ["Nüfusun Dağılışı", "Göç ve Nedenleri"] },
+            { unite: "Zaman İçinde Bilim", konular: ["Bilimin Öncüleri", "Teknolojik Gelişmeler"] },
+            { unite: "Ekonomi ve Sosyal Hayat", konular: ["Üretim ve Meslekler", "Vakıflar"] },
+            { unite: "Yaşayan Demokrasi", konular: ["Demokrasinin Serüveni", "Cumhuriyetimizin Nitelikleri"] },
+            { unite: "Ülkeler Arası Köprüler", konular: ["Türkiye'nin Dış İlişkileri", "Küresel Sorunlar"] }
+        ]
+    },
+    "6": {
+        "Fen Bilimleri": [
+            { unite: "Güneş Sistemi ve Tutulmalar", konular: ["Güneş Sistemi ve Gezegenler", "Güneş ve Ay Tutulmaları"] },
+            { unite: "Vücudumuzdaki Sistemler", konular: ["Destek ve Hareket Sistemi", "Sindirim Sistemi", "Dolaşım Sistemi", "Solunum Sistemi", "Boşaltım Sistemi"] },
+            { unite: "Kuvvet ve Hareket", konular: ["Bileşke Kuvvet", "Sabit Süratli ve Sabit Hızlı Hareket"] },
+            { unite: "Madde ve Isı", konular: ["Maddenin Tanecikli Yapısı", "Yoğunluk", "Madde ve Isı", "Maddenin Hal Değişim Noktaları"] },
+            { unite: "Ses ve Özellikleri", konular: ["Sesin Yayılması", "Sesin Maddeyle Etkileşimi"] },
+            { unite: "Vücudumuzdaki Sistemler ve Sağlığı", konular: ["Denetleyici ve Düzenleyici Sistem", "Duyu Organları", "Sistemlerin Sağlığı"] },
+            { unite: "Elektriğin İletimi", konular: ["Elektriğin İletimi", "Elektriksel Direnç ve Direncin Bağlı Olduğu Faktörler"] }
+        ],
+        "Matematik": [
+            { unite: "Doğal Sayılar ve Çarpanlar", konular: ["Doğal Sayıların Çarpanları ve Katları", "Asal Sayılar ve Bölünebilme"] },
+            { unite: "Kümeler ve Kesirler", konular: ["Kümeler", "Kesirlerle İşlemler"] },
+            { unite: "Ondalık Gösterim ve Oran", konular: ["Ondalık Gösterim", "Oran"] },
+            { unite: "Cebirsel İfadeler ve Veri Dağılımı", konular: ["Cebirsel İfadeler", "Kategorik ve Nicel (Kesikli) Veri Dağılımları", "Deneysel Olasılık"] },
+            { unite: "Açılar ve Alan Ölçme", konular: ["İki Paralel Doğrunun Bir Kesen İle Oluşturduğu Açılar", "Paralelkenar ve Üçgenin Alanı", "Uzunluk ve Alan Ölçme Birimleri Arasındaki İlişki"] },
+            { unite: "Çember ve Geometrik Cisimler", konular: ["Çemberin ve Çapın Uzunlukları Arasındaki İlişki", "Çemberde Merkez Açı ve Gördüğü Yay Uzunluğu"] }
+        ],
+        "Türkçe": [
+            { unite: "Anlam Bilgisi", konular: ["Sözcükte Anlam", "Cümlede Anlam", "Paragrafta Anlam"] },
+            { unite: "Dil Bilgisi", konular: ["İsimler, Sıfatlar, Zamirler", "Edat, Bağlaç, Ünlem"] },
+            { unite: "Yazım ve Noktalama", konular: ["Yazım Kuralları", "Noktalama İşaretleri"] }
+        ],
+        "Sosyal Bilgiler": [
+            { unite: "Biz ve Değerlerimiz", konular: ["Zaman İçinde Değişen Gruplar ve Roller", "Kültürel Bağlarımızın ve Milli Değerlerimizin Toplumsal Birlikteliğe Etkisi", "Toplumsal Sorunlar ve Çözümler Önerileri"] },
+            { unite: "Tarihe Yolculuk", konular: ["Türkistan'da Kurulan İlk Türk Devletlerinin Medeniyetimize Katkısı", "VII-XIII. Yüzyıllar Arasında İslam Medeniyetinin İnsanlığın Ortak Mirasına Katkıları", "İslamiyet'in Kabulüyle Türklerin Sosyal ve Kültürel Hayatlarında Meydana Gelen Değişimler", "XI - XIII. Yüzyıllar Arasında Meydana Gelen Askeri Mücadelelerin Anadolu'nun Türkleşmesi ve İslamlaşmasına Katkıları"] },
+            { unite: "Yeryüzünde Yaşam", konular: ["Ülkemizin, Kıtaların ve Okyanusların Konum Özellikleri", "Doğal ve Beşeri Çevre Özellikleri Arasındaki İlişki"] },
+            { unite: "Bilim, Teknoloji ve Toplum", konular: ["Telif ve Patent Süreci", "Dijitalleşme ve Teknolojik Gelişmelerin Vatandaşlık Hak ve Sorumluluklarına Etkileri"] },
+            { unite: "Üretim, Dağıtım ve Tüketim", konular: ["Ülkemizin Kaynakları ve Ekonomik Faaliyetler", "Ekonomik Faaliyetler ve Meslekler", "Tasarlanan Bir Ürünün Yatırım ve Pazarlama Süreci"] },
+            { unite: "Yönetime Katılıyorum", konular: ["Yönetimin Karar Alma Sürecini Etkileyen Unsurlar", "Temel Haklar, Sorumlulukların Toplumsal Düzenin Sürdürülmesindeki Önemi"] },
+            { unite: "Uluslararası İlişkiler", konular: ["Ülkemizin Türk Dünyasıyla Kültürel İş Birlikleri", "Ulaşım ve İletişim Teknolojilerinin Kültürel Etkileşimdeki Rolü"] }
+        ]
+    },
+    "5": {
+        "Fen Bilimleri": [
+            { unite: "Güneş, Dünya ve Ay", konular: ["Gökyüzündeki Komşumuz: Güneş", "Gökyüzündeki Komşumuz: Ay", "Dünyamız ve Hareketleri"] },
+            { unite: "Kuvvetin Ölçülmesi ve Sürtünme", konular: ["Kuvvet ve Kuvvetin Ölçülmesi", "Kütle ve Ağırlık İlişkisi", "Sürtünme Kuvveti"] },
+            { unite: "Vücudumuzdaki Sistemler", konular: ["Hücre ve Organelleri", "Destek ve Hareket Sistemi"] },
+            { unite: "Işığın Yayılması", konular: ["Işığın Yayılması", "Işığın Madde ile Etkileşimi", "Tam Gölge"] },
+            { unite: "Madde ve Değişim", konular: ["Maddenin Tanecikli Yapısı", "Isı ve Sıcaklık", "Maddenin Hal Değişimi", "Madde ve Isı"] },
+            { unite: "Elektrik Devre Elemanları", konular: ["Devre Elemanlarının Sembol ile Gösterimi ve Devre Şemaları", "Ampul Parlaklığını Etkileyen Değişkenler"] },
+            { unite: "İnsan ve Çevre", konular: ["Evsel Atıklar ve Geri Dönüşüm"] }
+        ],
+        "Matematik": [
+            { unite: "Geometrik Kavramlar ve Çokgenler", konular: ["Temel Geometrik Kavramlar ve Çizimler", "Açıların Ölçüsü", "Çokgenler", "Geometrik Nicelikler"] },
+            { unite: "Doğal Sayılar ve İşlemler", konular: ["Doğal Sayılar", "Doğal Sayılarda İşlemler"] },
+            { unite: "Kesirler ve Yüzdeler", konular: ["Kesirler", "Ondalık Gösterim ve Yüzdeler", "Kesir, Ondalık Gösterim Ve Yüzdeleri Karşılaştırma"] },
+            { unite: "Veri ve Olasılık", konular: ["Veri Toplama ve Değerlendirme", "Veriden Olasılığa"] },
+            { unite: "Cebirsel Düşünme ve Algoritma", konular: ["İşlemlerle Cebirsel Düşünme", "Örüntüler ve Algoritma"] }
+        ],
+        "Türkçe": [
+            { unite: "Anlam Bilgisi", konular: ["Sözcükte Anlam", "Sözcükler Arası Anlam İlişkileri", "Cümlede Anlam", "Atasözleri, Deyimler ve Özdeyişler", "Parçada Anlam"] },
+            { unite: "Dil Bilgisi ve Şiir", konular: ["İsimler", "Zamirler", "Sıfatlar", "Söz Sanatları", "Şiir Bilgisi"] },
+            { unite: "Yazım, Noktalama ve Mantık", konular: ["Yazım (İmla) Kuralları", "Noktalama İşaretleri", "Metin Türleri", "Görsel ve Grafik Okuma", "Sözel Mantık ve Muhakeme"] }
+        ],
+        "Sosyal Bilgiler": [
+            { unite: "Birlikte Yaşıyoruz", konular: ["Gruplar ve Roller", "Kültürel Özelliklere Saygı ve Birlikte Yaşama Kültürü", "Yardımlaşma ve Dayanışma Faaliyetlerinin Toplumsal Birliğe Etkisi"] },
+            { unite: "Evimiz Dünya", konular: ["Yaşadığı İlin Göreceli Konumu", "Yaşadığı İlde Doğal ve Beşeri Çevredeki Değişim", "Yaşadığı İlde Meydana Gelebilecek Afetlerin Etkisi"] },
+            { unite: "Ortak Mirasımız", konular: ["Ülkemize Komşu Devletler", "Ortak Miras Ögeleri", "Somut ve Somut Olmayan Kültürel Miras Ögeleri Anadolu'nun İlk Yerleşim Yerlerinde Sosyal Hayat", "Mezopotamya ve Anadolu Medeniyetlerinin Ortak Mirasa Katkıları"] },
+            { unite: "Yaşayan Demokrasi", konular: ["Demokrasi ve Cumhuriyet Kavramının Temel Nitelikleri", "Etkin Vatandaşın Özellikleri ve Önemi", "Temel Haklar, Sorumluluklar ve Önemi", "İhtiyaç Durumunda veya Sorunların Çözümünde Başvurulabilecek Kurumlar"] },
+            { unite: "Üreten Türkiye", konular: ["Kaynakların Verimli Kullanımı", "Bütçe Oluşturma", "Yaşadığım İldeki Ekonomik Faaliyetler"] },
+            { unite: "Hayatımızdaki Teknoloji", konular: ["Teknolojik Gelişmelerin Toplum Hayatına Etkileri", "Teknolojik Ürünlerin Bilinçli Kullanımı"] }
+        ]
+    }
+};
+
+export function getUnitsAndTopicsBySinifAndDers(sinif, ders) {
+    const rawSinif = String(sinif || "8").trim();
+    const effectiveSinif = CURRICULUM_UNITS[rawSinif] ? rawSinif : "8";
+    const gradeUnits = CURRICULUM_UNITS[effectiveSinif] || CURRICULUM_UNITS["8"];
+
+    const rawDers = String(ders || "").trim();
+    if (rawDers && gradeUnits[rawDers]) {
+        return gradeUnits[rawDers];
+    }
+
+    if (gradeUnits["Fen Bilimleri"]) return gradeUnits["Fen Bilimleri"];
+    const firstKey = Object.keys(gradeUnits)[0];
+    return firstKey ? gradeUnits[firstKey] : [];
+}
+
+export function getUnitListBySinifAndDers(sinif, ders) {
+    const units = getUnitsAndTopicsBySinifAndDers(sinif, ders);
+    return units.map(u => u.unite);
+}
+
+export function getTopicsForUnit(sinif, ders, uniteName) {
+    const units = getUnitsAndTopicsBySinifAndDers(sinif, ders);
+    const target = units.find(u => u.unite === uniteName);
+    return target ? target.konular : [];
+}
+
 export const GENEL_DERSLER_GORUNUM = ["Türkçe", "İnkılap Tarihi / Sosyal Bilgiler", "Din Kültürü ve Ahlak Bilgisi", "Yabancı Dil (İngilizce)", "Matematik", "Fen Bilimleri"];
 export const GENEL_DERSLER_KEY = ["Türkçe", "İnkılap Tarihi ve Sosyal Bilgiler", "Din Kültürü ve Ahlak Bilgisi", "Yabancı Dil (İngilizce)", "Matematik", "Fen Bilimleri"];
 
@@ -309,28 +471,30 @@ export const GUEST_STORAGE_PREFIX = "canfenci_guest_v1__";
 
 // Migration for legacy teacher branches
 let initialBranches = ["Türkçe", "Matematik", "Fen Bilimleri", "Sosyal Bilgiler"];
-try {
-    const cached = localStorage.getItem('teacher_branches_v1');
-    if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) {
-            // Upgrade legacy list containing only Math/Science
-            if (parsed.length === 2 && parsed.includes("Matematik") && parsed.includes("Fen Bilimleri")) {
-                initialBranches = ["Türkçe", "Matematik", "Fen Bilimleri", "Sosyal Bilgiler"];
-                localStorage.setItem('teacher_branches_v1', JSON.stringify(initialBranches));
-            } else {
-                initialBranches = parsed;
+if (typeof localStorage !== 'undefined') {
+    try {
+        const cached = localStorage.getItem('teacher_branches_v1');
+        if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed)) {
+                // Upgrade legacy list containing only Math/Science
+                if (parsed.length === 2 && parsed.includes("Matematik") && parsed.includes("Fen Bilimleri")) {
+                    initialBranches = ["Türkçe", "Matematik", "Fen Bilimleri", "Sosyal Bilgiler"];
+                    localStorage.setItem('teacher_branches_v1', JSON.stringify(initialBranches));
+                } else {
+                    initialBranches = parsed;
+                }
             }
         }
+    } catch (e) {
+        console.warn("Error parsing teacher branches:", e);
     }
-} catch (e) {
-    console.warn("Error parsing teacher branches:", e);
 }
 
 // Mutable global state store
 export const store = {
     currentStudentId: null,
-    darkMode: localStorage.getItem('darkMode') === 'true',
+    darkMode: typeof localStorage !== 'undefined' ? localStorage.getItem('darkMode') === 'true' : false,
     activeFilter: "all",
     currentPage: "general",
     globalStudents: [],
@@ -347,8 +511,8 @@ export const store = {
     syncUserId: null,
     firestoreUnsubscribers: [],
     teacherBranches: initialBranches,
-    teacherName: localStorage.getItem('teacher_name_v1') || "Öğretmen Adı",
-    teacherSchool: localStorage.getItem('teacher_school_v1') || "Belirtilmemiş Okul"
+    teacherName: (typeof localStorage !== 'undefined' ? localStorage.getItem('teacher_name_v1') : null) || "Öğretmen Adı",
+    teacherSchool: (typeof localStorage !== 'undefined' ? localStorage.getItem('teacher_school_v1') : null) || "Belirtilmemiş Okul"
 };
 
 export function localDataKey(key) {
@@ -571,7 +735,8 @@ export function deleteGroupData(groupId) {
 }
 
 // Bind to window for global accessibility
-window.store = store;
+if (typeof window !== 'undefined') {
+    window.store = store;
 window.STORAGE_KEY = STORAGE_KEY;
 window.SCHEDULE_KEY = SCHEDULE_KEY;
 window.DERS_KAYITLARI_KEY = DERS_KAYITLARI_KEY;
@@ -590,7 +755,12 @@ window.normalizeStudent = normalizeStudent;
 window.getStudentOdevler = getStudentOdevler;
 window.getKonuListesiBySinif = getKonuListesiBySinif;
 window.getKonuListesiBySinifAndDers = getKonuListesiBySinifAndDers;
+window.getUnitsAndTopicsBySinifAndDers = getUnitsAndTopicsBySinifAndDers;
+window.getUnitListBySinifAndDers = getUnitListBySinifAndDers;
+window.getTopicsForUnit = getTopicsForUnit;
+window.CURRICULUM_UNITS = CURRICULUM_UNITS;
 window.getErrorColor = getErrorColor;
 window.loadGroupsData = loadGroupsData;
 window.saveGroupsData = saveGroupsData;
 window.deleteGroupData = deleteGroupData;
+}

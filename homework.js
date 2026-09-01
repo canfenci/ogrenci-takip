@@ -6,7 +6,7 @@ import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
-import { buildHomeworkErrorTopics } from './homework-error-topics.js';
+import { buildHomeworkErrorTopics, HATA_NEDENLERI, normalizeHomeworkErrorAnalysis, validateErrorAnalysisTotal, normalizeHataNedeniLabel, normalizeHataNedeniKey, getUnitsAndTopicsBySinifAndDers, getUnitListBySinifAndDers, getTopicsForUnit } from './homework-error-topics.js';
 import { buildWorkPerformance } from './work-performance-insights.js';
 import { buildHomeworkDashboard, filterHomeworkDashboard } from './homework-dashboard-insights.js';
 import { buildHomeworkReportData, normalizeReportFilename, buildWhatsAppReportMessage, generateHomeworkPdf } from './homework-report-insights.js';
@@ -437,57 +437,361 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     if (!student) return;
     const odev = getStudentOdevler(student).find(o => o.id === hwId);
     if (!odev) return;
-    const isTopicTest = odev.tur === 'Konu Denemesi';
-    const availableTopics = getKonuListesiBySinifAndDers(student.sinif, odev.ders || odev.kaynakDers?.ders || '');
-    const topicOptions = availableTopics.includes(odev.konu) ? availableTopics : [odev.konu, ...availableTopics].filter(Boolean);
+
+    const studentSinif = student.sinif || '8';
+    const homeworkDers = odev.ders || odev.kaynakDers?.ders || 'Fen Bilimleri';
+    const unitCatalog = getUnitsAndTopicsBySinifAndDers(studentSinif, homeworkDers);
+    const unitList = unitCatalog.map(u => u.unite);
+
+    const initialWrong = Number(odev.yanlis) || 0;
+    const initialCorrect = Number(odev.dogru) || 0;
+    const existingErrors = normalizeHomeworkErrorAnalysis(odev);
+
     const modal = document.createElement('div');
     modal.id = "homeworkResultModal";
     modal.className = "app-modal-backdrop";
     modal.addEventListener('click', event => { if (event.target === modal) modal.remove(); });
+
     modal.innerHTML = `
-        <div class="app-modal max-w-md" onclick="event.stopPropagation()">
-            <div class="app-modal-header"><div><h2 class="app-page-title text-xl">Ödev Sonucu Gir</h2><p class="app-page-subtitle">${escapeHtml(odev.konu)} · ${escapeHtml(odev.yayin)}</p></div><button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Pencereyi kapat"><i class="fas fa-times"></i></button></div>
-            <div class="app-modal-body space-y-3">
+        <div class="app-modal max-w-lg max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="app-modal-header">
                 <div>
-                    <label class="text-sm font-semibold">Doğru Sayısı</label>
-                    <input type="number" id="manualCorrect" min="0" value="0" class="student-form-input min-h-[44px]">
+                    <h2 class="app-page-title text-xl">Ödev Sonucu Gir</h2>
+                    <p class="app-page-subtitle">${escapeHtml(odev.konu)} · ${escapeHtml(odev.yayin)} (${escapeHtml(student.adSoyad || '')})</p>
                 </div>
-                <div>
-                    <label class="text-sm font-semibold">Yanlış Sayısı</label>
-                    <input type="number" id="manualWrong" min="0" value="0" class="student-form-input min-h-[44px]">
-                </div>
-                <div class="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/10 p-3 space-y-3">
+                <button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Pencereyi kapat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="app-modal-body space-y-4">
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-sm font-semibold">Yanlış Yapılan Ana Konu</label>
-                        ${isTopicTest
-                            ? `<div id="manualWrongTopicFixed" data-topic="${escapeHtml(odev.konu)}" class="mt-1 rounded-xl bg-white dark:bg-gray-800 border px-3 py-2 font-bold">${escapeHtml(odev.konu)} <span class="block text-xs font-normal text-gray-500">Konu denemesinde otomatik belirlenir.</span></div>`
-                            : `<select id="manualWrongTopic" class="student-form-input min-h-[44px]"><option value="">Konu seçin</option>${topicOptions.map(topic => `<option value="${escapeHtml(topic)}">${escapeHtml(topic)}</option>`).join('')}</select>`}
+                        <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Doğru Sayısı</label>
+                        <input type="number" id="manualCorrect" min="0" value="${initialCorrect}" class="student-form-input min-h-[44px]">
                     </div>
                     <div>
-                        <label class="text-sm font-semibold">Alt Konu <span class="text-xs font-normal text-gray-500">(isteğe bağlı)</span></label>
-                        <input id="manualWrongSubtopicText" class="student-form-input min-h-[44px] mt-1" placeholder="Boş bırakabilir veya örn. Eksen Eğikliği yazabilirsiniz">
+                        <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Yanlış Sayısı</label>
+                        <input type="number" id="manualWrong" min="0" value="${initialWrong}" class="student-form-input min-h-[44px]">
                     </div>
                 </div>
-                <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2"><button onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary flex-1 py-2.5 min-h-[44px]">İptal</button><button onclick="saveManualOdevResult('${studentId}', '${hwId}')" class="btn-primary flex-1 py-2.5 min-h-[44px]"><i class="fas fa-check mr-1"></i> Sonucu Kaydet</button></div>
+
+                <!-- Error Analysis Section (Ünite + Konu Odaklı) -->
+                <div id="errorAnalysisSection" class="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10 p-3.5 space-y-3 ${initialWrong > 0 ? '' : 'hidden'}">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-black uppercase tracking-wider text-red-900 dark:text-red-200 flex items-center gap-1.5">
+                                <i class="fas fa-list-check text-red-600"></i> Yanlış Analizi (Ünite & Konu)
+                            </span>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Yanlış yapılan ünite, konu ve hata nedenlerini sınıflandırın.</p>
+                        </div>
+                        <button type="button" id="addErrorRowBtn" class="border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 bg-white dark:bg-gray-800 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <i class="fas fa-plus text-[10px]"></i> Alan Ekle
+                        </button>
+                    </div>
+
+                    <div id="errorRowsContainer" class="space-y-3">
+                        <!-- Dynamic rows will be inserted here -->
+                    </div>
+
+                    <div id="errorAllocationStatus" class="text-[11px] font-bold text-gray-600 dark:text-gray-400 flex items-center justify-between pt-1 border-t border-red-100 dark:border-red-900/40">
+                        <span id="errorAllocationSummary">Analiz Edilen: 0 / 0</span>
+                        <span id="errorAllocationWarning" class="text-red-600 font-bold hidden">⚠️ Yanlış toplamı aşıldı!</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+                    <button onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary flex-1 py-2.5 min-h-[44px]">İptal</button>
+                    <button onclick="saveManualOdevResult('${studentId}', '${hwId}')" class="btn-primary flex-1 py-2.5 min-h-[44px]">
+                        <i class="fas fa-check mr-1"></i> Sonucu Kaydet
+                    </button>
+                </div>
             </div>
         </div>
     `;
+
     document.body.appendChild(modal);
+
+    const wrongInput = document.getElementById('manualWrong');
+    const analysisSection = document.getElementById('errorAnalysisSection');
+    const rowsContainer = document.getElementById('errorRowsContainer');
+    const addRowBtn = document.getElementById('addErrorRowBtn');
+    const allocationSummary = document.getElementById('errorAllocationSummary');
+    const allocationWarning = document.getElementById('errorAllocationWarning');
+
+    function renderErrorRow(data = {}) {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'error-row bg-white dark:bg-gray-800 rounded-xl p-3 border border-red-100 dark:border-red-900/40 space-y-2.5 shadow-xs relative';
+
+        // Determine default unit and topic
+        let defaultUnit = data.unite || '';
+        let defaultKonu = data.konu || data.altKonu || '';
+
+        if (!defaultUnit) {
+            const foundUnit = unitCatalog.find(u => u.unite === odev.konu || u.konular.includes(odev.konu));
+            if (foundUnit) {
+                defaultUnit = foundUnit.unite;
+                if (!defaultKonu && foundUnit.konular.includes(odev.konu)) {
+                    defaultKonu = odev.konu;
+                }
+            } else {
+                defaultUnit = unitList[0] || odev.konu || 'Genel';
+            }
+        }
+
+        const countVal = Number(data.adet) || 1;
+        const selectedReasonKeys = Array.isArray(data.hataNedenleriKeys) && data.hataNedenleriKeys.length > 0
+            ? data.hataNedenleriKeys
+            : (Array.isArray(data.hataNedenleri) ? data.hataNedenleri.map(normalizeHataNedeniKey) : []);
+
+        const unitOptionsHtml = unitList.map(u => `<option value="${escapeHtml(u)}" ${u === defaultUnit ? 'selected' : ''}>${escapeHtml(u)}</option>`).join('') + `<option value="__custom__">✍️ Manuel Gir</option>`;
+
+        rowDiv.innerHTML = `
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                <!-- Ünite Seçimi -->
+                <div class="sm:col-span-6">
+                    <label class="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-0.5">Ünite / Yanlış Yapılan Ana Konu</label>
+                    <select class="error-unit-select student-form-input text-xs min-h-[38px] py-1.5 font-bold">
+                        ${unitOptionsHtml}
+                    </select>
+                    <input type="text" class="error-unit-custom student-form-input text-xs min-h-[38px] py-1.5 mt-1 hidden" placeholder="Ünite adını yazın">
+                </div>
+
+                <!-- Konu Seçimi -->
+                <div class="sm:col-span-4">
+                    <label class="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-0.5">Konu / Alt Konu</label>
+                    <select class="error-topic-select student-form-input text-xs min-h-[38px] py-1.5">
+                        <!-- Populated dynamically -->
+                    </select>
+                    <input type="text" class="manualWrongSubtopicText error-topic-custom student-form-input text-xs min-h-[38px] py-1.5 mt-1 hidden" placeholder="Konu adını yazın">
+                </div>
+
+                <!-- Yanlış Adedi & Sil Butonu -->
+                <div class="sm:col-span-2 flex items-center gap-1.5">
+                    <div class="flex-1">
+                        <label class="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-0.5">Adet</label>
+                        <input type="number" min="1" value="${countVal}" class="error-count-input student-form-input text-xs min-h-[38px] py-1.5 text-center font-bold">
+                    </div>
+                    <button type="button" class="remove-error-row-btn text-gray-400 hover:text-red-600 p-1.5 mt-4 min-h-[38px] min-w-[34px] inline-flex items-center justify-center transition" title="Bu alanı sil">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hata Nedenleri (Çoklu Seçim) -->
+            <div>
+                <label class="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">Hata Nedeni <span class="text-[10px] font-normal text-gray-400">(çoklu seçim)</span></label>
+                <div class="flex flex-wrap gap-1.5 error-reasons-group">
+                    ${HATA_NEDENLERI.map(hn => {
+                        const isChecked = selectedReasonKeys.includes(hn.key);
+                        return `
+                            <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition border select-none ${isChecked ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200'}">
+                                <input type="checkbox" value="${escapeHtml(hn.key)}" class="hidden error-reason-cb" ${isChecked ? 'checked' : ''}>
+                                <span>${escapeHtml(hn.label)}</span>
+                            </label>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+
+        const unitSelect = rowDiv.querySelector('.error-unit-select');
+        const unitCustom = rowDiv.querySelector('.error-unit-custom');
+        const topicSelect = rowDiv.querySelector('.error-topic-select');
+        const topicCustom = rowDiv.querySelector('.error-topic-custom');
+
+        function updateTopicsForSelectedUnit(targetKonu = '') {
+            const currentUnit = unitSelect.value === '__custom__' ? unitCustom.value.trim() : unitSelect.value;
+            const topics = getTopicsForUnit(studentSinif, homeworkDers, currentUnit);
+
+            if (topics.length > 0) {
+                topicSelect.classList.remove('hidden');
+                topicSelect.innerHTML = topics.map(t => `<option value="${escapeHtml(t)}" ${t === targetKonu ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('') + `<option value="__custom__" ${targetKonu && !topics.includes(targetKonu) ? 'selected' : ''}>✍️ Manuel Gir</option>`;
+                if (targetKonu && !topics.includes(targetKonu)) {
+                    topicCustom.value = targetKonu;
+                    topicCustom.classList.remove('hidden');
+                } else {
+                    topicCustom.classList.add('hidden');
+                }
+            } else {
+                topicSelect.classList.add('hidden');
+                topicCustom.classList.remove('hidden');
+                if (targetKonu) topicCustom.value = targetKonu;
+            }
+        }
+
+        unitSelect.addEventListener('change', () => {
+            if (unitSelect.value === '__custom__') {
+                unitCustom.classList.remove('hidden');
+                unitCustom.focus();
+                topicSelect.classList.add('hidden');
+                topicCustom.classList.remove('hidden');
+            } else {
+                unitCustom.classList.add('hidden');
+                updateTopicsForSelectedUnit();
+            }
+        });
+
+        unitCustom.addEventListener('input', () => {
+            updateTopicsForSelectedUnit();
+        });
+
+        topicSelect.addEventListener('change', () => {
+            if (topicSelect.value === '__custom__') {
+                topicCustom.classList.remove('hidden');
+                topicCustom.focus();
+            } else {
+                topicCustom.classList.add('hidden');
+            }
+        });
+
+        // Initialize topic dropdown
+        updateTopicsForSelectedUnit(defaultKonu);
+
+        // Wire checkbox toggle style
+        rowDiv.querySelectorAll('.error-reasons-group label').forEach(lbl => {
+            const cb = lbl.querySelector('input[type="checkbox"]');
+            cb.addEventListener('change', () => {
+                if (cb.checked) {
+                    lbl.className = 'cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition border select-none bg-blue-600 text-white border-blue-600 shadow-xs';
+                } else {
+                    lbl.className = 'cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition border select-none bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200';
+                }
+            });
+        });
+
+        // Wire count input change for sum check
+        const countInp = rowDiv.querySelector('.error-count-input');
+        countInp.addEventListener('input', updateSumValidation);
+
+        // Wire remove row
+        const removeBtn = rowDiv.querySelector('.remove-error-row-btn');
+        removeBtn.addEventListener('click', () => {
+            rowDiv.remove();
+            updateSumValidation();
+        });
+
+        rowsContainer.appendChild(rowDiv);
+        updateSumValidation();
+    }
+
+    function updateSumValidation() {
+        const wrongTotal = parseInt(wrongInput.value) || 0;
+        let sum = 0;
+        rowsContainer.querySelectorAll('.error-count-input').forEach(inp => {
+            sum += parseInt(inp.value) || 0;
+        });
+
+        allocationSummary.textContent = `Analiz Edilen: ${sum} / ${wrongTotal} Yanlış`;
+        if (sum > wrongTotal && wrongTotal > 0) {
+            allocationWarning.classList.remove('hidden');
+            allocationWarning.textContent = `⚠️ Toplam ${wrongTotal} yanlışı aştı (${sum})!`;
+        } else {
+            allocationWarning.classList.add('hidden');
+        }
+    }
+
+    wrongInput.addEventListener('input', () => {
+        const wrongVal = parseInt(wrongInput.value) || 0;
+        if (wrongVal > 0) {
+            analysisSection.classList.remove('hidden');
+            if (rowsContainer.children.length === 0) {
+                renderErrorRow({ adet: wrongVal });
+            }
+        } else {
+            analysisSection.classList.add('hidden');
+        }
+        updateSumValidation();
+    });
+
+    addRowBtn.addEventListener('click', () => {
+        const wrongVal = parseInt(wrongInput.value) || 0;
+        let currentSum = 0;
+        rowsContainer.querySelectorAll('.error-count-input').forEach(inp => {
+            currentSum += parseInt(inp.value) || 0;
+        });
+        const remaining = Math.max(1, wrongVal - currentSum);
+        renderErrorRow({ adet: remaining });
+    });
+
+    // Populate initial rows
+    if (initialWrong > 0) {
+        if (existingErrors.length > 0) {
+            existingErrors.forEach(err => renderErrorRow(err));
+        } else {
+            renderErrorRow({ adet: initialWrong });
+        }
+    }
 }
 
 export function saveManualOdevResult(studentId, hwId) {
-    const correct = parseInt(document.getElementById('manualCorrect').value) || 0;
-    const wrong = parseInt(document.getElementById('manualWrong').value) || 0;
-    const homeworkType = document.getElementById('manualWrongTopicFixed') ? 'Konu Denemesi' : '';
-    const subtopic = document.getElementById('manualWrongSubtopicText')?.value.trim() || '';
-    const errorTopics = buildHomeworkErrorTopics({
-        homeworkType,
-        assignedTopic: document.getElementById('manualWrongTopicFixed')?.dataset.topic || '',
-        selectedTopic: document.getElementById('manualWrongTopic')?.value || '',
-        subtopic,
-        wrong
-    });
-    if (wrong > 0 && errorTopics.length === 0) return alert('Yanlış yapılan ana konuyu seçin.');
+    const correct = parseInt(document.getElementById('manualCorrect')?.value) || 0;
+    const wrong = parseInt(document.getElementById('manualWrong')?.value) || 0;
+
+    let errorTopics = [];
+
+    if (wrong > 0) {
+        const rows = document.querySelectorAll('#errorRowsContainer .error-row');
+        const entries = [];
+        let totalCount = 0;
+
+        rows.forEach(row => {
+            let unite = '';
+            const unitSelect = row.querySelector('.error-unit-select');
+            if (unitSelect) {
+                if (unitSelect.value === '__custom__') {
+                    unite = row.querySelector('.error-unit-custom')?.value.trim() || '';
+                } else {
+                    unite = unitSelect.value.trim();
+                }
+            }
+
+            let konu = '';
+            const topicSelect = row.querySelector('.error-topic-select');
+            if (topicSelect && !topicSelect.classList.contains('hidden')) {
+                if (topicSelect.value === '__custom__') {
+                    konu = row.querySelector('.error-topic-custom')?.value.trim() || '';
+                } else {
+                    konu = topicSelect.value.trim();
+                }
+            } else {
+                konu = row.querySelector('.error-topic-custom')?.value.trim() || '';
+            }
+
+            const count = parseInt(row.querySelector('.error-count-input')?.value) || 1;
+            totalCount += count;
+
+            const selectedReasons = [];
+            row.querySelectorAll('.error-reason-cb:checked').forEach(cb => {
+                const canonicalKey = normalizeHataNedeniKey(cb.value);
+                if (canonicalKey) selectedReasons.push(canonicalKey);
+            });
+
+            if (unite || konu) {
+                entries.push({
+                    unite: unite || konu,
+                    konu: konu || unite,
+                    altKonu: konu,
+                    adet: count,
+                    hataNedenleri: selectedReasons
+                });
+            }
+        });
+
+        if (totalCount > wrong) {
+            alert(`Analiz edilen yanlış toplamı (${totalCount}) genel yanlış sayısını (${wrong}) geçemez. Lütfen adetleri kontrol edin.`);
+            return;
+        }
+
+        if (entries.length > 0) {
+            errorTopics = buildHomeworkErrorTopics({ entries, wrong });
+        } else {
+            errorTopics = buildHomeworkErrorTopics({
+                assignedTopic: 'Genel',
+                wrong
+            });
+        }
+    }
+
     const returnToDashboard = window._homeworkDashboardReturn;
     const renderAfterSave = () => {
         if (returnToDashboard) {
@@ -497,6 +801,7 @@ export function saveManualOdevResult(studentId, hwId) {
             renderStudentOdevDetay(studentId);
         }
     };
+
     if (store.useFirestore && isFirebaseActive) {
         db.collection("homeworks").doc(hwId).update({
             durum: "tamamlandi",
@@ -640,9 +945,30 @@ export function openHomeworkDetailModal(studentId, homeworkId) {
                         <!-- Error Topics if any -->
                         ${reportData.yanlisKonular && reportData.yanlisKonular.length > 0 ? `
                             <div class="p-3.5 bg-red-50/40 dark:bg-red-950/20 rounded-xl border border-red-200/60 dark:border-red-900/50">
-                                <span class="text-xs font-black uppercase tracking-wider text-red-900 dark:text-red-200 block mb-1">Tekrar Edilmesi Gereken Konular</span>
-                                <div class="space-y-1">
-                                    ${reportData.yanlisKonular.map(item => `<div class="text-xs text-red-700 dark:text-red-300 font-semibold">• ${escapeHtml(item.konu)}${item.altKonu ? ` › ${escapeHtml(item.altKonu)}` : ''} <span class="text-gray-500 dark:text-gray-400">(${item.adet} Yanlış)</span></div>`).join('')}
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i class="fas fa-list-check text-red-600 dark:text-red-400 text-xs"></i>
+                                    <span class="text-xs font-black uppercase tracking-wider text-red-900 dark:text-red-200">Yanlış Analizi</span>
+                                </div>
+                                <div class="space-y-2">
+                                    ${reportData.yanlisKonular.map(item => {
+                                        const mainTitle = item.unite || item.konu || 'Genel';
+                                        const subTitle = (item.konu && item.unite && item.konu !== item.unite) ? item.konu : (item.altKonu || '');
+                                        return `
+                                            <div class="bg-white/90 dark:bg-gray-800/90 p-2.5 rounded-lg border border-red-100 dark:border-red-900/40 flex flex-col gap-1 shadow-2xs">
+                                                <div class="flex items-center justify-between text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                    <span>• ${escapeHtml(mainTitle)}${subTitle ? ` › <span class="text-gray-500 font-normal">${escapeHtml(subTitle)}</span>` : ''}</span>
+                                                    <span class="px-2 py-0.5 rounded text-[11px] font-black bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">${item.adet} Yanlış</span>
+                                                </div>
+                                                ${item.hataNedenleri && item.hataNedenleri.length > 0 ? `
+                                                    <div class="flex flex-wrap gap-1 mt-1">
+                                                        ${item.hataNedenleri.map(reason => `
+                                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600">${escapeHtml(normalizeHataNedeniLabel(reason))}</span>
+                                                        `).join('')}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        `;
+                                    }).join('')}
                                 </div>
                             </div>
                         ` : ''}
