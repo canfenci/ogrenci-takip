@@ -24,6 +24,8 @@ const ASSETS_TO_CACHE = [
   "./study-plan-engine.js",
   "./exams.js",
   "./homework.js",
+  "./homework-report-font.js",
+  "./homework-report-insights.js",
   "./schedule.js",
   "./schedule-conflicts.js",
   "./lesson-reminders.js",

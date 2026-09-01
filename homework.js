@@ -9,6 +9,7 @@ import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from
 import { buildHomeworkErrorTopics } from './homework-error-topics.js';
 import { buildWorkPerformance } from './work-performance-insights.js';
 import { buildHomeworkDashboard, filterHomeworkDashboard } from './homework-dashboard-insights.js';
+import { buildHomeworkReportData, normalizeReportFilename, buildWhatsAppReportMessage, generateHomeworkPdf } from './homework-report-insights.js';
 
 export function hideNavigationElements() {
     const sidebar = document.querySelector('#app-root > div.hidden.md\\:flex');
@@ -233,9 +234,9 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
                 <div><p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</p><p class="mt-1 text-xs text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p></div>
                 <div><p class="text-xs text-gray-400">Teslim</p><p class="mt-1 text-sm font-semibold">${escapeHtml(renderDate(homework.bitisTarihi))}</p></div>
                 <span class="inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}"><i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>${escapeHtml(due.label)}</span>
-                <div class="flex justify-end gap-2"><button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" ${due.key === 'completed' ? 'disabled' : ''} class="btn-secondary min-h-[44px] px-3 text-sm disabled:opacity-40"><i class="fas fa-pen mr-1"></i> Sonuç Gir</button><button onclick="renderStudentOdevDetay('${student.id}')" class="min-h-[44px] px-2 text-sm font-bold text-indigo-600 dark:text-indigo-300">Detay</button></div>
+                <div class="flex justify-end gap-2"><button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" ${due.key === 'completed' ? 'disabled' : ''} class="btn-secondary min-h-[44px] px-3 text-sm disabled:opacity-40"><i class="fas fa-pen mr-1"></i> Sonuç Gir</button><button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-sm font-bold text-blue-600 dark:text-blue-400">Detay</button></div>
             </div>
-            <div class="md:hidden"><div class="flex items-start justify-between gap-3"><div><p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p><h3 class="mt-1 font-bold text-base">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</h3></div><span class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}"><i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>${escapeHtml(due.label)}</span></div><p class="mt-2 text-sm text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p><div class="mt-3 flex items-center justify-between gap-3"><p class="text-xs text-gray-500">Teslim: <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(renderDate(homework.bitisTarihi))}</span></p><div class="flex gap-2"><button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" ${due.key === 'completed' ? 'disabled' : ''} class="btn-secondary min-h-[44px] px-3 text-sm disabled:opacity-40">Sonuç Gir</button><button onclick="renderStudentOdevDetay('${student.id}')" class="min-h-[44px] px-2 text-sm font-bold text-indigo-600 dark:text-indigo-300">Detay</button></div></div></div>
+            <div class="md:hidden"><div class="flex items-start justify-between gap-3"><div><p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p><h3 class="mt-1 font-bold text-base">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</h3></div><span class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}"><i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>${escapeHtml(due.label)}</span></div><p class="mt-2 text-sm text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p><div class="mt-3 flex items-center justify-between gap-3"><p class="text-xs text-gray-500">Teslim: <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(renderDate(homework.bitisTarihi))}</span></p><div class="flex gap-2"><button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" ${due.key === 'completed' ? 'disabled' : ''} class="btn-secondary min-h-[44px] px-3 text-sm disabled:opacity-40">Sonuç Gir</button><button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-sm font-bold text-blue-600 dark:text-blue-400">Detay</button></div></div></div>
         </article>`).join('');
     const metricCards = [
         ['fa-list-check', 'Aktif ödevler', dashboard.metrics.active, 'Teslim veya sonuç bekliyor'],
@@ -308,14 +309,18 @@ export function renderStudentOdevDetay(studentId, performanceFilter = 'all') {
                     ${resultText}
                 </div>
                 <div class="flex gap-2 flex-wrap items-center">
-                    ${!isCompleted ? `
+                    ${isCompleted ? `
+                        <button onclick="openHomeworkDetailModal('${studentId}', '${o.id}')" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 text-xs font-bold border border-blue-200 dark:border-blue-800 rounded-xl px-3 py-2.5 flex items-center gap-1.5 min-h-[44px] bg-blue-50/50 dark:bg-blue-950/20 shadow-xs">
+                            <i class="fas fa-file-pdf"></i> Rapor / PDF
+                        </button>
+                    ` : `
                         <button onclick="sendSingleHwReminder('${studentId}', '${o.id}')" class="text-teal-600 hover:text-teal-700 text-sm font-semibold border border-teal-200 dark:border-teal-800 rounded-lg px-3 py-2.5 flex items-center gap-1 min-h-[44px]">
                             <i class="fab fa-whatsapp"></i> Hatırlat
                         </button>
                         <button onclick="showEnterOdevSonucModal('${studentId}', '${o.id}')" class="text-green-500 hover:text-green-600 text-base font-semibold border rounded px-3 py-2.5 min-h-[44px]">
                             D/Y Gir
                         </button>
-                    ` : ''}
+                    `}
                     <button onclick="deleteOdev('${studentId}', '${o.id}')" class="text-red-500 hover:text-red-600 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -518,6 +523,284 @@ export function saveManualOdevResult(studentId, hwId) {
         document.getElementById('homeworkResultModal')?.remove();
         renderAfterSave();
     }
+}
+
+export function openHomeworkDetailModal(studentId, homeworkId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    const homework = getStudentOdevler(student).find(o => o.id === homeworkId);
+    if (!homework) return;
+
+    const reportData = buildHomeworkReportData({ student, homework });
+    if (!reportData) return;
+
+    const isCompleted = reportData.isCompleted;
+    const totalAns = Math.max(1, reportData.correct + reportData.wrong + reportData.emptyCount);
+    const correctPct = Math.round((reportData.correct / totalAns) * 100);
+    const wrongPct = Math.round((reportData.wrong / totalAns) * 100);
+    const emptyPct = 100 - correctPct - wrongPct;
+
+    const modalHtml = `
+        <div id="homeworkDetailModal" class="app-modal-backdrop fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="if(event.target===this) closeHomeworkDetailModal()">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-gray-100 dark:border-gray-700 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                <!-- Header -->
+                <div class="flex items-center justify-between border-b dark:border-gray-700 pb-3 mb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">CanFenci</span>
+                            <span class="text-xs font-bold text-gray-400 dark:text-gray-500">Ödev Değerlendirmesi</span>
+                        </div>
+                        <h2 class="text-lg font-black text-gray-900 dark:text-white mt-1">Öğrenci Performans Raporu</h2>
+                    </div>
+                    <button onclick="closeHomeworkDetailModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center" aria-label="Kapat">
+                        <i class="fas fa-times text-base"></i>
+                    </button>
+                </div>
+
+                <!-- Student & Homework Meta Info -->
+                <div class="space-y-3">
+                    <div class="p-3.5 bg-slate-50 dark:bg-gray-900/60 rounded-xl border border-gray-200/80 dark:border-gray-700 flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-black text-gray-400 uppercase tracking-wider block">Öğrenci</span>
+                            <span class="font-bold text-base text-gray-900 dark:text-white">${escapeHtml(reportData.studentName)}</span>
+                            <span class="text-xs font-bold text-gray-500 dark:text-gray-400 ml-2">(${escapeHtml(reportData.sinif)})</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-black text-gray-400 uppercase tracking-wider block">Tarih</span>
+                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">${reportData.reportDate}</span>
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200/80 dark:border-gray-700">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <span class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Ödev Detayı</span>
+                                <h3 class="font-black text-base text-gray-900 dark:text-white mt-0.5">${escapeHtml(reportData.konu)}${reportData.calismaDetayi ? ` · <span class="text-sm font-bold text-gray-700 dark:text-gray-300">${escapeHtml(reportData.calismaDetayi)}</span>` : ''}</h3>
+                            </div>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full ${isCompleted ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800'}">
+                                ${isCompleted ? 'Tamamlandı' : 'Bekliyor'}
+                            </span>
+                        </div>
+                        <div class="mt-2.5 pt-2 border-t border-gray-100 dark:border-gray-700/60 grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            <div><span class="font-semibold text-gray-400">Yayın:</span> <span class="font-bold text-gray-800 dark:text-gray-200">${escapeHtml(reportData.yayin)}</span></div>
+                            <div><span class="font-semibold text-gray-400">Tür:</span> <span class="font-bold text-gray-800 dark:text-gray-200">${escapeHtml(reportData.tur)}</span></div>
+                            <div><span class="font-semibold text-gray-400">Veriliş:</span> ${reportData.baslamaTarihi || '—'}</div>
+                            <div><span class="font-semibold text-gray-400">Teslim:</span> ${reportData.bitisTarihi || '—'}</div>
+                        </div>
+                    </div>
+
+                    ${isCompleted ? `
+                        <!-- Performance Metrics -->
+                        <div>
+                            <span class="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1.5">Performans Özeti</span>
+                            <div class="grid grid-cols-4 gap-2">
+                                <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/60 text-center">
+                                    <span class="block text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase">Doğru</span>
+                                    <span class="text-xl font-black text-emerald-600 dark:text-emerald-400">${reportData.correct}</span>
+                                </div>
+                                <div class="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/60 text-center">
+                                    <span class="block text-[10px] font-black text-red-700 dark:text-red-400 uppercase">Yanlış</span>
+                                    <span class="text-xl font-black text-red-600 dark:text-red-400">${reportData.wrong}</span>
+                                </div>
+                                <div class="p-3 rounded-xl bg-slate-50 dark:bg-gray-850 border border-slate-200 dark:border-gray-700 text-center">
+                                    <span class="block text-[10px] font-black text-slate-600 dark:text-gray-400 uppercase">Boş</span>
+                                    <span class="text-xl font-black text-slate-700 dark:text-gray-300">${reportData.emptyCount}</span>
+                                </div>
+                                <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/60 text-center">
+                                    <span class="block text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase">Net</span>
+                                    <span class="text-xl font-black text-blue-600 dark:text-blue-400">${reportData.net.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Progress Distribution Bar -->
+                        <div class="p-3 bg-slate-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/70 dark:border-gray-700">
+                            <div class="flex items-center justify-between text-xs font-bold mb-1.5">
+                                <span class="text-gray-600 dark:text-gray-300">Soru Dağılımı</span>
+                                <span class="text-blue-600 dark:text-blue-400 font-black">%${reportData.successRate} Başarı</span>
+                            </div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 flex overflow-hidden">
+                                <div class="bg-emerald-500 h-3" style="width: ${correctPct}%" title="Doğru: %${correctPct}"></div>
+                                <div class="bg-red-500 h-3" style="width: ${wrongPct}%" title="Yanlış: %${wrongPct}"></div>
+                                <div class="bg-gray-400 h-3" style="width: ${emptyPct}%" title="Boş: %${emptyPct}"></div>
+                            </div>
+                        </div>
+
+                        <!-- Academic Evaluation -->
+                        <div class="p-3.5 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-200/60 dark:border-blue-900/50">
+                            <div class="flex items-center gap-2 mb-1">
+                                <i class="fas fa-chart-line text-blue-600 dark:text-blue-400 text-xs"></i>
+                                <span class="text-xs font-black uppercase tracking-wider text-blue-900 dark:text-blue-200">Akademik Değerlendirme</span>
+                                <span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-600 text-white ml-auto">${escapeHtml(reportData.evalStatus)}</span>
+                            </div>
+                            <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed mt-1">${escapeHtml(reportData.evalMessage)}</p>
+                        </div>
+
+                        <!-- Error Topics if any -->
+                        ${reportData.yanlisKonular && reportData.yanlisKonular.length > 0 ? `
+                            <div class="p-3.5 bg-red-50/40 dark:bg-red-950/20 rounded-xl border border-red-200/60 dark:border-red-900/50">
+                                <span class="text-xs font-black uppercase tracking-wider text-red-900 dark:text-red-200 block mb-1">Tekrar Edilmesi Gereken Konular</span>
+                                <div class="space-y-1">
+                                    ${reportData.yanlisKonular.map(item => `<div class="text-xs text-red-700 dark:text-red-300 font-semibold">• ${escapeHtml(item.konu)}${item.altKonu ? ` › ${escapeHtml(item.altKonu)}` : ''} <span class="text-gray-500 dark:text-gray-400">(${item.adet} Yanlış)</span></div>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Teacher Note if any -->
+                        ${reportData.teacherNote ? `
+                            <div class="p-3.5 bg-slate-50 dark:bg-gray-855 rounded-xl border border-gray-200 dark:border-gray-700">
+                                <span class="text-xs font-black uppercase tracking-wider text-gray-500 block mb-1">Öğretmen Notu</span>
+                                <p class="text-xs text-gray-700 dark:text-gray-300 italic">"${escapeHtml(reportData.teacherNote)}"</p>
+                            </div>
+                        ` : ''}
+                    ` : `
+                        <div class="py-6 text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                            <i class="fas fa-hourglass-half text-2xl text-amber-500 mb-2"></i>
+                            <p class="font-bold text-sm text-gray-800 dark:text-gray-200">Bu ödev henüz sonuçlandırılmadı</p>
+                            <p class="text-xs text-gray-500 mt-1">Öğrencinin doğru ve yanlış sayılarını girerek performans raporunu oluşturabilirsiniz.</p>
+                            <button onclick="closeHomeworkDetailModal(); showEnterOdevSonucModal('${studentId}', '${homeworkId}');" class="btn-primary mt-3 px-4 py-2 text-xs font-bold min-h-[44px]">
+                                <i class="fas fa-pen mr-1"></i> Sonuç Gir
+                            </button>
+                        </div>
+                    `}
+
+                    <!-- Actions -->
+                    ${isCompleted ? `
+                        <div class="pt-2 space-y-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <button onclick="downloadHomeworkPdfReport('${studentId}', '${homeworkId}')" class="btn-primary py-3 px-3 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1.5 shadow-md">
+                                    <i class="fas fa-file-pdf"></i> PDF Raporu İndir
+                                </button>
+                                <button onclick="shareHomeworkReport('${studentId}', '${homeworkId}')" class="border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100 py-3 px-3 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1.5 transition">
+                                    <i class="fas fa-share-nodes"></i> Paylaş
+                                </button>
+                                <button onclick="sendHomeworkReportWhatsApp('${studentId}', '${homeworkId}')" class="border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100 py-3 px-3 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1.5 transition">
+                                    <i class="fab fa-whatsapp"></i> WhatsApp
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 text-center pt-1"><i class="fas fa-info-circle mr-1 text-blue-500"></i>WhatsApp mesajını açtıktan sonra indirdiğiniz PDF raporunu görüşmeye ekleyebilirsiniz.</p>
+                            <button onclick="closeHomeworkDetailModal()" class="w-full border border-gray-300 dark:border-gray-600 py-2.5 rounded-xl font-bold text-xs min-h-[44px] text-gray-700 dark:text-gray-300">
+                                Kapat
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="pt-2 flex gap-2">
+                            <button onclick="sendSingleHwReminder('${studentId}', '${homeworkId}')" class="flex-1 border border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 bg-teal-50/50 dark:bg-teal-950/30 py-3 px-3 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1.5">
+                                <i class="fab fa-whatsapp"></i> Veliye Hatırlat
+                            </button>
+                            <button onclick="closeHomeworkDetailModal()" class="border border-gray-300 dark:border-gray-600 px-4 py-3 rounded-xl font-bold text-xs min-h-[44px] text-gray-700 dark:text-gray-300">
+                                Kapat
+                            </button>
+                        </div>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existing = document.getElementById('homeworkDetailModal');
+    if (existing) existing.remove();
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'homeworkDetailModal';
+    modalDiv.innerHTML = modalHtml;
+    document.body.appendChild(modalDiv);
+}
+
+export function closeHomeworkDetailModal() {
+    document.getElementById('homeworkDetailModal')?.remove();
+}
+
+export function downloadHomeworkPdfReport(studentId, homeworkId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    const homework = getStudentOdevler(student).find(o => o.id === homeworkId);
+    if (!homework) return;
+
+    const reportData = buildHomeworkReportData({ student, homework });
+    if (!reportData) return;
+
+    const filename = normalizeReportFilename({
+        studentName: reportData.studentName,
+        homeworkTitle: reportData.konu,
+        date: reportData.reportDateIso
+    });
+
+    try {
+        const doc = generateHomeworkPdf(reportData);
+        doc.save(filename);
+    } catch (err) {
+        console.error("PDF oluşturma hatası:", err);
+        alert("PDF oluşturulurken bir hata oluştu: " + err.message);
+    }
+}
+
+export async function shareHomeworkReport(studentId, homeworkId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    const homework = getStudentOdevler(student).find(o => o.id === homeworkId);
+    if (!homework) return;
+
+    const reportData = buildHomeworkReportData({ student, homework });
+    if (!reportData) return;
+
+    const filename = normalizeReportFilename({
+        studentName: reportData.studentName,
+        homeworkTitle: reportData.konu,
+        date: reportData.reportDateIso
+    });
+
+    try {
+        const doc = generateHomeworkPdf(reportData);
+        const pdfBlob = doc.output('blob');
+        const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            await navigator.share({
+                title: `CanFenci - ${reportData.studentName} Ödev Raporu`,
+                text: `${reportData.studentName} öğrencimizin ${reportData.konu} ödev performans raporu.`,
+                files: [pdfFile]
+            });
+            return;
+        } else if (navigator.share) {
+            await navigator.share({
+                title: `CanFenci - ${reportData.studentName} Ödev Raporu`,
+                text: buildWhatsAppReportMessage(reportData)
+            });
+            return;
+        }
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.warn("Paylaşım desteklenmiyor veya iptal edildi, PDF indiriliyor:", err);
+        }
+    }
+    // Fallback: download PDF
+    downloadHomeworkPdfReport(studentId, homeworkId);
+}
+
+export function sendHomeworkReportWhatsApp(studentId, homeworkId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    if (!student.veliTel) {
+        alert("Lütfen bu öğrenci için önce veli telefon numarası giriniz.");
+        if (window.editStudent) window.editStudent(studentId);
+        return;
+    }
+    const homework = getStudentOdevler(student).find(o => o.id === homeworkId);
+    if (!homework) return;
+
+    const reportData = buildHomeworkReportData({ student, homework });
+    const message = buildWhatsAppReportMessage(reportData);
+
+    let phone = student.veliTel.replace(/\D/g, '');
+    if (phone.startsWith('0')) phone = '90' + phone.substring(1);
+    else if (!phone.startsWith('90') && phone.length === 10) phone = '90' + phone;
+
+    const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
 }
 
 export function shareHomeworkWhatsApp(studentId) {
@@ -866,6 +1149,15 @@ window.openHomeworkResultFromBoard = openHomeworkResultFromBoard;
 window.renderStudentOdevDetay = renderStudentOdevDetay;
 window.deleteOdev = deleteOdev;
 window.sendSingleHwReminder = sendSingleHwReminder;
+window.openHomeworkDetailModal = openHomeworkDetailModal;
+window.closeHomeworkDetailModal = closeHomeworkDetailModal;
+window.downloadHomeworkPdfReport = downloadHomeworkPdfReport;
+window.shareHomeworkReport = shareHomeworkReport;
+window.sendHomeworkReportWhatsApp = sendHomeworkReportWhatsApp;
+window.generateHomeworkPdf = generateHomeworkPdf;
+window.buildHomeworkReportData = buildHomeworkReportData;
+window.normalizeReportFilename = normalizeReportFilename;
+window.buildWhatsAppReportMessage = buildWhatsAppReportMessage;
 window.showEnterOdevSonucModal = showEnterOdevSonucModal;
 window.saveManualOdevResult = saveManualOdevResult;
 window.shareHomeworkWhatsApp = shareHomeworkWhatsApp;
