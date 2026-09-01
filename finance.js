@@ -175,6 +175,52 @@ export function renderDersKayitlari() {
     `;
 }
 
+function formatLessonDateShort(value) {
+    const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return formatLessonDateForDisplay(value);
+    const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+    const monthIdx = Number(match[2]) - 1;
+    const monthName = months[monthIdx] || match[2];
+    return `${match[3]} ${monthName} ${match[1]}`;
+}
+
+export function toggleLessonRowDetail(lessonId) {
+    const detailRow = document.getElementById(`detail-row-${lessonId}`);
+    const mobileDetail = document.getElementById(`mobile-detail-${lessonId}`);
+    const chevron = document.getElementById(`chevron-${lessonId}`);
+    const mobileChevron = document.getElementById(`mobile-chevron-${lessonId}`);
+
+    const isAlreadyOpen = detailRow && !detailRow.classList.contains('hidden');
+
+    // Single open detail: close all open detail rows
+    document.querySelectorAll('.lesson-detail-row').forEach(row => row.classList.add('hidden'));
+    document.querySelectorAll('.mobile-lesson-detail').forEach(row => row.classList.add('hidden'));
+    document.querySelectorAll('[id^="chevron-"]').forEach(icon => icon.classList.remove('rotate-90'));
+    document.querySelectorAll('[id^="mobile-chevron-"]').forEach(icon => icon.classList.remove('rotate-90'));
+
+    if (!isAlreadyOpen) {
+        if (detailRow) detailRow.classList.remove('hidden');
+        if (mobileDetail) mobileDetail.classList.remove('hidden');
+        if (chevron) chevron.classList.add('rotate-90');
+        if (mobileChevron) mobileChevron.classList.add('rotate-90');
+    }
+}
+
+export function setLessonPeriodFilter(studentId, period) {
+    window._lessonFilterPeriod = period;
+    renderDersDetay(studentId);
+}
+
+export function setLessonSortOrder(studentId, order) {
+    window._lessonSortOrder = order;
+    renderDersDetay(studentId);
+}
+
+export function onLessonSearchInput(studentId, query) {
+    window._lessonSearchQuery = query;
+    renderDersDetay(studentId);
+}
+
 export function renderDersDetay(studentId, origin = 'list') {
     store.currentPage = "dersDetay";
     window._dersKayitOrigin = origin === 'cockpit' ? 'cockpit' : (window._dersKayitOrigin || origin);
@@ -198,60 +244,139 @@ export function renderDersDetay(studentId, origin = 'list') {
     saveDersKayitlari(studentId, kayitlar);
     const studentHomeworks = getStudentOdevler(student);
     
+    const now = new Date();
+    const currentYearMonth = now.toISOString().slice(0, 7);
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const currentPeriod = window._lessonFilterPeriod || 'all';
+    const searchQuery = (window._lessonSearchQuery || '').toLocaleLowerCase('tr-TR').trim();
+    const sortOrder = window._lessonSortOrder || 'newest';
+
+    let displayKayitlar = [...kayitlar];
+
+    // 1. Period filter
+    if (currentPeriod === 'month') {
+        displayKayitlar = displayKayitlar.filter(k => String(k.tarih || '').startsWith(currentYearMonth));
+    } else if (currentPeriod === '3months') {
+        displayKayitlar = displayKayitlar.filter(k => String(k.tarih || '') >= ninetyDaysAgo);
+    }
+
+    // 2. Search filter (Turkish case-insensitive across topic, content, branch, and resource)
+    if (searchQuery) {
+        displayKayitlar = displayKayitlar.filter(k => {
+            const konu = String(k.konu || '').toLocaleLowerCase('tr-TR');
+            const icerik = String(k.icerik || '').toLocaleLowerCase('tr-TR');
+            const ders = String(k.ders || '').toLocaleLowerCase('tr-TR');
+            const kaynak = String(k.kaynak || '').toLocaleLowerCase('tr-TR');
+            return konu.includes(searchQuery) || icerik.includes(searchQuery) || ders.includes(searchQuery) || kaynak.includes(searchQuery);
+        });
+    }
+
+    // 3. Sorting (default: newest -> oldest)
+    displayKayitlar.sort((a, b) => {
+        const dateComp = String(b.tarih || '').localeCompare(String(a.tarih || ''));
+        if (dateComp !== 0) {
+            return sortOrder === 'newest' ? dateComp : -dateComp;
+        }
+        return sortOrder === 'newest' ? (b.dersNo - a.dersNo) : (a.dersNo - b.dersNo);
+    });
+
     let tableRows = '';
     let mobileCards = '';
-    for (let k of kayitlar) {
+    for (let k of displayKayitlar) {
         const katilimDurumu = normalizeLessonStatus(k);
         const legacyHomework = Array.isArray(k.odev) ? k.odev : (k.odev ? [k.odev] : []);
         const linkedHomeworks = studentHomeworks.filter(homework => homework.kaynakDers?.lessonId === k.id);
         const completedHomeworkCount = linkedHomeworks.filter(homework => homework.durum === 'tamamlandi').length;
         const homeworkSummary = linkedHomeworks.length > 0
-            ? `<button onclick="renderStudentOdevDetay('${studentId}')" class="text-left text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">${linkedHomeworks.length} ödev · ${completedHomeworkCount} tamamlandı</button>`
-            : '<span class="text-sm text-gray-400">Ödev atanmadı</span>';
+            ? `<button onclick="renderStudentOdevDetay('${studentId}')" class="text-left text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">${linkedHomeworks.length} ödev · ${completedHomeworkCount} tamamlandı</button>`
+            : '<span class="text-xs text-gray-400">Ödev atanmadı</span>';
         const legacyHomeworkHtml = legacyHomework.length > 0
-            ? `<div class="mt-1 text-xs text-amber-600 dark:text-amber-400" title="Eski ders kaydından korundu">Eski not: ${legacyHomework.map(escapeHtml).join(', ')}</div>`
+            ? `<div class="mt-0.5 text-[11px] text-amber-600 dark:text-amber-400" title="Eski ders kaydından korundu">Eski not: ${legacyHomework.map(escapeHtml).join(', ')}</div>`
             : '';
         const lessonBranches = [...new Set([...(store.teacherBranches || []), k.ders].filter(Boolean))];
         const lessonTopics = getKonuListesiBySinifAndDers(effectiveSinif, k.ders);
         const editTopics = lessonTopics.includes(k.konu) ? lessonTopics : [k.konu, ...lessonTopics].filter(Boolean);
         
         tableRows += `
-            <tr class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/30 transition">
-                <td class="p-4 text-base">${k.dersNo}</td>
-                <td class="p-4 text-base">${formatLessonDateForDisplay(k.tarih)}</td>
-                <td class="p-4 text-base font-semibold text-indigo-600 dark:text-indigo-400">${k.konu}</td>
-                <td class="p-3 min-w-[210px]">
+            <tr class="cf-lesson-row border-b border-gray-100 dark:border-gray-800 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition cursor-pointer" onclick="toggleLessonRowDetail('${k.id}')">
+                <td class="p-3 text-xs font-bold text-gray-400">#${k.dersNo}</td>
+                <td class="p-3 text-xs whitespace-nowrap">
+                    <div class="font-bold text-gray-800 dark:text-gray-100">${formatLessonDateShort(k.tarih)}</div>
+                    <div class="text-[11px] text-gray-400 font-medium">${k.sure || '60'} dk</div>
+                </td>
+                <td class="p-3 text-xs min-w-0 max-w-[200px]">
+                    <div class="font-bold text-indigo-600 dark:text-indigo-400 truncate" title="${escapeHtml(k.konu)}">${escapeHtml(k.konu)}</div>
+                    <div class="text-[11px] text-gray-400 font-medium truncate">${escapeHtml(k.ders || 'Ders')}</div>
+                </td>
+                <td class="p-3 text-xs text-gray-500 max-w-[220px] truncate" title="${escapeHtml(k.icerik || '')}">
+                    ${escapeHtml(k.icerik || '—')}
+                </td>
+                <td class="p-2 min-w-[180px]" onclick="event.stopPropagation()">
                     <label class="sr-only" for="attendance-${k.id}">Katılım durumu</label>
-                    <select id="attendance-${k.id}" aria-label="${escapeHtml(k.konu)} katılım durumu" onchange="updateDersKatilimDurumu('${studentId}', '${k.id}', this.value)" class="w-full min-h-[44px] rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 text-sm font-bold text-blue-800 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    <select id="attendance-${k.id}" aria-label="${escapeHtml(k.konu)} katılım durumu" onchange="updateDersKatilimDurumu('${studentId}', '${k.id}', this.value)" class="w-full min-h-[38px] rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/30 px-2.5 py-1.5 text-xs font-bold text-blue-800 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
                         ${Object.entries(ATTENDANCE_LABELS).map(([value, label]) => `<option value="${value}" ${katilimDurumu === value ? 'selected' : ''}>${label}</option>`).join('')}
                     </select>
                 </td>
-                <td class="p-4 text-base text-gray-600 dark:text-gray-300">${escapeHtml(k.icerik || '')}</td>
-                <td class="p-4 text-base">${homeworkSummary}${legacyHomeworkHtml}</td>
-                <td class="p-3 min-w-[155px]">
+                <td class="p-2 min-w-[125px]" onclick="event.stopPropagation()">
                     <label class="sr-only" for="payment-${k.id}">Ücret durumu</label>
-                    <select id="payment-${k.id}" aria-label="${escapeHtml(k.konu)} ücret durumu" onchange="updateDersUcretDurumu('${studentId}', '${k.id}', this.value)" ${katilimDurumu !== 'yapildi' ? 'disabled' : ''} class="w-full min-h-[44px] rounded-xl border px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 transition ${katilimDurumu !== 'yapildi' ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed' : k.odendi ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-300 focus:ring-green-500' : 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 focus:ring-amber-500'}">
+                    <select id="payment-${k.id}" aria-label="${escapeHtml(k.konu)} ücret durumu" onchange="updateDersUcretDurumu('${studentId}', '${k.id}', this.value)" ${katilimDurumu !== 'yapildi' ? 'disabled' : ''} class="w-full min-h-[38px] rounded-lg border px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 transition ${katilimDurumu !== 'yapildi' ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed' : k.odendi ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-300 focus:ring-green-500' : 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 focus:ring-amber-500'}">
                         ${katilimDurumu !== 'yapildi'
                             ? '<option value="not-billable">Ücret Yok</option>'
                             : `<option value="pending" ${!k.odendi ? 'selected' : ''}>Bekliyor</option><option value="paid" ${k.odendi ? 'selected' : ''}>Ödendi</option>`}
                     </select>
                 </td>
-                <td class="p-4 text-base">
-                <div class="flex gap-2 flex-wrap">
-                        <button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="btn-secondary px-3 py-2 text-sm min-h-[44px]" title="Bu derse ödev ata">
-                            <i class="fas fa-tasks"></i> Ödev Ata
-                        </button>
-                        <button id="edit-toggle-${k.id}" onclick="toggleDersKayitEditor('${k.id}')" aria-expanded="false" aria-controls="edit-row-${k.id}" class="btn-secondary px-3 py-2 text-sm min-h-[44px]">
-                            <i class="fas fa-edit"></i> Düzenle
-                        </button>
-                        <button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="text-red-500 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center hover:text-red-750">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                <td class="p-2 text-center" onclick="event.stopPropagation()">
+                    <button type="button" onclick="toggleLessonRowDetail('${k.id}')" class="w-8 h-8 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex items-center justify-center transition" title="Detayları Aç / Kapat" aria-label="Detayları Aç">
+                        <i id="chevron-${k.id}" class="fas fa-chevron-right text-xs transition-transform duration-200"></i>
+                    </button>
+                </td>
+            </tr>
+            <tr id="detail-row-${k.id}" class="lesson-detail-row hidden bg-blue-50/30 dark:bg-blue-950/10 border-b border-gray-200 dark:border-gray-800">
+                <td colspan="7" class="p-4">
+                    <div class="rounded-xl border border-blue-100 dark:border-blue-900 bg-white dark:bg-gray-800 p-4 shadow-sm space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-700 pb-2.5">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[11px] font-black bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">#${k.dersNo}</span>
+                                <h4 class="font-black text-sm text-gray-900 dark:text-white">${escapeHtml(k.konu)}</h4>
+                                <span class="text-xs text-gray-400">(${escapeHtml(k.ders || 'Ders')})</span>
+                            </div>
+                            <div class="text-xs text-gray-500 font-semibold">
+                                <i class="far fa-calendar-alt mr-1"></i> ${formatLessonDateForDisplay(k.tarih)} · <i class="far fa-clock mr-1"></i> ${k.sure || '60'} dk
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                            <div>
+                                <span class="font-bold text-gray-400 uppercase tracking-wider block mb-1">İçerik / Not</span>
+                                <p class="text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900/30 p-2.5 rounded-lg border border-gray-150 dark:border-gray-750">${escapeHtml(k.icerik || 'İçerik notu eklenmemiş.')}</p>
+                            </div>
+                            <div>
+                                <span class="font-bold text-gray-400 uppercase tracking-wider block mb-1">Kaynak & Bağlantılı Ödev</span>
+                                <div class="bg-gray-50 dark:bg-gray-900/30 p-2.5 rounded-lg border border-gray-150 dark:border-gray-750 space-y-1.5">
+                                    <div><span class="text-gray-500">Kaynak:</span> <strong class="text-gray-800 dark:text-gray-200">${escapeHtml(k.kaynak || 'Belirtilmedi')}</strong></div>
+                                    <div><span class="text-gray-500">Bağlantılı Ödev:</span> ${homeworkSummary}</div>
+                                    ${legacyHomeworkHtml}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                            <button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="btn-secondary px-3 py-1.5 text-xs min-h-[36px]" title="Bu derse ödev ata">
+                                <i class="fas fa-tasks mr-1"></i> Ödev Ata
+                            </button>
+                            <button id="edit-toggle-${k.id}" onclick="toggleDersKayitEditor('${k.id}')" aria-expanded="false" aria-controls="edit-row-${k.id}" class="btn-secondary px-3 py-1.5 text-xs min-h-[36px]">
+                                <i class="fas fa-edit mr-1"></i> Düzenle
+                            </button>
+                            <button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="px-3 py-1.5 text-xs min-h-[36px] rounded-xl border border-red-200 dark:border-red-800/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 font-bold transition flex items-center gap-1" title="Ders kaydını sil" aria-label="Ders kaydını sil">
+                                <i class="fas fa-trash"></i> Sil
+                            </button>
+                        </div>
                     </div>
                 </td>
             </tr>
             <tr id="edit-row-${k.id}" class="hidden bg-blue-50/60 dark:bg-blue-950/20 border-b border-blue-100 dark:border-blue-900">
-                <td colspan="8" class="p-4">
+                <td colspan="7" class="p-4">
                     <div class="rounded-2xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-gray-850 p-4 shadow-inner">
                         <div class="flex items-center justify-between gap-3 mb-4">
                             <div>
@@ -290,31 +415,92 @@ export function renderDersDetay(studentId, origin = 'list') {
                     </div>
                 </td>
             </tr>`;
+
         mobileCards += `
-            <article class="app-panel p-4 space-y-3">
-                <div class="flex items-start justify-between gap-3"><div><p class="text-xs font-bold text-gray-500">${formatLessonDateForDisplay(k.tarih)} · ${escapeHtml(k.ders || 'Ders')}</p><h4 class="font-black mt-1">${escapeHtml(k.konu)}</h4><p class="text-sm text-gray-500 mt-1">${escapeHtml(k.icerik || 'İçerik notu bulunmuyor')}</p></div><span class="text-xs font-black text-gray-400">#${k.dersNo}</span></div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label class="text-xs font-bold text-gray-500" for="mobile-attendance-${k.id}">Katılım</label><select id="mobile-attendance-${k.id}" onchange="updateDersKatilimDurumu('${studentId}', '${k.id}', this.value)" class="student-form-input min-h-[44px] mt-1">${Object.entries(ATTENDANCE_LABELS).map(([value, label]) => `<option value="${value}" ${katilimDurumu === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
-                    <div><label class="text-xs font-bold text-gray-500" for="mobile-payment-${k.id}">Ücret</label><select id="mobile-payment-${k.id}" onchange="updateDersUcretDurumu('${studentId}', '${k.id}', this.value)" ${katilimDurumu !== 'yapildi' ? 'disabled' : ''} class="student-form-input min-h-[44px] mt-1">${katilimDurumu !== 'yapildi' ? '<option value="not-billable">Ücret Yok</option>' : `<option value="pending" ${!k.odendi ? 'selected' : ''}>Bekliyor</option><option value="paid" ${k.odendi ? 'selected' : ''}>Ödendi</option>`}</select></div>
+            <article class="app-panel p-3.5 space-y-2.5 transition cursor-pointer" onclick="toggleLessonRowDetail('${k.id}')">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="text-xs font-black text-indigo-600 dark:text-indigo-400 shrink-0">#${k.dersNo}</span>
+                        <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">${formatLessonDateShort(k.tarih)} · 60 dk</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${katilimDurumu === 'yapildi' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : katilimDurumu === 'planlandi' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}">${ATTENDANCE_LABELS[katilimDurumu] || 'Ders'}</span>
+                        <i id="mobile-chevron-${k.id}" class="fas fa-chevron-right text-gray-400 text-xs transition-transform duration-200"></i>
+                    </div>
                 </div>
-                <div class="rounded-xl bg-gray-50 dark:bg-gray-900/40 p-3">${homeworkSummary}${legacyHomeworkHtml}</div>
-                <div class="flex gap-2"><button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="btn-secondary flex-1 min-h-[44px]"><i class="fas fa-tasks mr-1"></i> Ödev</button><button onclick="toggleDersKayitEditor('${k.id}')" class="btn-secondary flex-1 min-h-[44px]"><i class="fas fa-edit mr-1"></i> Düzenle</button><button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="min-w-[44px] min-h-[44px] rounded-xl border border-red-200 text-red-500" aria-label="Ders kaydını sil"><i class="fas fa-trash"></i></button></div>
+                <div class="min-w-0">
+                    <h4 class="font-black text-sm text-gray-900 dark:text-white truncate">${escapeHtml(k.konu)}</h4>
+                    <p class="text-xs text-gray-500 truncate mt-0.5">${escapeHtml(k.icerik || k.ders || 'Ders kaydı')}</p>
+                </div>
+
+                <div id="mobile-detail-${k.id}" class="mobile-lesson-detail hidden pt-2.5 border-t border-gray-150 dark:border-gray-700 space-y-2.5 text-xs" onclick="event.stopPropagation()">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[11px] font-bold text-gray-500 block mb-1" for="mobile-attendance-${k.id}">Katılım</label>
+                            <select id="mobile-attendance-${k.id}" onchange="updateDersKatilimDurumu('${studentId}', '${k.id}', this.value)" class="student-form-input min-h-[38px] text-xs">
+                                ${Object.entries(ATTENDANCE_LABELS).map(([value, label]) => `<option value="${value}" ${katilimDurumu === value ? 'selected' : ''}>${label}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-gray-500 block mb-1" for="mobile-payment-${k.id}">Ücret</label>
+                            <select id="mobile-payment-${k.id}" onchange="updateDersUcretDurumu('${studentId}', '${k.id}', this.value)" ${katilimDurumu !== 'yapildi' ? 'disabled' : ''} class="student-form-input min-h-[38px] text-xs">
+                                ${katilimDurumu !== 'yapildi' ? '<option value="not-billable">Ücret Yok</option>' : `<option value="pending" ${!k.odendi ? 'selected' : ''}>Bekliyor</option><option value="paid" ${k.odendi ? 'selected' : ''}>Ödendi</option>`}
+                            </select>
+                        </div>
+                    </div>
+                    ${k.icerik ? `<div class="bg-gray-50 dark:bg-gray-900/40 p-2.5 rounded-lg border text-gray-700 dark:text-gray-300"><strong>İçerik:</strong> ${escapeHtml(k.icerik)}</div>` : ''}
+                    <div class="rounded-xl bg-gray-50 dark:bg-gray-900/40 p-2.5 border">${homeworkSummary}${legacyHomeworkHtml}</div>
+                    <div class="flex gap-2 pt-1">
+                        <button onclick="openHomeworkForLesson('${studentId}', '${k.id}')" class="btn-secondary flex-1 min-h-[38px] text-xs"><i class="fas fa-tasks mr-1"></i> Ödev</button>
+                        <button onclick="toggleDersKayitEditor('${k.id}')" class="btn-secondary flex-1 min-h-[38px] text-xs"><i class="fas fa-edit mr-1"></i> Düzenle</button>
+                        <button onclick="deleteDersKayit('${studentId}', ${k.dersNo})" class="min-w-[38px] min-h-[38px] rounded-xl border border-red-200 text-red-500 text-xs flex items-center justify-center" aria-label="Ders kaydını sil"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
             </article>`;
     }
 
     const dersUcreti = parseFloat(student.dersUcreti) || parseFloat(student.aylikUcret) || parseFloat(student.ucret) || 0;
     const lessonSummary = getDersOzet(studentId, dersUcreti);
     
+    const countSummaryText = kayitlar.length === 0
+        ? 'Henüz ders kaydı yok'
+        : displayKayitlar.length === kayitlar.length
+            ? `Toplam ${kayitlar.length} ders kaydı`
+            : `${kayitlar.length} dersten ${displayKayitlar.length} tanesi gösteriliyor`;
+
+    const emptyTableContent = kayitlar.length === 0
+        ? '<tr><td colspan="7" class="text-center p-8 text-gray-500 font-medium">Henüz ders kaydı bulunmuyor.<br><span class="text-xs text-gray-400">İlk ders kaydını eklediğinizde geçmiş burada görünecek.</span></td></tr>'
+        : searchQuery
+            ? '<tr><td colspan="7" class="text-center p-6 text-gray-500 font-medium"><i class="fas fa-search mr-1"></i> Bu aramaya uygun ders kaydı bulunamadı.</td></tr>'
+            : '<tr><td colspan="7" class="text-center p-6 text-gray-500 font-medium"><i class="fas fa-calendar-times mr-1"></i> Bu dönem için ders kaydı bulunamadı.</td></tr>';
+
+    const emptyMobileContent = kayitlar.length === 0
+        ? '<div class="app-panel p-6 text-center text-gray-500 font-medium">Henüz ders kaydı bulunmuyor.<br><span class="text-xs text-gray-400">İlk ders kaydını eklediğinizde geçmiş burada görünecek.</span></div>'
+        : searchQuery
+            ? '<div class="app-panel p-6 text-center text-gray-500 font-medium"><i class="fas fa-search mr-1"></i> Bu aramaya uygun ders kaydı bulunamadı.</div>'
+            : '<div class="app-panel p-6 text-center text-gray-500 font-medium"><i class="fas fa-calendar-times mr-1"></i> Bu dönem için ders kaydı bulunamadı.</div>';
+
     const html = `
-        <div class="app-page">
+        <div class="app-page space-y-4">
             <header class="app-page-header">
-                <div><h2 class="app-page-title">${escapeHtml(student.adSoyad)}</h2><p class="app-page-subtitle">Ders kayıtları ve ödeme durumu</p></div>
+                <div>
+                    <h2 class="app-page-title">${escapeHtml(student.adSoyad)}</h2>
+                    <p class="app-page-subtitle">${countSummaryText} · Katılım ve ücret durumu</p>
+                </div>
                 <button onclick="${window._dersKayitOrigin === 'cockpit' ? `renderStudentCockpit('${studentId}', window._cockpitReturnOrigin || 'home')` : 'renderDersKayitlari()'}" class="bg-gray-500 text-white px-4 py-2.5 rounded-xl flex items-center gap-1 font-semibold min-h-[44px]">
                     <i class="fas fa-arrow-left"></i> Geri
                 </button>
             </header>
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3"><div class="app-metric"><p class="app-metric-label">Toplam Ders</p><p class="app-metric-value">${lessonSummary.toplamDers}</p></div><div class="app-metric"><p class="app-metric-label">Ücretli Ders</p><p class="app-metric-value">${lessonSummary.ucretlendirilenDersSayisi}</p></div><div class="app-metric"><p class="app-metric-label">Ödenen</p><p class="app-metric-value text-emerald-600">${lessonSummary.odenenDersSayisi}</p></div><div class="app-metric"><p class="app-metric-label">Tahsilat</p><p class="app-metric-value text-indigo-600">${lessonSummary.toplamOdeme} TL</p></div></div>
+
+            <!-- Finance Summary Metrics -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="app-metric"><p class="app-metric-label">Toplam Ders</p><p class="app-metric-value">${lessonSummary.toplamDers}</p></div>
+                <div class="app-metric"><p class="app-metric-label">Ücretli Ders</p><p class="app-metric-value">${lessonSummary.ucretlendirilenDersSayisi}</p></div>
+                <div class="app-metric"><p class="app-metric-label">Ödenen</p><p class="app-metric-value text-emerald-600">${lessonSummary.odenenDersSayisi}</p></div>
+                <div class="app-metric"><p class="app-metric-label">Tahsilat</p><p class="app-metric-value text-indigo-600">${lessonSummary.toplamOdeme} TL</p></div>
+            </div>
             
+            <!-- New Lesson Disclosure Form -->
             <details class="app-panel app-disclosure">
                 <summary class="app-panel-header flex items-center justify-between gap-3"><div><h3 class="font-black"><i class="fas fa-plus-circle text-indigo-600 mr-1"></i> Yeni Ders Kaydı</h3><p class="text-xs text-gray-500 mt-1">Formu açmak için tıklayın</p></div><i class="fas fa-chevron-down disclosure-chevron text-gray-400"></i></summary>
                 <div class="p-5">
@@ -358,20 +544,53 @@ export function renderDersDetay(studentId, origin = 'list') {
                 </div>
                 </div>
             </details>
+
+            <!-- Compact Search, Period Filter, and Sort Controls -->
+            <div class="app-panel p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-1">
+                    <div class="relative flex-1 max-w-md">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" id="lessonSearchInput" value="${escapeHtml(window._lessonSearchQuery || '')}" oninput="onLessonSearchInput('${studentId}', this.value)" placeholder="Ders kayıtlarında ara..." class="cf-input pl-8 py-1.5 text-xs w-full min-h-[38px]">
+                    </div>
+                    ${window._lessonSearchQuery ? `<button onclick="onLessonSearchInput('${studentId}', '')" class="text-gray-400 hover:text-gray-600 p-2 text-xs" title="Aramayı temizle"><i class="fas fa-times"></i></button>` : ''}
+                </div>
+                <div class="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
+                    <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                        <button type="button" onclick="setLessonPeriodFilter('${studentId}', 'all')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${currentPeriod === 'all' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">Tümü (${kayitlar.length})</button>
+                        <button type="button" onclick="setLessonPeriodFilter('${studentId}', 'month')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${currentPeriod === 'month' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">Bu Ay</button>
+                        <button type="button" onclick="setLessonPeriodFilter('${studentId}', '3months')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${currentPeriod === '3months' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">Son 3 Ay</button>
+                    </div>
+                    <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                        <button type="button" onclick="setLessonSortOrder('${studentId}', 'newest')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${sortOrder === 'newest' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}" title="En yeni ders üstte"><i class="fas fa-sort-amount-down text-[10px] mr-1"></i> En Yeni</button>
+                        <button type="button" onclick="setLessonSortOrder('${studentId}', 'oldest')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${sortOrder === 'oldest' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}" title="En eski ders üstte"><i class="fas fa-sort-amount-up text-[10px] mr-1"></i> En Eski</button>
+                    </div>
+                </div>
+            </div>
             
+            <!-- High-Density Desktop Compact Table View -->
             <div class="hidden md:block app-panel overflow-x-auto">
-                <table class="app-data-table ders-kayitlari-table">
+                <table class="app-data-table ders-kayitlari-table w-full">
                     <thead>
                         <tr>
-                            <th>Ders</th><th>Tarih</th><th>Konu</th><th>Katılım</th><th>İçerik</th><th>Bağlantılı Ödev</th><th>Durum (Ücret)</th><th>İşlemler</th>
+                            <th class="w-12">#</th>
+                            <th class="w-28">Tarih</th>
+                            <th>Konu & Ders</th>
+                            <th>İçerik / Not</th>
+                            <th class="w-48">Katılım Durumu</th>
+                            <th class="w-36">Durum (Ücret)</th>
+                            <th class="w-12 text-center">Detay</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${tableRows || '<tr><td colspan="8" class="text-center p-4 text-base">Henüz ders kaydı yok.</td></tr>'}
+                        ${tableRows || emptyTableContent}
                     </tbody>
                 </table>
             </div>
-            <div class="md:hidden space-y-3">${mobileCards || '<div class="app-panel p-6 text-center text-gray-500">Henüz ders kaydı yok.</div>'}</div>
+
+            <!-- Mobile Compact Card/List View -->
+            <div class="md:hidden space-y-2.5">
+                ${mobileCards || emptyMobileContent}
+            </div>
         </div>`;
         
     document.getElementById("dynamic-content").innerHTML = html;
@@ -530,3 +749,7 @@ window.onDersKayitSubjectChanged = onDersKayitSubjectChanged;
 window.toggleDersKayitManualResource = toggleDersKayitManualResource;
 window.openHomeworkForLesson = openHomeworkForLesson;
 window.formatLessonDateTyping = formatLessonDateTyping;
+window.toggleLessonRowDetail = toggleLessonRowDetail;
+window.setLessonPeriodFilter = setLessonPeriodFilter;
+window.setLessonSortOrder = setLessonSortOrder;
+window.onLessonSearchInput = onLessonSearchInput;
