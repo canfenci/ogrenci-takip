@@ -8,8 +8,17 @@ import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
 import { buildHomeworkErrorTopics, HATA_NEDENLERI, normalizeHomeworkErrorAnalysis, validateErrorAnalysisTotal, normalizeHataNedeniLabel, normalizeHataNedeniKey, getUnitsAndTopicsBySinifAndDers, getUnitListBySinifAndDers, getTopicsForUnit } from './homework-error-topics.js';
 import { buildWorkPerformance } from './work-performance-insights.js';
-import { buildHomeworkDashboard, filterHomeworkDashboard } from './homework-dashboard-insights.js';
+import { buildHomeworkDashboard, filterHomeworkDashboard, getHomeworkDueState } from './homework-dashboard-insights.js';
 import { buildHomeworkReportData, normalizeReportFilename, buildWhatsAppReportMessage, generateHomeworkPdf } from './homework-report-insights.js';
+import {
+    ANCHOR_START_DATE,
+    getWeekInfoByNumber,
+    getWeekInfoForDate,
+    getCurrentWeekNumber,
+    generateWeekList,
+    resolveHomeworkWeek,
+    filterHomeworksCombined
+} from './homework-weeks-insights.js';
 
 export function hideNavigationElements() {
     const sidebar = document.querySelector('#app-root > div.hidden.md\\:flex');
@@ -198,27 +207,45 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
     store.currentPage = "odevTakibi";
     if (window.currentPage) window.currentPage = "odevTakibi";
     updateMobileNavActive('mobile-nav-homework');
+
     const students = loadStudentsData();
+    const currentDate = new Date();
+    const curWeekNum = getCurrentWeekNumber(currentDate);
+
+    // Filter state resolution
     const activeFilters = {
-        status: filters.status || 'all',
-        query: filters.query || '',
-        grade: filters.grade || '',
-        studentId: studentId || filters.studentId || ''
+        week: filters.week !== undefined ? filters.week : (window._homeworkDashboardFilters?.week !== undefined ? window._homeworkDashboardFilters.week : curWeekNum),
+        studentId: studentId !== null ? (studentId || '') : (filters.studentId !== undefined ? filters.studentId : (window._homeworkDashboardFilters?.studentId || '')),
+        status: filters.status || window._homeworkDashboardFilters?.status || 'all',
+        query: filters.query !== undefined ? filters.query : (window._homeworkDashboardFilters?.query || ''),
+        grade: filters.grade !== undefined ? filters.grade : (window._homeworkDashboardFilters?.grade || '')
     };
+
     window._homeworkDashboardFilters = activeFilters;
+
     if (students.length === 0) {
         document.getElementById("dynamic-content").innerHTML = `
-            <div class="app-page"><div class="app-panel p-8 text-center"><i class="fas fa-list-check text-2xl text-gray-400"></i><h2 class="mt-3 text-lg font-black">Henüz ödev eklenmedi.</h2><p class="mt-1 text-sm text-gray-500">İlk ödevi oluşturarak öğrenci çalışma takibini başlatabilirsiniz.</p><button onclick="showOdevAtaModal()" class="btn-primary mt-5 min-h-[44px] px-4"><i class="fas fa-plus mr-1"></i> Yeni Ödev</button></div></div>
+            <div class="app-page"><div class="app-panel p-8 text-center"><i class="fas fa-list-check text-2xl text-gray-400"></i><h2 class="app-page-title">Ödev Takibi</h2><p class="mt-1 text-sm text-gray-500">İlk ödevi oluşturarak öğrenci çalışma takibini başlatabilirsiniz.</p><button onclick="showOdevAtaModal()" class="btn-primary mt-5 min-h-[44px] px-4"><i class="fas fa-plus mr-1"></i> Yeni Ödev</button></div></div>
         `;
         return;
     }
-    const dashboard = buildHomeworkDashboard(students, getStudentOdevler);
-    const visibleRecords = filterHomeworkDashboard(dashboard.records, activeFilters);
-    const statusFilters = [
-        ['all', 'Tümü', dashboard.metrics.total], ['active', 'Aktif', dashboard.metrics.active],
-        ['overdue', 'Geciken', dashboard.metrics.overdue], ['today', 'Bugün', dashboard.metrics.dueToday],
-        ['upcoming', 'Yaklaşan', dashboard.metrics.upcoming], ['completed', 'Tamamlanan', dashboard.metrics.completed]
-    ];
+
+    // Combined filter execution
+    const combined = filterHomeworksCombined({
+        students,
+        getHomeworks: getStudentOdevler,
+        week: activeFilters.week,
+        studentId: activeFilters.studentId,
+        query: activeFilters.query,
+        status: activeFilters.status,
+        currentDate
+    });
+
+    const { records, metrics, viewMode, activeWeekNum, activeWeekInfo, activeStudent, title, subtitle } = combined;
+
+    const weekOptions = generateWeekList(35);
+    const renderDate = date => date ? new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short' }).format(new Date(`${date}T00:00:00`)) : 'Tarih belirtilmedi';
+
     const statusStyles = {
         overdue: 'border-red-200 text-red-700 dark:border-red-900/60 dark:text-red-300',
         today: 'border-amber-200 text-amber-700 dark:border-amber-900/60 dark:text-amber-300',
@@ -226,35 +253,237 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
         completed: 'border-emerald-200 text-emerald-700 dark:border-emerald-900/60 dark:text-emerald-300',
         active: 'border-blue-200 text-blue-700 dark:border-blue-900/60 dark:text-blue-300'
     };
-    const renderDate = date => date ? new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short' }).format(new Date(`${date}T00:00:00`)) : 'Tarih belirtilmedi';
-    const rowsHtml = visibleRecords.map(({ homework, student, due }) => `
+
+    const statusFilters = [
+        ['all', 'Tümü', metrics.total],
+        ['active', 'Aktif', metrics.active],
+        ['overdue', 'Geciken', metrics.overdue],
+        ['today', 'Bugün', metrics.dueToday],
+        ['upcoming', 'Yaklaşan', metrics.upcoming],
+        ['completed', 'Tamamlanan', metrics.completed]
+    ];
+
+    // Build metric cards
+    const metricCards = [
+        ['fa-list-check', 'Toplam Ödev', metrics.total, viewMode === 'student_all_history' ? 'Öğrencinin tüm ödevleri' : (activeWeekInfo ? `${activeWeekInfo.weekNumber}. Hafta ödevleri` : 'Ödev sayısı')],
+        ['fa-circle-check', 'Tamamlanan', metrics.completed, metrics.total ? `%${metrics.completionRate ?? 0} Tamamlanma` : 'Henüz sonuç yok'],
+        ['fa-clock', 'Aktif / Bekleyen', metrics.active, metrics.dueToday ? `${metrics.dueToday} bugün teslim` : `${metrics.upcoming} yaklaşan teslim`],
+        ['fa-triangle-exclamation', 'Geciken', metrics.overdue, metrics.overdue ? 'Müdahale gerekiyor' : 'Geciken ödev yok']
+    ];
+
+    const rowsHtml = records.map(({ homework, student, due, weekInfo }) => `
         <article class="border-b border-gray-100 px-5 py-4 transition hover:bg-slate-50/70 dark:border-gray-700 dark:hover:bg-slate-800/40 last:border-0">
             <div class="hidden md:grid md:grid-cols-[minmax(170px,.85fr)_minmax(240px,1.35fr)_minmax(150px,.8fr)_minmax(130px,.65fr)_auto] md:items-center md:gap-4">
-                <div><p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p><p class="mt-1 text-xs text-gray-500">${escapeHtml(student.sinif ? `${student.sinif}. Sınıf` : 'Sınıf yok')}</p></div>
-                <div><p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</p><p class="mt-1 text-xs text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p></div>
-                <div><p class="text-xs text-gray-400">Teslim</p><p class="mt-1 text-sm font-semibold">${escapeHtml(renderDate(homework.bitisTarihi))}</p></div>
-                <span class="inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}"><i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>${escapeHtml(due.label)}</span>
-                <div class="flex justify-end gap-2"><button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" ${due.key === 'completed' ? 'disabled' : ''} class="btn-secondary min-h-[44px] px-3 text-sm disabled:opacity-40"><i class="fas fa-pen mr-1"></i> Sonuç Gir</button><button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-sm font-bold text-blue-600 dark:text-blue-400">Detay</button></div>
+                <div>
+                    <p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p>
+                    <p class="mt-1 text-xs text-gray-500">${escapeHtml(student.sinif ? `${student.sinif}. Sınıf` : 'Sınıf yok')}${viewMode === 'student_all_history' && weekInfo ? ` · <span class="font-semibold text-indigo-600 dark:text-indigo-400">${escapeHtml(weekInfo.compactLabel)}</span>` : ''}</p>
+                </div>
+                <div>
+                    <p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</p>
+                    <p class="mt-1 text-xs text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400">Teslim</p>
+                    <p class="mt-1 text-sm font-semibold">${escapeHtml(renderDate(homework.bitisTarihi))}</p>
+                </div>
+                <span class="inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}">
+                    <i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>
+                    ${escapeHtml(due.label)}
+                </span>
+                <div class="flex justify-end gap-2">
+                    ${due.key === 'completed' ? `
+                        <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-3 text-sm text-blue-600 dark:text-blue-400 font-bold">
+                            <i class="fas fa-file-pdf mr-1"></i> Rapor / Detay
+                        </button>
+                    ` : `
+                        <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-3 text-sm">
+                            <i class="fas fa-pen mr-1"></i> Sonuç Gir
+                        </button>
+                        <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-sm font-bold text-blue-600 dark:text-blue-400">
+                            Detay
+                        </button>
+                    `}
+                </div>
             </div>
-            <div class="md:hidden"><div class="flex items-start justify-between gap-3"><div><p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p><h3 class="mt-1 font-bold text-base">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</h3></div><span class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}"><i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>${escapeHtml(due.label)}</span></div><p class="mt-2 text-sm text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p><div class="mt-3 flex items-center justify-between gap-3"><p class="text-xs text-gray-500">Teslim: <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(renderDate(homework.bitisTarihi))}</span></p><div class="flex gap-2"><button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" ${due.key === 'completed' ? 'disabled' : ''} class="btn-secondary min-h-[44px] px-3 text-sm disabled:opacity-40">Sonuç Gir</button><button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-sm font-bold text-blue-600 dark:text-blue-400">Detay</button></div></div></div>
-        </article>`).join('');
-    const metricCards = [
-        ['fa-list-check', 'Aktif ödevler', dashboard.metrics.active, 'Teslim veya sonuç bekliyor'],
-        ['fa-triangle-exclamation', 'Gecikenler', dashboard.metrics.overdue, dashboard.metrics.overdue ? 'Müdahale gerekiyor' : 'Geciken ödev yok'],
-        ['fa-clock', 'Yaklaşan teslim', dashboard.metrics.dueToday + dashboard.metrics.upcoming, dashboard.metrics.dueToday ? `${dashboard.metrics.dueToday} bugün teslim` : 'Önümüzdeki 3 gün'],
-        ['fa-chart-pie', 'Tamamlanma oranı', dashboard.metrics.completionRate === null ? '—' : `%${dashboard.metrics.completionRate}`, dashboard.metrics.total ? `${dashboard.metrics.completed} / ${dashboard.metrics.total} tamamlandı` : 'Ödev kaydı yok']
-    ];
-    const html = `<div class="app-page pb-28 sm:pb-8"><header class="app-page-header"><div><h2 class="app-page-title">Ödev Takibi</h2><p class="app-page-subtitle">Öğrencilerin aktif ve tamamlanan ödevlerini yönetin.</p></div><button onclick="showOdevAtaModal()" class="btn-primary min-h-[44px] px-5"><i class="fas fa-plus mr-1"></i> Yeni Ödev</button></header>
-        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">${metricCards.map(([icon, label, value, detail]) => `<article class="app-panel p-4"><div class="flex items-center gap-2 text-gray-400"><i class="fas ${icon} text-xs"></i><p class="text-[11px] font-black uppercase tracking-[.08em]">${label}</p></div><p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">${value}</p><p class="mt-1 text-xs text-gray-500">${detail}</p></article>`).join('')}</section>
-        <section class="app-panel p-4"><div class="flex flex-wrap gap-2">${statusFilters.map(([key, label, count]) => `<button onclick="updateHomeworkDashboardFilters({status:'${key}'})" class="min-h-[40px] rounded-full border px-3 text-sm font-bold transition ${activeFilters.status === key ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 text-gray-600 hover:border-indigo-300 dark:border-gray-700 dark:text-gray-300'}">${label}${count ? ` <span class="ml-1 opacity-75">${count}</span>` : ''}</button>`).join('')}</div><div class="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_150px_220px]"><label class="relative"><span class="sr-only">Ödev veya öğrenci ara</span><i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i><input value="${escapeHtml(activeFilters.query)}" oninput="updateHomeworkDashboardFilters({query:this.value})" class="student-form-input min-h-[44px] pl-10" placeholder="Öğrenci, konu veya kaynak ara"></label><select onchange="updateHomeworkDashboardFilters({grade:this.value})" class="student-form-input min-h-[44px]"><option value="">Tüm sınıflar</option>${['5','6','7','8'].map(grade => `<option value="${grade}" ${activeFilters.grade === grade ? 'selected' : ''}>${grade}. Sınıf</option>`).join('')}</select><select onchange="updateHomeworkDashboardFilters({studentId:this.value})" class="student-form-input min-h-[44px]"><option value="">Tüm öğrenciler</option>${students.map(student => `<option value="${student.id}" ${activeFilters.studentId === student.id ? 'selected' : ''}>${escapeHtml(student.adSoyad)}</option>`).join('')}</select></div></section>
-        ${dashboard.metrics.overdue && activeFilters.status !== 'overdue' ? `<button onclick="updateHomeworkDashboardFilters({status:'overdue'})" class="mt-4 flex w-full items-center justify-between rounded-xl border border-red-200 bg-red-50/50 px-4 py-3 text-left transition hover:bg-red-50 dark:border-red-900/60 dark:bg-red-950/10"><span class="flex items-center gap-2 font-bold text-red-700 dark:text-red-300"><i class="fas fa-triangle-exclamation"></i>Müdahale gerekiyor</span><span class="text-sm font-semibold text-red-700 dark:text-red-300">${dashboard.metrics.overdue} geciken ödev <i class="fas fa-arrow-right ml-1"></i></span></button>` : ''}
-        <section class="app-panel mt-4 overflow-hidden"><div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-700"><div><h3 class="text-lg font-black">Aktif ödevler</h3><p class="mt-1 text-sm text-gray-500">${activeFilters.status === 'all' ? 'Öncelik sırasına göre listelenir.' : `${visibleRecords.length} ödev bulundu.`}</p></div><span class="text-xs font-bold text-gray-400">${visibleRecords.length} kayıt</span></div>${rowsHtml || `<div class="px-5 py-10 text-center"><i class="fas fa-filter text-xl text-gray-400"></i><p class="mt-3 font-bold">Bu filtrelere uygun ödev bulunamadı.</p><p class="mt-1 text-sm text-gray-500">Filtreleri temizleyerek tüm ödevleri görebilirsiniz.</p></div>`}</section></div>`;
+            <div class="md:hidden">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p>
+                            ${viewMode === 'student_all_history' && weekInfo ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900">${escapeHtml(weekInfo.compactLabel)}</span>` : ''}
+                        </div>
+                        <h3 class="mt-1 font-bold text-base">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</h3>
+                    </div>
+                    <span class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}">
+                        <i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>
+                        ${escapeHtml(due.label)}
+                    </span>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p>
+                <div class="mt-3 flex items-center justify-between gap-3">
+                    <p class="text-xs text-gray-500">Teslim: <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(renderDate(homework.bitisTarihi))}</span></p>
+                    <div class="flex gap-2">
+                        ${due.key === 'completed' ? `
+                            <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-3 text-sm text-blue-600 dark:text-blue-400 font-bold">
+                                <i class="fas fa-file-pdf mr-1"></i> Rapor
+                            </button>
+                        ` : `
+                            <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-3 text-sm">
+                                Sonuç Gir
+                            </button>
+                            <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-sm font-bold text-blue-600 dark:text-blue-400">
+                                Detay
+                            </button>
+                        `}
+                    </div>
+                </div>
+            </div>
+        </article>
+    `).join('');
+
+    const prevWeekNum = activeWeekNum ? Math.max(1, activeWeekNum - 1) : curWeekNum;
+    const nextWeekNum = activeWeekNum ? activeWeekNum + 1 : curWeekNum;
+
+    const html = `
+        <div class="app-page pb-28 sm:pb-8">
+            <!-- Header -->
+            <header class="app-page-header">
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                            ${viewMode === 'student_all_history' ? 'Öğrenci Geçmişi' : 'Haftalık Takip'}
+                        </span>
+                        ${activeWeekNum === curWeekNum ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Güncel Hafta</span>` : ''}
+                    </div>
+                    <h2 class="app-page-title mt-1">${escapeHtml(title)}</h2>
+                    <p class="app-page-subtitle">${escapeHtml(subtitle)}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="showOdevAtaModal()" class="btn-primary min-h-[44px] px-5">
+                        <i class="fas fa-plus mr-1"></i> Yeni Ödev
+                    </button>
+                </div>
+            </header>
+
+            <!-- 2-Axis Primary Filter Panel (Hafta + Öğrenci) -->
+            <section class="app-panel p-4 bg-white dark:bg-gray-800 shadow-sm border border-gray-200/80 dark:border-gray-700">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+                    <!-- Hafta Seçici & Stepper -->
+                    <div class="p-3 bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-gray-200/60 dark:border-gray-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black uppercase tracking-wider text-gray-500">📅 Hafta Seçimi</span>
+                            ${activeWeekNum !== curWeekNum && activeWeekNum !== null ? `
+                                <button onclick="updateHomeworkDashboardFilters({week: ${curWeekNum}})" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                    Bu Haftaya Dön
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="updateHomeworkDashboardFilters({week: ${prevWeekNum}})" class="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border rounded-lg font-bold text-sm transition min-h-[40px]" title="Önceki Hafta">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <select onchange="updateHomeworkDashboardFilters({week: this.value})" class="student-form-input flex-1 min-h-[40px] font-semibold text-sm">
+                                ${activeStudent ? `<option value="all" ${activeWeekNum === null ? 'selected' : ''}>Tüm Haftalar (Tüm Ödev Geçmişi)</option>` : ''}
+                                ${weekOptions.map(w => `
+                                    <option value="${w.weekNumber}" ${activeWeekNum === w.weekNumber ? 'selected' : ''}>
+                                        ${w.weekNumber}. Hafta · ${w.dateRangeShort}${w.weekNumber === curWeekNum ? ' (Güncel)' : ''}
+                                    </option>
+                                `).join('')}
+                            </select>
+                            <button onclick="updateHomeworkDashboardFilters({week: ${nextWeekNum}})" class="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border rounded-lg font-bold text-sm transition min-h-[40px]" title="Sonraki Hafta">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Öğrenci Seçici -->
+                    <div class="p-3 bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-gray-200/60 dark:border-gray-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black uppercase tracking-wider text-gray-500">👤 Öğrenci Filtresi</span>
+                            ${activeStudent ? `
+                                <button onclick="updateHomeworkDashboardFilters({studentId: ''})" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                    Tüm Öğrencilere Dön
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select onchange="updateHomeworkDashboardFilters({studentId: this.value})" class="student-form-input w-full min-h-[40px] font-semibold text-sm">
+                                <option value="">Tüm Öğrenciler (Seçili Hafta)</option>
+                                ${students.map(s => `
+                                    <option value="${s.id}" ${activeFilters.studentId === s.id ? 'selected' : ''}>
+                                        ${escapeHtml(s.adSoyad)} (${s.sinif ? `${s.sinif}. Sınıf` : 'Sınıf yok'})
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Metrics Cards -->
+            <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+                ${metricCards.map(([icon, label, value, detail]) => `
+                    <article class="app-panel p-4">
+                        <div class="flex items-center gap-2 text-gray-400">
+                            <i class="fas ${icon} text-xs"></i>
+                            <p class="text-[11px] font-black uppercase tracking-[.08em]">${label}</p>
+                        </div>
+                        <p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">${value}</p>
+                        <p class="mt-1 text-xs text-gray-500">${detail}</p>
+                    </article>
+                `).join('')}
+            </section>
+
+            <!-- Secondary Filters & Search -->
+            <section class="app-panel p-4 mt-3">
+                <div class="flex flex-wrap gap-2">
+                    ${statusFilters.map(([key, label, count]) => `
+                        <button onclick="updateHomeworkDashboardFilters({status:'${key}'})" class="min-h-[38px] rounded-full border px-3 text-sm font-bold transition ${activeFilters.status === key ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 text-gray-600 hover:border-indigo-300 dark:border-gray-700 dark:text-gray-300'}">
+                            ${label}${count !== undefined ? ` <span class="ml-1 opacity-75">${count}</span>` : ''}
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_150px]">
+                    <label class="relative">
+                        <span class="sr-only">Ödev veya öğrenci ara</span>
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        <input value="${escapeHtml(activeFilters.query)}" oninput="updateHomeworkDashboardFilters({query:this.value})" class="student-form-input min-h-[40px] pl-10" placeholder="Öğrenci, konu veya kaynak ara">
+                    </label>
+                    <select onchange="updateHomeworkDashboardFilters({grade:this.value})" class="student-form-input min-h-[40px]">
+                        <option value="">Tüm sınıflar</option>
+                        ${['5','6','7','8'].map(grade => `<option value="${grade}" ${activeFilters.grade === grade ? 'selected' : ''}>${grade}. Sınıf</option>`).join('')}
+                    </select>
+                </div>
+            </section>
+
+            <!-- List Section -->
+            <section class="app-panel mt-4 overflow-hidden">
+                <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-700">
+                    <div>
+                        <h3 class="text-lg font-black">${viewMode === 'student_all_history' ? 'Öğrenci Ödev Listesi' : 'Haftalık Ödev Listesi'}</h3>
+                        <p class="mt-1 text-sm text-gray-500">
+                            ${activeFilters.status === 'all' ? 'Öncelik ve duruma göre listelenir.' : `${records.length} ödev bulundu.`}
+                        </p>
+                    </div>
+                    <span class="text-xs font-bold text-gray-400">${records.length} kayıt</span>
+                </div>
+                ${rowsHtml || `
+                    <div class="px-5 py-12 text-center">
+                        <div class="text-gray-300 dark:text-gray-600 text-4xl mb-3"><i class="fas fa-folder-open"></i></div>
+                        <p class="font-bold text-gray-800 dark:text-gray-200">Bu filtrelere uygun ödev bulunamadı.</p>
+                        <p class="mt-1 text-sm text-gray-500">Farklı bir hafta veya öğrenci seçebilirsiniz.</p>
+                    </div>
+                `}
+            </section>
+        </div>
+    `;
     document.getElementById("dynamic-content").innerHTML = html;
 }
 
 export function updateHomeworkDashboardFilters(nextFilters = {}) {
     const current = window._homeworkDashboardFilters || {};
-    renderOdevTakibi(nextFilters.studentId ?? current.studentId ?? null, { ...current, ...nextFilters });
+    const merged = { ...current, ...nextFilters };
+    renderOdevTakibi(merged.studentId !== undefined ? merged.studentId : (current.studentId || null), merged);
 }
 
 export function openHomeworkResultFromBoard(studentId, homeworkId) {
