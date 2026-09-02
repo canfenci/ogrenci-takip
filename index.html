@@ -1077,16 +1077,16 @@
             </div>
             
             <nav class="flex flex-col gap-1 flex-1 overflow-y-auto" aria-label="Sayfa Navigasyonu">
-                <button id="sidebar-nav-reminders" onclick="renderReminderHome()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm active"><i class="fas fa-home sidebar-icon text-lg"></i> <span>Ana Sayfa</span></button>
-                <button id="sidebar-nav-home" onclick="renderHomeScreen()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-users sidebar-icon text-lg"></i> <span>Öğrenciler</span></button>
-                <button id="sidebar-nav-guidance" onclick="renderGuidancePage()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-compass sidebar-icon text-lg"></i> <span>Rehberlik</span></button>
-                <button id="sidebar-nav-groups" onclick="renderGroupsPage()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-users-cog sidebar-icon text-lg"></i> <span>Sınıf & Gruplar</span></button>
-                <button id="sidebar-nav-schedule" onclick="renderSchedulePage()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-calendar-alt sidebar-icon text-lg"></i> <span>Ders Programı</span></button>
-                <button id="sidebar-nav-homework" onclick="renderOdevTakibi()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-tasks sidebar-icon text-lg"></i> <span>Ödev Takibi</span></button>
-                <button id="sidebar-nav-lessons" onclick="renderDersKayitlari()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-book-open sidebar-icon text-lg"></i> <span>Ders Kayıtları</span></button>
+                <button id="sidebar-nav-reminders" data-app-nav="true" onclick="renderReminderHome()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm active"><i class="fas fa-home sidebar-icon text-lg"></i> <span>Ana Sayfa</span></button>
+                <button id="sidebar-nav-home" data-app-nav="true" onclick="renderHomeScreen()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-users sidebar-icon text-lg"></i> <span>Öğrenciler</span></button>
+                <button id="sidebar-nav-guidance" data-app-nav="true" onclick="renderGuidancePage()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-compass sidebar-icon text-lg"></i> <span>Rehberlik</span></button>
+                <button id="sidebar-nav-groups" data-app-nav="true" onclick="renderGroupsPage()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-users-cog sidebar-icon text-lg"></i> <span>Sınıf & Gruplar</span></button>
+                <button id="sidebar-nav-schedule" data-app-nav="true" onclick="renderSchedulePage()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-calendar-alt sidebar-icon text-lg"></i> <span>Ders Programı</span></button>
+                <button id="sidebar-nav-homework" data-app-nav="true" onclick="renderOdevTakibi()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-tasks sidebar-icon text-lg"></i> <span>Ödev Takibi</span></button>
+                <button id="sidebar-nav-lessons" data-app-nav="true" onclick="renderDersKayitlari()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-book-open sidebar-icon text-lg"></i> <span>Ders Kayıtları</span></button>
                 <button onclick="showDenemeAtaModal()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-copy sidebar-icon text-lg"></i> <span>Deneme Ata</span></button>
                 <button onclick="toggleTheme()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-moon sidebar-icon text-lg"></i> <span id="themeBtnText">Koyu Mod</span></button>
-                <button id="sidebar-nav-general" onclick="renderGenelIslemler()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-cog sidebar-icon text-lg"></i> <span>Ayarlar</span></button>
+                <button id="sidebar-nav-general" data-app-nav="true" onclick="renderGenelIslemler()" class="sidebar-btn cf-nav-item gap-3 py-2.5 px-3 text-sm"><i class="fas fa-cog sidebar-icon text-lg"></i> <span>Ayarlar</span></button>
             </nav>
 
             <div class="cf-sidebar-footer text-xs text-blue-200/50 mt-auto pt-3 border-t border-white/10 text-center flex flex-col gap-1">
@@ -1097,27 +1097,27 @@
 
         <!-- Mobile Bottom Navigation Bar -->
         <div class="flex md:hidden items-center justify-around fixed bottom-0 left-0 right-0 z-40 shadow-lg pb-safe mobile-nav-bar">
-            <button onclick="renderReminderHome()" class="flex flex-col items-center gap-0.5 text-xs font-semibold mobile-nav-btn text-blue-600 dark:text-blue-400 active" id="mobile-nav-reminders">
+            <button onclick="renderReminderHome()" data-app-nav="true" class="flex flex-col items-center gap-0.5 text-xs font-semibold mobile-nav-btn text-blue-600 dark:text-blue-400 active" id="mobile-nav-reminders">
                 <i class="fas fa-home text-xl"></i>
                 <span>Ana</span>
             </button>
-            <button onclick="renderHomeScreen()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-home">
+            <button onclick="renderHomeScreen()" data-app-nav="true" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-home">
                 <i class="fas fa-users text-xl"></i>
                 <span>Öğrenciler</span>
             </button>
-            <button onclick="renderSchedulePage()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-schedule">
+            <button onclick="renderSchedulePage()" data-app-nav="true" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-schedule">
                 <i class="fas fa-calendar-alt text-xl"></i>
                 <span>Program</span>
             </button>
-            <button onclick="renderOdevTakibi()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-homework">
+            <button onclick="renderOdevTakibi()" data-app-nav="true" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-homework">
                 <i class="fas fa-tasks text-xl"></i>
                 <span>Ödevler</span>
             </button>
-            <button onclick="renderDersKayitlari()" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-lessons">
+            <button onclick="renderDersKayitlari()" data-app-nav="true" class="flex flex-col items-center gap-0.5 text-sm font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-lessons">
                 <i class="fas fa-book-open text-xl"></i>
                 <span>Kayıtlar</span>
             </button>
-            <button onclick="renderGenelIslemler()" class="flex flex-col items-center gap-0.5 text-xs font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-general">
+            <button onclick="renderGenelIslemler()" data-app-nav="true" class="flex flex-col items-center gap-0.5 text-xs font-semibold mobile-nav-btn text-gray-500" id="mobile-nav-general">
                 <i class="fas fa-cog text-xl"></i>
                 <span>Ayarlar</span>
             </button>
@@ -1194,8 +1194,6 @@
         import './guidance-records.js';
         import './guidance-followup-insights.js';
         import './guidance-weekly-insights.js';
-        import './guidance-report-insights.js';
-        import './guidance-report-pdf.js';
         import './guidance.js';
         import './exams.js';
         import './homework.js?v=62';
@@ -1206,7 +1204,26 @@
         import './growth.js';
         import './groups.js';
 
-        window.onload = () => {
+        let isAppBooted = false;
+        let initialViewRendered = false;
+        let userHasNavigatedDuringStartup = false;
+
+        // Explicit user navigation listener for route navigation items only
+        document.addEventListener('click', (e) => {
+            const isNav = window.isStartupNavigationElement
+                ? window.isStartupNavigationElement(e.target)
+                : Boolean(e.target.closest && e.target.closest('[data-app-nav="true"]'));
+
+            if (isNav) {
+                userHasNavigatedDuringStartup = true;
+                if (window.markStartupUserNavigation) window.markStartupUserNavigation();
+            }
+        }, { capture: true, passive: true });
+
+        function bootApp() {
+            if (isAppBooted) return;
+            isAppBooted = true;
+
             if (window.applyTheme) window.applyTheme();
             if (window.registerPWA) window.registerPWA();
             if (window.CLOUD_FEATURES_ENABLED !== true && window.showLocalDevelopmentBanner) {
@@ -1237,17 +1254,37 @@
                         if (user) {
                             if (window.restoreNavigationLayout) window.restoreNavigationLayout();
                             if (window.renderAppLoadingState) window.renderAppLoadingState();
+
+                            const renderInitialView = () => {
+                                const shouldRender = window.shouldRenderInitialView
+                                    ? window.shouldRenderInitialView({ initialViewRendered, userHasNavigatedDuringStartup })
+                                    : (!initialViewRendered && !userHasNavigatedDuringStartup);
+
+                                if (!shouldRender) return;
+                                initialViewRendered = true;
+
+                                document.getElementById("dynamic-content")?.removeAttribute("aria-busy");
+                                if (window.ensureTeacherProfile && !window.ensureTeacherProfile()) return;
+
+                                const page = urlParams.get('page');
+                                if (page === 'odevler' && window.renderOdevTakibi) {
+                                    window.renderOdevTakibi();
+                                } else if (window.renderReminderHome) {
+                                    window.renderReminderHome();
+                                }
+                            };
+
                             if (window.initializeFirestoreSync) {
-                                window.initializeFirestoreSync().then(() => {
-                                    document.getElementById("dynamic-content")?.removeAttribute("aria-busy");
-                                    if (window.ensureTeacherProfile && !window.ensureTeacherProfile()) return;
-                                    const page = urlParams.get('page');
-                                    if (page === 'odevler' && window.renderOdevTakibi) {
-                                        window.renderOdevTakibi();
-                                    } else if (window.renderReminderHome) {
-                                        window.renderReminderHome();
-                                    }
-                                });
+                                window.initializeFirestoreSync()
+                                    .then(() => {
+                                        renderInitialView();
+                                    })
+                                    .catch(err => {
+                                        console.error("Firestore startup sync failed, falling back to local data:", err);
+                                        renderInitialView();
+                                    });
+                            } else {
+                                renderInitialView();
                             }
                         } else {
                             if (window.resetFirestoreSync) window.resetFirestoreSync();
@@ -1264,7 +1301,30 @@
                     }
                 }
             }
-        };
+        }
+
+        // Boot immediately if document is already ready, or listen to DOMContentLoaded once
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootApp, { once: true });
+        } else {
+            bootApp();
+        }
+
+        // Global safety fallback: If initial view has not rendered within 3 seconds and user hasn't navigated, render fallback view
+        setTimeout(() => {
+            const shouldFallback = window.shouldRenderInitialView
+                ? window.shouldRenderInitialView({ initialViewRendered, userHasNavigatedDuringStartup })
+                : (!initialViewRendered && !userHasNavigatedDuringStartup);
+
+            if (shouldFallback) {
+                const content = document.getElementById('dynamic-content');
+                if (!content || !content.innerHTML || content.innerHTML.trim() === '' || content.hasAttribute('aria-busy')) {
+                    console.warn('Startup safety timer triggered: dynamic-content was empty or busy, rendering default view.');
+                    if (window.ensureTeacherProfile && !window.ensureTeacherProfile()) return;
+                    if (window.renderReminderHome) window.renderReminderHome();
+                }
+            }
+        }, 3000);
     </script>
 </body>
 </html>

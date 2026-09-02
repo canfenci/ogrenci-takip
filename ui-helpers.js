@@ -147,28 +147,62 @@ export function updateOnlineStatus() {
     }
 }
 
-// Global PWA Listeners
-window.addEventListener('online', updateOnlineStatus);
-window.addEventListener('offline', updateOnlineStatus);
-window.addEventListener('load', updateOnlineStatus);
+export let userHasNavigatedDuringStartup = false;
 
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (!sessionStorage.getItem('pwa_install_dismissed')) {
-        const installBanner = document.getElementById('pwaInstallBanner');
-        if (installBanner) installBanner.classList.remove('hidden');
+export function markStartupUserNavigation() {
+    userHasNavigatedDuringStartup = true;
+}
+
+export function resetStartupUserNavigation() {
+    userHasNavigatedDuringStartup = false;
+}
+
+export function isStartupNavigationElement(element) {
+    if (!element || typeof element.closest !== 'function') return false;
+    return Boolean(element.closest('[data-app-nav="true"], #sidebar-nav-reminders, #sidebar-nav-home, #sidebar-nav-guidance, #sidebar-nav-groups, #sidebar-nav-schedule, #sidebar-nav-homework, #sidebar-nav-lessons, #sidebar-nav-general, #mobile-nav-reminders, #mobile-nav-home, #mobile-nav-schedule, #mobile-nav-homework, #mobile-nav-lessons, #mobile-nav-general'));
+}
+
+export function shouldRenderInitialView(options = {}) {
+    if (typeof options === 'object' && options !== null && ('initialViewRendered' in options || 'userHasNavigatedDuringStartup' in options)) {
+        if (options.initialViewRendered) return false;
+        if (options.userHasNavigatedDuringStartup) return false;
+        return true;
     }
-});
+    const userNav = arguments.length > 1 ? arguments[1] : userHasNavigatedDuringStartup;
+    if (userNav) return false;
+    if (typeof options === 'boolean') {
+        return !options;
+    }
+    return true;
+}
 
-// Bind to window for global accessibility
-window.showSyncStatus = showSyncStatus;
-window.showFirebaseWarningBanner = showFirebaseWarningBanner;
-window.showLocalDevelopmentBanner = showLocalDevelopmentBanner;
-window.handleFirebaseError = handleFirebaseError;
-window.toggleTheme = toggleTheme;
-window.applyTheme = applyTheme;
-window.registerPWA = registerPWA;
-window.triggerPWAInstall = triggerPWAInstall;
-window.dismissPWAInstall = dismissPWAInstall;
-window.updateOnlineStatus = updateOnlineStatus;
+// Global PWA Listeners and window bindings
+if (typeof window !== 'undefined') {
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    window.addEventListener('load', updateOnlineStatus);
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        if (!sessionStorage.getItem('pwa_install_dismissed')) {
+            const installBanner = document.getElementById('pwaInstallBanner');
+            if (installBanner) installBanner.classList.remove('hidden');
+        }
+    });
+
+    window.showSyncStatus = showSyncStatus;
+    window.showFirebaseWarningBanner = showFirebaseWarningBanner;
+    window.showLocalDevelopmentBanner = showLocalDevelopmentBanner;
+    window.handleFirebaseError = handleFirebaseError;
+    window.toggleTheme = toggleTheme;
+    window.applyTheme = applyTheme;
+    window.registerPWA = registerPWA;
+    window.triggerPWAInstall = triggerPWAInstall;
+    window.dismissPWAInstall = dismissPWAInstall;
+    window.updateOnlineStatus = updateOnlineStatus;
+    window.shouldRenderInitialView = shouldRenderInitialView;
+    window.isStartupNavigationElement = isStartupNavigationElement;
+    window.markStartupUserNavigation = markStartupUserNavigation;
+    window.resetStartupUserNavigation = resetStartupUserNavigation;
+}

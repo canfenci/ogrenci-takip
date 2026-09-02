@@ -25,13 +25,6 @@ import {
     shiftWeekRange,
     formatWeekDateRange
 } from './guidance-weekly-insights.js';
-import {
-    buildGuidanceReportData,
-    normalizeGuidanceReportFilename
-} from './guidance-report-insights.js';
-import {
-    generateGuidancePdf
-} from './guidance-report-pdf.js';
 
 export function renderGuidancePage(options = {}) {
     store.currentPage = 'guidance';
@@ -1896,26 +1889,45 @@ function getGuidanceReportOptionsFromModal() {
     return { period, teacherNote, sections };
 }
 
-export function downloadGuidanceReportPdf(studentId) {
+let _reportModulesPromise = null;
+export async function getGuidanceReportModules() {
+    if (!_reportModulesPromise) {
+        _reportModulesPromise = Promise.all([
+            import('./guidance-report-insights.js'),
+            import('./guidance-report-pdf.js')
+        ]).then(([insights, pdf]) => ({
+            buildGuidanceReportData: insights.buildGuidanceReportData,
+            normalizeGuidanceReportFilename: insights.normalizeGuidanceReportFilename,
+            generateGuidancePdf: pdf.generateGuidancePdf
+        })).catch(err => {
+            _reportModulesPromise = null; // Reset on failure to allow retry
+            throw err;
+        });
+    }
+    return _reportModulesPromise;
+}
+
+export async function downloadGuidanceReportPdf(studentId) {
     const students = loadStudentsData();
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
-    const modalOptions = getGuidanceReportOptionsFromModal();
-    const reportData = buildGuidanceReportData(student, modalOptions);
-    if (!reportData) return;
-
-    const filename = normalizeGuidanceReportFilename({
-        studentName: reportData.student.name,
-        date: reportData.period.endDate
-    });
-
     try {
+        const { buildGuidanceReportData, normalizeGuidanceReportFilename, generateGuidancePdf } = await getGuidanceReportModules();
+        const modalOptions = getGuidanceReportOptionsFromModal();
+        const reportData = buildGuidanceReportData(student, modalOptions);
+        if (!reportData) return;
+
+        const filename = normalizeGuidanceReportFilename({
+            studentName: reportData.student.name,
+            date: reportData.period.endDate
+        });
+
         const doc = generateGuidancePdf(reportData);
         doc.save(filename);
     } catch (err) {
-        console.error("PDF oluşturma hatası:", err);
-        alert("PDF oluşturulurken bir hata oluştu: " + err.message);
+        console.error("PDF oluşturma/yükleme hatası:", err);
+        alert("Rehberlik raporlama modülü yüklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin: " + (err.message || err));
     }
 }
 
@@ -1924,16 +1936,17 @@ export async function shareGuidanceReportPdf(studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
-    const modalOptions = getGuidanceReportOptionsFromModal();
-    const reportData = buildGuidanceReportData(student, modalOptions);
-    if (!reportData) return;
-
-    const filename = normalizeGuidanceReportFilename({
-        studentName: reportData.student.name,
-        date: reportData.period.endDate
-    });
-
     try {
+        const { buildGuidanceReportData, normalizeGuidanceReportFilename, generateGuidancePdf } = await getGuidanceReportModules();
+        const modalOptions = getGuidanceReportOptionsFromModal();
+        const reportData = buildGuidanceReportData(student, modalOptions);
+        if (!reportData) return;
+
+        const filename = normalizeGuidanceReportFilename({
+            studentName: reportData.student.name,
+            date: reportData.period.endDate
+        });
+
         const doc = generateGuidancePdf(reportData);
         const pdfBlob = doc.output('blob');
         const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
@@ -1960,16 +1973,17 @@ export async function shareGuidanceReportPdf(studentId) {
     }
 }
 
-export function printGuidanceReportPdf(studentId) {
+export async function printGuidanceReportPdf(studentId) {
     const students = loadStudentsData();
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
-    const modalOptions = getGuidanceReportOptionsFromModal();
-    const reportData = buildGuidanceReportData(student, modalOptions);
-    if (!reportData) return;
-
     try {
+        const { buildGuidanceReportData, generateGuidancePdf } = await getGuidanceReportModules();
+        const modalOptions = getGuidanceReportOptionsFromModal();
+        const reportData = buildGuidanceReportData(student, modalOptions);
+        if (!reportData) return;
+
         const doc = generateGuidancePdf(reportData);
         const blobUrl = doc.output('bloburl');
         window.open(blobUrl, '_blank');
