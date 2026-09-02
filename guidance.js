@@ -19,6 +19,12 @@ import {
     formatFollowUpDisplayDate,
     getCalendarWeekRange
 } from './guidance-followup-insights.js';
+import {
+    getWeeklyGuidanceAnalytics,
+    compareGuidanceWeeks,
+    shiftWeekRange,
+    formatWeekDateRange
+} from './guidance-weekly-insights.js';
 
 export function renderGuidancePage(options = {}) {
     store.currentPage = 'guidance';
@@ -26,6 +32,7 @@ export function renderGuidancePage(options = {}) {
     updateMobileNavActive('mobile-nav-guidance');
 
     const currentTab = typeof options === 'object' && options.tab ? options.tab : (window._guidanceFilters?.tab || 'decision');
+    const selectedWeekOffset = typeof options === 'object' && options.selectedWeekOffset !== undefined ? options.selectedWeekOffset : (window._guidanceFilters?.selectedWeekOffset || 0);
     const query = typeof options === 'string' ? options : (options.query !== undefined ? options.query : (window._guidanceFilters?.query || ''));
     const priorityFilter = typeof options === 'object' && options.priority ? options.priority : (window._guidanceFilters?.priority || 'all');
     const gradeFilter = typeof options === 'object' && options.grade !== undefined ? options.grade : (window._guidanceFilters?.grade || '');
@@ -34,6 +41,7 @@ export function renderGuidancePage(options = {}) {
 
     window._guidanceFilters = {
         tab: currentTab,
+        selectedWeekOffset,
         query,
         priority: priorityFilter,
         grade: gradeFilter,
@@ -51,6 +59,14 @@ export function renderGuidancePage(options = {}) {
         studentId: followUpStudentId,
         query
     });
+
+    // Weekly Analytics Calculation (UX-06.5)
+    const baseWeekRange = getCalendarWeekRange(new Date());
+    const selectedWeekRange = shiftWeekRange(baseWeekRange.monday, selectedWeekOffset);
+    const prevWeekRange = shiftWeekRange(selectedWeekRange.monday, -1);
+    const weeklyAnalytics = getWeeklyGuidanceAnalytics(students, { weekRange: selectedWeekRange });
+    const prevWeeklyAnalytics = getWeeklyGuidanceAnalytics(students, { weekRange: prevWeekRange });
+    const weeklyComparison = compareGuidanceWeeks(weeklyAnalytics, prevWeeklyAnalytics);
 
     const normalizedQuery = String(query || '').trim().toLocaleLowerCase('tr-TR');
 
@@ -377,23 +393,21 @@ export function renderGuidancePage(options = {}) {
                             <p class="text-[11px] font-black uppercase tracking-[.08em]">${label}</p>
                         </div>
                         <p class="mt-3 text-2xl font-black ${valueClass || 'text-slate-900 dark:text-white'}">${value}</p>
-                        <p class="mt-1 text-xs text-gray-500">${detail}</p>
-                    </article>
-                `).join('')}
-            </section>
-
-            <!-- Segmented Control Tabs (Karar Merkezi vs Takip Takvimi) -->
-            <div class="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800 mt-4 mb-3">
-                <button onclick="updateGuidanceFilters({tab:'decision'})" class="py-2.5 px-4 text-sm font-black border-b-2 flex items-center gap-2 transition min-h-[44px] ${currentTab === 'decision' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}">
+                                  <!-- Segmented Control Tabs (Karar Merkezi vs Takip Takvimi vs Haftalık Özet) -->
+            <div class="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800 mt-4 mb-3 overflow-x-auto">
+                <button onclick="updateGuidanceFilters({tab:'decision'})" class="py-2.5 px-4 text-sm font-black border-b-2 flex items-center gap-2 transition min-h-[44px] whitespace-nowrap ${currentTab === 'decision' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}">
                     <i class="fas fa-brain"></i> Karar Merkezi
                 </button>
-                <button onclick="updateGuidanceFilters({tab:'agenda'})" class="py-2.5 px-4 text-sm font-black border-b-2 flex items-center gap-2 transition min-h-[44px] ${currentTab === 'agenda' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}">
+                <button onclick="updateGuidanceFilters({tab:'agenda'})" class="py-2.5 px-4 text-sm font-black border-b-2 flex items-center gap-2 transition min-h-[44px] whitespace-nowrap ${currentTab === 'agenda' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}">
                     <i class="fas fa-calendar-check"></i> Takip Takvimi
                     ${(followUpMetrics.todayCount + followUpMetrics.overdueCount) > 0 ? `
                         <span class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
                             ${followUpMetrics.todayCount + followUpMetrics.overdueCount}
                         </span>
                     ` : ''}
+                </button>
+                <button onclick="updateGuidanceFilters({tab:'weekly'})" class="py-2.5 px-4 text-sm font-black border-b-2 flex items-center gap-2 transition min-h-[44px] whitespace-nowrap ${currentTab === 'weekly' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}">
+                    <i class="fas fa-chart-pie"></i> Haftalık Özet
                 </button>
             </div>
 
@@ -493,13 +507,13 @@ export function renderGuidancePage(options = {}) {
                         </article>
                     </div>
                 </section>
-            ` : `
+            ` : currentTab === 'agenda' ? `
                 <!-- ==================== TAKİP TAKVİMİ (UX-06.4) ==================== -->
                 <!-- Filtreler & Arama -->
                 <section class="app-panel p-4 mt-1 space-y-3">
                     <div class="flex flex-wrap gap-2">
                         ${followUpCategoryFilters.map(([key, label]) => `
-                            <button onclick="updateGuidanceFilters({followUpCategory:'${key}'})" class="min-h-[36px] rounded-full border px-3 text-xs font-bold transition ${followUpCategory === key ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 text-gray-600 hover:border-indigo-300 dark:border-gray-700 dark:text-gray-300'}">
+                            <button onclick="updateGuidanceFilters({followUpCategory:'${key}'})" class="min-h-[44px] sm:min-h-[36px] rounded-full border px-3 text-xs font-bold transition ${followUpCategory === key ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 text-gray-600 hover:border-indigo-300 dark:border-gray-700 dark:text-gray-300'}">
                                 ${label}
                             </button>
                         `).join('')}
@@ -508,9 +522,9 @@ export function renderGuidancePage(options = {}) {
                         <label class="relative">
                             <span class="sr-only">Takip veya not ara</span>
                             <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                            <input id="guidanceSearchInput" value="${escapeHtml(query)}" oninput="updateGuidanceFilters({query:this.value})" class="student-form-input min-h-[40px] pl-10 text-xs" placeholder="Öğrenci adı, sorun veya müdahale ara...">
+                            <input id="guidanceSearchInput" value="${escapeHtml(query)}" oninput="updateGuidanceFilters({query:this.value})" class="student-form-input min-h-[44px] pl-10 text-xs" placeholder="Öğrenci adı, sorun veya müdahale ara...">
                         </label>
-                        <select onchange="updateGuidanceFilters({followUpStudentId:this.value})" class="student-form-input min-h-[40px] text-xs">
+                        <select onchange="updateGuidanceFilters({followUpStudentId:this.value})" class="student-form-input min-h-[44px] text-xs">
                             <option value="all">Tüm Öğrenciler</option>
                             ${students.map(s => `
                                 <option value="${s.id}" ${followUpStudentId === s.id ? 'selected' : ''}>${escapeHtml(s.adSoyad)}</option>
@@ -600,8 +614,10 @@ export function renderGuidancePage(options = {}) {
                         <article class="app-panel p-5 space-y-3">
                             <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                                 <div>
-                                    <h3 class="font-black text-base text-gray-900 dark:text-white">Yaklaşan Takipler</h3>
-                                    <p class="text-xs text-gray-500 mt-0.5">Sonraki haftalara planlanan takipler</p>
+                                    <h3 class="font-black text-base text-gray-900 dark:text-white flex items-center gap-2">
+                                        <span>Yaklaşan Takipler</span>
+                                        <p class="text-xs text-gray-500 mt-0.5">Sonraki haftalara planlanan takipler</p>
+                                    </div>
                                 </div>
                                 <span class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 flex items-center justify-center text-xs">
                                     <i class="fas fa-calendar"></i>
@@ -627,6 +643,328 @@ export function renderGuidancePage(options = {}) {
                                 <div class="space-y-2">
                                     ${undatedHtml}
                                 </div>
+                            </article>
+                        ` : ''}
+                    </div>
+                </section>
+            ` : `
+                <!-- ==================== HAFTALIK ÖZET (UX-06.5) ==================== -->
+                <!-- Hafta Seçici Bar -->
+                <section class="app-panel p-4 mt-1 flex items-center justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-2">
+                        <button onclick="updateGuidanceFilters({tab:'weekly', selectedWeekOffset:${selectedWeekOffset - 1}})" class="btn-secondary px-3 py-2 text-xs font-bold min-h-[44px] sm:min-h-[38px] flex items-center gap-1.5" title="Önceki Hafta">
+                            <i class="fas fa-chevron-left"></i> <span class="hidden sm:inline">Önceki Hafta</span>
+                        </button>
+                        <button onclick="updateGuidanceFilters({tab:'weekly', selectedWeekOffset:${selectedWeekOffset + 1}})" class="btn-secondary px-3 py-2 text-xs font-bold min-h-[44px] sm:min-h-[38px] flex items-center gap-1.5" title="Sonraki Hafta">
+                            <span class="hidden sm:inline">Sonraki Hafta</span> <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="px-3.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900 text-xs font-black text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                            <i class="far fa-calendar-alt text-indigo-600 dark:text-indigo-400"></i>
+                            ${escapeHtml(formatWeekDateRange(selectedWeekRange.monday, selectedWeekRange.sunday))}
+                            ${selectedWeekOffset === 0 ? '<span class="ml-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400">(Bu Hafta)</span>' : ''}
+                        </span>
+                        ${selectedWeekOffset !== 0 ? `
+                            <button onclick="updateGuidanceFilters({tab:'weekly', selectedWeekOffset:0})" class="btn-secondary px-3 py-1.5 text-xs font-bold min-h-[44px] sm:min-h-[36px] text-indigo-600">
+                                Bu Haftaya Dön
+                            </button>
+                        ` : ''}
+                    </div>
+                </section>
+
+                <!-- 5 Kompakt Haftalık Metrik Kartı -->
+                <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
+                    <article class="app-panel p-4">
+                        <div class="flex items-center gap-2 text-gray-400">
+                            <i class="fas fa-calendar-days text-xs"></i>
+                            <p class="text-[11px] font-black uppercase tracking-[.08em]">Planlanan</p>
+                        </div>
+                        <p class="mt-2.5 text-2xl font-black text-slate-900 dark:text-white">${weeklyAnalytics.metrics.plannedCount}</p>
+                        <p class="mt-1 text-xs text-gray-500">${weeklyAnalytics.isFutureWeek ? 'Gelecek takipler' : `${weeklyAnalytics.metrics.plannedCompletedCount} tamamlandı`}</p>
+                    </article>
+
+                    <article class="app-panel p-4">
+                        <div class="flex items-center gap-2 text-gray-400">
+                            <i class="fas fa-chart-pie text-xs text-indigo-600"></i>
+                            <p class="text-[11px] font-black uppercase tracking-[.08em]">Planlanan Tamamlama</p>
+                        </div>
+                        <p class="mt-2.5 text-2xl font-black text-slate-900 dark:text-white">${weeklyAnalytics.metrics.plannedCompletionRate !== null ? `%${weeklyAnalytics.metrics.plannedCompletionRate}` : '—'}</p>
+                        <p class="mt-1 text-xs text-gray-500">${weeklyAnalytics.isFutureWeek ? 'Henüz başlamadı' : `${weeklyAnalytics.metrics.plannedCompletedCount} / ${weeklyAnalytics.metrics.plannedCount} planlı`}</p>
+                    </article>
+
+                    <article class="app-panel p-4">
+                        <div class="flex items-center gap-2 text-gray-400">
+                            <i class="fas fa-clipboard-check text-xs text-emerald-600"></i>
+                            <p class="text-[11px] font-black uppercase tracking-[.08em]">Sonuçlandırılan</p>
+                        </div>
+                        <p class="mt-2.5 text-2xl font-black text-slate-900 dark:text-white">${weeklyAnalytics.metrics.completedInWeekCount}</p>
+                        <p class="mt-1 text-xs text-gray-500">${weeklyAnalytics.isFutureWeek ? 'Henüz başlamadı' : `${weeklyAnalytics.metrics.onTimeCount} zamanında`}</p>
+                    </article>
+
+                    <article class="app-panel p-4">
+                        <div class="flex items-center gap-2 text-gray-400">
+                            <i class="fas fa-triangle-exclamation text-xs ${weeklyAnalytics.metrics.overdueCount > 0 ? 'text-rose-500' : ''}"></i>
+                            <p class="text-[11px] font-black uppercase tracking-[.08em]">${weeklyAnalytics.isPastWeek ? 'Devreden Açık' : (weeklyAnalytics.isFutureWeek ? 'Geciken' : 'Geciken / Açık')}</p>
+                        </div>
+                        <p class="mt-2.5 text-2xl font-black ${weeklyAnalytics.metrics.overdueCount > 0 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-900 dark:text-white'}">${weeklyAnalytics.metrics.overdueCount}</p>
+                        <p class="mt-1 text-xs text-gray-500">${weeklyAnalytics.isPastWeek ? 'Hafta sonu devreden' : (weeklyAnalytics.isFutureWeek ? 'Planlanan dönemde' : 'Gecikmedeki takip')}</p>
+                    </article>
+
+                    <article class="app-panel p-4 col-span-2 md:col-span-1">
+                        <div class="flex items-center gap-2 text-gray-400">
+                            <i class="fas fa-face-smile text-xs text-amber-500"></i>
+                            <p class="text-[11px] font-black uppercase tracking-[.08em]">Olumlu Sonuç</p>
+                        </div>
+                        <p class="mt-2.5 text-2xl font-black text-slate-900 dark:text-white">${weeklyAnalytics.metrics.positiveOutcomeCount}</p>
+                        <p class="mt-1 text-xs text-gray-500">${weeklyAnalytics.isFutureWeek ? 'Henüz başlamadı' : (weeklyAnalytics.metrics.positiveRate !== null ? `%${weeklyAnalytics.metrics.positiveRate} olumlu oran` : 'Ölçüm yok')}</p>
+                    </article>
+                </section>
+
+                <!-- Haftalık Durum Özeti & Karşılaştırma -->
+                <section class="app-panel p-5 mt-4 space-y-3 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50/30 dark:from-slate-900/60 dark:to-gray-900 border-indigo-100/70 dark:border-gray-800">
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                        <div class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-300">
+                            <i class="fas ${weeklyAnalytics.isFutureWeek ? 'fa-calendar-plus' : 'fa-chart-line'} text-indigo-600 dark:text-indigo-400"></i>
+                            <span>${weeklyAnalytics.isFutureWeek ? 'Gelecek Hafta Planlaması' : 'Haftalık Operasyon Durumu'}</span>
+                        </div>
+                        ${weeklyComparison.hasEnoughData ? `
+                            <div class="flex items-center gap-2 text-xs font-bold flex-wrap">
+                                <span class="text-gray-500">Geçen Haftaya Göre:</span>
+                                ${weeklyComparison.diffCompRate !== null ? `
+                                    <span class="px-2 py-0.5 rounded-md ${weeklyComparison.diffCompRate >= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'}">
+                                        Tamamlama ${weeklyComparison.diffCompRate >= 0 ? `+${weeklyComparison.diffCompRate}` : weeklyComparison.diffCompRate} puan
+                                    </span>
+                                ` : ''}
+                                <span class="px-2 py-0.5 rounded-md ${weeklyComparison.diffOverdue <= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}">
+                                    Geciken ${weeklyComparison.diffOverdue > 0 ? `+${weeklyComparison.diffOverdue}` : weeklyComparison.diffOverdue}
+                                </span>
+                            </div>
+                        ` : `
+                            <span class="text-xs text-gray-400 italic">Karşılaştırma için önceki haftada yeterli kayıt yok.</span>
+                        `}
+                    </div>
+                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-relaxed">
+                        ${escapeHtml(weeklyAnalytics.narrative)}
+                    </p>
+                </section>
+
+                <!-- 2-Column Analytics Content -->
+                <section class="grid gap-4 lg:grid-cols-2 mt-4">
+                    <!-- Sol Kolon: Öğrenci Bazlı Takip ve Açık/Devreden Takipler -->
+                    <div class="space-y-4">
+                        <!-- Öğrenci Bazlı Takip Özeti -->
+                        <article class="app-panel p-5 space-y-3">
+                            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                                <div>
+                                    <h3 class="font-black text-base text-gray-900 dark:text-white">Öğrenci Bazlı Takip Özeti</h3>
+                                    <p class="text-xs text-gray-500 mt-0.5">${weeklyAnalytics.studentSummaries.length} öğrenci bu hafta kayıtlarda yer alıyor</p>
+                                </div>
+                                <span class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs">
+                                    <i class="fas fa-users"></i>
+                                </span>
+                            </div>
+
+                            <div class="space-y-2">
+                                ${weeklyAnalytics.studentSummaries.length ? weeklyAnalytics.studentSummaries.map(s => `
+                                    <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200/60 dark:border-gray-800 flex items-center justify-between gap-3 flex-wrap">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(s.studentName)}</span>
+                                                <span class="text-xs text-gray-400">${s.sinif ? `${s.sinif}. Sınıf` : ''}</span>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mt-1 flex-wrap">
+                                                <span>Planlanan: <strong>${s.plannedCount}</strong></span>
+                                                <span>•</span>
+                                                <span>Tamamlanan: <strong class="text-emerald-600">${s.completedCount}</strong></span>
+                                                ${s.overdueCount > 0 ? `
+                                                    <span>•</span>
+                                                    <span class="text-rose-600 font-bold">Geciken: ${s.overdueCount}</span>
+                                                ` : ''}
+                                                ${s.results.length ? `
+                                                    <span>•</span>
+                                                    <span class="text-indigo-600">${escapeHtml(s.results.join(', '))}</span>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                        <button onclick="openGuidanceStudent('${s.studentId}')" class="btn-secondary py-1.5 px-3 text-xs font-semibold min-h-[44px] sm:min-h-[36px]">
+                                            Dosya
+                                        </button>
+                                    </div>
+                                `).join('') : `
+                                    <div class="p-6 text-center text-gray-400 text-xs">
+                                        <p>Bu hafta için öğrenci takip kaydı bulunmuyor.</p>
+                                    </div>
+                                `}
+                            </div>
+                        </article>
+
+                        <!-- Açık / Devreden Takipler -->
+                        <article class="app-panel p-5 space-y-3">
+                            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                                <div>
+                                    <h3 class="font-black text-base text-gray-900 dark:text-white">
+                                        ${weeklyAnalytics.isPastWeek ? 'Devreden Açık Takipler' : 'Hâlâ Açık Takipler'}
+                                    </h3>
+                                    <p class="text-xs text-gray-500 mt-0.5">
+                                        ${weeklyAnalytics.isPastWeek ? 'Haftanın sonunda açık kalan ve devreden takipler' : 'Bu haftada henüz sonuçlandırılmamış açık takipler'}
+                                    </p>
+                                </div>
+                                <span class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-xs">
+                                    <i class="fas fa-hourglass-half"></i>
+                                </span>
+                            </div>
+
+                            <div class="space-y-2">
+                                ${weeklyAnalytics.openInWeek.length ? weeklyAnalytics.openInWeek.map(item => `
+                                    <div class="p-3 bg-white dark:bg-gray-900/80 rounded-xl border border-gray-200/70 dark:border-gray-800 flex items-center justify-between gap-3 flex-wrap">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="font-bold text-xs text-gray-900 dark:text-white">${escapeHtml(item.studentName)}</span>
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                                    ${escapeHtml(item.record.type ? (GUIDANCE_RECORD_TYPES[item.record.type] || item.record.type) : 'Akademik')}
+                                                </span>
+                                                ${item.record.followUpDate ? `
+                                                    <span class="text-[11px] text-gray-500">Takip: ${escapeHtml(formatFollowUpDisplayDate(item.record.followUpDate))}</span>
+                                                ` : ''}
+                                            </div>
+                                            <p class="text-xs text-gray-600 dark:text-gray-300 truncate mt-1">${escapeHtml(item.record.issue)}</p>
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                            <button onclick="showCompleteGuidanceRecordModal('${item.studentId}', '${item.record.id}')" class="btn-primary py-1.5 px-3 text-xs font-bold min-h-[44px] sm:min-h-[36px]">
+                                                Sonuç Gir
+                                            </button>
+                                            <button onclick="openGuidanceStudent('${item.studentId}')" class="btn-secondary py-1.5 px-3 text-xs font-semibold min-h-[44px] sm:min-h-[36px]">
+                                                Dosya
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('') : `
+                                    <div class="p-6 text-center text-gray-400 text-xs">
+                                        <i class="fas fa-check-circle text-emerald-500 text-lg mb-1 block"></i>
+                                        <p>Bu haftaya ait açık veya devreden takip bulunmuyor.</p>
+                                    </div>
+                                `}
+                            </div>
+                        </article>
+                    </div>
+
+                    <!-- Sağ Kolon: Sonuç Dağılımı, Kategori Dağılımı ve Tamamlananlar -->
+                    <div class="space-y-4">
+                        <!-- Sonuç Dağılımı & Takip Alanı -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Sonuç Dağılımı -->
+                            <article class="app-panel p-4 space-y-3">
+                                <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                                    <h4 class="font-black text-sm text-gray-900 dark:text-white">Sonuç Dağılımı</h4>
+                                    <i class="fas fa-poll text-xs text-gray-400"></i>
+                                </div>
+                                <ul class="space-y-2 text-xs">
+                                    <li class="flex items-center justify-between">
+                                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Olumlu</span>
+                                        <strong class="text-emerald-700 dark:text-emerald-400">${weeklyAnalytics.outcomes.positive}</strong>
+                                    </li>
+                                    <li class="flex items-center justify-between">
+                                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-400"></span> Değişim Yok</span>
+                                        <strong>${weeklyAnalytics.outcomes.neutral}</strong>
+                                    </li>
+                                    <li class="flex items-center justify-between">
+                                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Gerileme</span>
+                                        <strong class="text-rose-600">${weeklyAnalytics.outcomes.negative}</strong>
+                                    </li>
+                                    <li class="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-500">
+                                        <span>Henüz Ölçülmedi (Açık)</span>
+                                        <span>${weeklyAnalytics.pendingOpenCount}</span>
+                                    </li>
+                                </ul>
+                            </article>
+
+                            <!-- Takip Alanı Dağılımı -->
+                            <article class="app-panel p-4 space-y-3">
+                                <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                                    <h4 class="font-black text-sm text-gray-900 dark:text-white">Rehberlik Türü</h4>
+                                    <i class="fas fa-tags text-xs text-gray-400"></i>
+                                </div>
+                                <ul class="space-y-2 text-xs">
+                                    <li class="flex items-center justify-between">
+                                        <span>Akademik</span>
+                                        <strong>${weeklyAnalytics.categories.academic}</strong>
+                                    </li>
+                                    <li class="flex items-center justify-between">
+                                        <span>Ödev / Disiplin</span>
+                                        <strong>${weeklyAnalytics.categories.discipline}</strong>
+                                    </li>
+                                    <li class="flex items-center justify-between">
+                                        <span>Sınav / Performans</span>
+                                        <strong>${weeklyAnalytics.categories.performance}</strong>
+                                    </li>
+                                    <li class="flex items-center justify-between">
+                                        <span>Genel Takip</span>
+                                        <strong>${weeklyAnalytics.categories.general}</strong>
+                                    </li>
+                                </ul>
+                            </article>
+                        </div>
+
+                        <!-- Bu Hafta Tamamlanan Takipler -->
+                        <article class="app-panel p-5 space-y-3">
+                            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                                <div>
+                                    <h3 class="font-black text-base text-gray-900 dark:text-white">Bu Hafta Tamamlananlar</h3>
+                                    <p class="text-xs text-gray-500 mt-0.5">${weeklyAnalytics.completedInWeek.length} takip bu hafta sonuçlandırıldı</p>
+                                </div>
+                                <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs">
+                                    <i class="fas fa-check-double"></i>
+                                </span>
+                            </div>
+
+                            <div class="space-y-2">
+                                ${weeklyAnalytics.completedInWeek.length ? weeklyAnalytics.completedInWeek.map(item => `
+                                    <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200/60 dark:border-gray-800 flex items-center justify-between gap-2 text-xs flex-wrap">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <span class="font-bold text-gray-900 dark:text-white">${escapeHtml(item.studentName)}</span>
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                                    ${escapeHtml(GUIDANCE_RESULT_OPTIONS[item.record.result] || item.record.result || 'Tamamlandı')}
+                                                </span>
+                                            </div>
+                                            <p class="text-gray-600 dark:text-gray-400 truncate mt-0.5">${escapeHtml(item.record.action || item.record.issue)}</p>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <p class="text-[11px] text-gray-500 font-medium">
+                                                ${escapeHtml(formatFollowUpDisplayDate(item.record.closedAt))}
+                                            </p>
+                                            ${item.record.followUpDate && item.record.closedAt && item.record.closedAt.slice(0,10) <= item.record.followUpDate.slice(0,10) ? `
+                                                <span class="text-[10px] font-bold text-emerald-600">Zamanında</span>
+                                            ` : item.record.followUpDate ? `
+                                                <span class="text-[10px] font-bold text-amber-600">Geç tamamlandı</span>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                `).join('') : `
+                                    <div class="p-6 text-center text-gray-400 text-xs">
+                                        <p>Bu hafta henüz tamamlanmış takip bulunmuyor.</p>
+                                    </div>
+                                `}
+                            </div>
+                        </article>
+
+                        <!-- Geç Tamamlanan Takipler (Varsa küçük operasyonel bilgi) -->
+                        ${weeklyAnalytics.lateCompleted.length ? `
+                            <article class="app-panel p-4 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 space-y-2">
+                                <div class="flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
+                                    <i class="fas fa-info-circle text-amber-600"></i>
+                                    <span>Geç Tamamlanan Takipler (${weeklyAnalytics.lateCompleted.length})</span>
+                                </div>
+                                <ul class="space-y-1 text-xs text-amber-900 dark:text-amber-300">
+                                    ${weeklyAnalytics.lateCompleted.map(item => `
+                                        <li class="flex items-center justify-between">
+                                            <span>${escapeHtml(item.studentName)}</span>
+                                            <span class="text-[11px] opacity-80">${item.daysLate} gün sonra tamamlandı</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
                             </article>
                         ` : ''}
                     </div>
