@@ -43,6 +43,7 @@ const ASSETS_TO_CACHE = [
   "./guidance-center-insights.js",
   "./guidance-student-insights.js",
   "./guidance-records.js",
+  "./guidance-followup-insights.js",
   "./growth.js",
   "./groups.js"
 ];
