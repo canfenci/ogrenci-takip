@@ -188,7 +188,8 @@ export function getHomeworkDisciplineInsight(student, homeworks = []) {
 /**
  * Deterministic rule-based intervention recommendation.
  */
-export function getRecommendedIntervention({ dominantError, repeatedTopic, examTrend, discipline, targetGap }) {
+export function getRecommendedIntervention(options = {}) {
+    const { dominantError, repeatedTopic, examTrend, discipline, targetGap } = (options && typeof options === 'object') ? options : {};
     if (dominantError?.key === 'bilgi_eksikligi') {
         return {
             title: 'Konu Tekrarı + Temel Soru',
@@ -323,6 +324,16 @@ export function buildGuidancePriority(student, allHomeworks = null, now = new Da
         reasons.push(`Hedef nete ${targetGap.toFixed(2)} net fark var`);
     }
 
+    // Check if student has due/overdue guidance follow-up
+    const rawGuidanceRecords = Array.isArray(student.guidanceRecords) ? student.guidanceRecords : (Array.isArray(student.rehberlikKayitlari) ? student.rehberlikKayitlari : []);
+    const todayStr = (now instanceof Date && !isNaN(now.getTime())) ? now.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const hasOverdueGuidance = rawGuidanceRecords.some(r => r && (r.status === 'open' || !r.status || r.durum === 'acik') && r.followUpDate && r.followUpDate <= todayStr);
+
+    if (hasOverdueGuidance) {
+        priorityScore += 10;
+        reasons.push('Takip tarihi gelmiş rehberlik müdahalesi bulunuyor');
+    }
+
     // Determine priority level
     let priority = 'watch';
     let priorityLabel = 'İzle';
@@ -370,7 +381,8 @@ export function buildGuidancePriority(student, allHomeworks = null, now = new Da
         examTrend,
         discipline,
         targetGap,
-        activePlan
+        activePlan,
+        hasOverdueGuidance
     };
 }
 
@@ -399,12 +411,20 @@ export function buildGuidanceCenterDashboard(students = [], now = new Date()) {
     // Contacted this week
     const weekAgo = new Date(now.getTime() - 7 * 86400000);
     const weekAgoStr = weekAgo.toISOString().slice(0, 10);
+    const todayStr = (now instanceof Date && !isNaN(now.getTime())) ? now.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
     let contactedCount = 0;
+    let dueGuidanceCount = 0;
+
     students.forEach(s => {
         const hadLesson = (s.dersKayitlari || []).some(d => d.tarih >= weekAgoStr);
         const hadExam = (s.denemeler || []).some(e => e.tarih >= weekAgoStr);
         const hadPlan = s.studyPlanProfile?.generatedAt && s.studyPlanProfile.generatedAt >= weekAgoStr;
         if (hadLesson || hadExam || hadPlan) contactedCount += 1;
+
+        const records = Array.isArray(s.guidanceRecords) ? s.guidanceRecords : (Array.isArray(s.rehberlikKayitlari) ? s.rehberlikKayitlari : []);
+        if (records.some(r => r && (r.status === 'open' || !r.status || r.durum === 'acik') && r.followUpDate && r.followUpDate <= todayStr)) {
+            dueGuidanceCount += 1;
+        }
     });
 
     const metrics = {
@@ -414,7 +434,8 @@ export function buildGuidanceCenterDashboard(students = [], now = new Date()) {
         mediumPriority: mediumCount,
         watchPriority: watchCount,
         activePlans: activePlansCount,
-        recentContacted: contactedCount
+        recentContacted: contactedCount,
+        dueGuidance: dueGuidanceCount
     };
 
     // Active study plans list

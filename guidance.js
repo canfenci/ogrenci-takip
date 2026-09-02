@@ -1,10 +1,18 @@
-// ==================== GUIDANCE CENTER & STUDENT DETAIL MODULE ====================
-// Karar destek, önceliklendirme ve öğrenci bazlı derin rehberlik detay analizi.
-
-import { loadStudentsData, escapeHtml, store, getStudentOdevler } from './store.js';
+import { loadStudentsData, saveStudentsData, escapeHtml, store, getStudentOdevler } from './store.js';
 import { updateMobileNavActive } from './auth.js';
 import { buildGuidanceCenterDashboard, getStudentInitials } from './guidance-center-insights.js';
 import { buildStudentGuidanceDetail } from './guidance-student-insights.js';
+import {
+    getStudentGuidanceRecords,
+    isGuidanceRecordDue,
+    createGuidanceRecord,
+    updateGuidanceRecord,
+    completeGuidanceRecord,
+    deleteGuidanceRecord,
+    buildSuggestedPrefill,
+    GUIDANCE_RECORD_TYPES,
+    GUIDANCE_RESULT_OPTIONS
+} from './guidance-records.js';
 
 export function renderGuidancePage(options = {}) {
     store.currentPage = 'guidance';
@@ -441,6 +449,97 @@ export function renderGuidanceStudentDetail(studentId) {
         `;
     }
 
+    // Guidance Records HTML
+    const guidanceRecords = detail.guidanceRecords || [];
+    const guidanceRecordsHtml = guidanceRecords.length ? guidanceRecords.map(rec => {
+        const isDue = isGuidanceRecordDue(rec);
+        let statusBadge = '';
+        if (rec.status === 'completed') {
+            statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60 flex items-center gap-1"><i class="fas fa-check-circle text-[10px]"></i> Tamamlandı</span>`;
+        } else if (rec.result === 'pending') {
+            statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">Henüz Ölçülmedi · Takipte</span>`;
+        } else if (isDue) {
+            statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1 animate-pulse"><i class="fas fa-clock text-[10px]"></i> Takip Bekliyor</span>`;
+        } else {
+            statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">Takipte</span>`;
+        }
+
+        return `
+            <div class="p-3.5 bg-white dark:bg-gray-900/80 rounded-xl border ${isDue ? 'border-amber-300 dark:border-amber-800 shadow-sm' : 'border-gray-200/70 dark:border-gray-800'} space-y-2">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-bold text-gray-500">${escapeHtml(rec.formattedDate || rec.date)}</span>
+                        <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            ${escapeHtml(rec.typeLabel)}
+                        </span>
+                        ${statusBadge}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        ${rec.status === 'open' ? `
+                            <button onclick="showCompleteGuidanceRecordModal('${studentId}', '${rec.id}')" class="btn-primary py-1 px-2.5 text-[11px] font-bold min-h-[30px] flex items-center gap-1" title="Sonuç Değerlendirmesi Gir">
+                                <i class="fas fa-clipboard-check"></i> Sonuç Gir
+                            </button>
+                        ` : ''}
+                        <button onclick="showGuidanceRecordModal('${studentId}', '${rec.id}')" class="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded min-h-[30px]" title="Düzenle">
+                            <i class="fas fa-pen text-xs"></i>
+                        </button>
+                        <button onclick="confirmDeleteGuidanceRecord('${studentId}', '${rec.id}')" class="p-1.5 text-gray-400 hover:text-rose-600 rounded min-h-[30px]" title="Sil">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="space-y-1 text-xs">
+                    <p class="text-gray-800 dark:text-gray-200 leading-relaxed">
+                        <span class="font-bold text-gray-900 dark:text-white">Sorun / Gözlem:</span> ${escapeHtml(rec.issue)}
+                    </p>
+                    <p class="text-gray-800 dark:text-gray-200 leading-relaxed">
+                        <span class="font-bold text-gray-900 dark:text-white">Planlanan / Uygulanan Müdahale:</span> ${escapeHtml(rec.action)}
+                    </p>
+                    ${rec.followUpDate ? `
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 pt-0.5 flex items-center gap-1">
+                            <i class="far fa-calendar-check text-indigo-500"></i> Takip Tarihi: <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(rec.formattedFollowUpDate || rec.followUpDate)}</span>
+                        </p>
+                    ` : ''}
+                    ${rec.note ? `
+                        <div class="text-[11px] text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-950/40 p-2 rounded-lg border border-gray-100 dark:border-gray-800 mt-1">
+                            ${escapeHtml(rec.note)}
+                        </div>
+                    ` : ''}
+                    ${rec.result && rec.result !== 'pending' ? `
+                        <div class="mt-2 p-2.5 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200/80 dark:border-slate-800 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-gray-800 dark:text-gray-200">Öğretmen Değerlendirmesi:</span>
+                                <span class="font-black ${rec.result === 'positive' ? 'text-emerald-600 dark:text-emerald-400' : (rec.result === 'negative' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300')}">
+                                    ${escapeHtml(rec.resultLabel || 'Değerlendirildi')}
+                                </span>
+                            </div>
+                            ${rec.resultNote ? `<p class="text-[11px] text-gray-600 dark:text-gray-400 mt-1 italic">${escapeHtml(rec.resultNote)}</p>` : ''}
+                        </div>
+                    ` : (rec.result === 'pending' && rec.resultNote ? `
+                        <div class="mt-2 p-2 bg-amber-50/60 dark:bg-amber-950/30 rounded-lg border border-amber-200/60 dark:border-amber-900/40 text-xs">
+                            <p class="font-bold text-amber-900 dark:text-amber-200">Ön Değerlendirme (Takipte):</p>
+                            <p class="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5 italic">${escapeHtml(rec.resultNote)}</p>
+                        </div>
+                    ` : '')}
+                </div>
+            </div>
+        `;
+    }).join('') : `
+        <div class="p-6 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/60 dark:border-gray-800 text-center space-y-2.5">
+            <div class="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center text-sm">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <div>
+                <p class="font-bold text-xs text-gray-800 dark:text-gray-200">Henüz rehberlik kaydı bulunmuyor.</p>
+                <p class="text-xs text-gray-500 mt-0.5">İlk kaydı oluşturarak öğrencinin gelişim sürecini takip etmeye başlayabilirsiniz.</p>
+            </div>
+            <button onclick="showGuidanceRecordModal('${studentId}')" class="btn-primary py-2 px-4 text-xs font-bold min-h-[40px] inline-flex items-center gap-1.5">
+                <i class="fas fa-plus"></i> Rehberlik Kaydı Ekle
+            </button>
+        </div>
+    `;
+
     document.getElementById('dynamic-content').innerHTML = `
         <div class="app-page pb-28 sm:pb-8">
             <!-- Header -->
@@ -464,7 +563,10 @@ export function renderGuidanceStudentDetail(studentId) {
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
-                        <button onclick="showStudyPlanSetup('${studentId}')" class="btn-primary min-h-[44px] px-4 text-xs font-bold flex items-center gap-1.5">
+                        <button onclick="showGuidanceRecordModal('${studentId}')" class="btn-primary min-h-[44px] px-4 text-xs font-bold flex items-center gap-1.5">
+                            <i class="fas fa-clipboard-list"></i> Rehberlik Kaydı Ekle
+                        </button>
+                        <button onclick="showStudyPlanSetup('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold flex items-center gap-1.5">
                             <i class="fas fa-compass"></i> Çalışma Planı Oluştur
                         </button>
                         <button onclick="openCockpitHomework('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold">
@@ -506,7 +608,7 @@ export function renderGuidanceStudentDetail(studentId) {
                 `).join('')}
             </section>
 
-            <!-- Ana 2 Kolonlu Blok: Kanıtlar vs Müdahale -->
+            <!-- Ana 2 Kolonlu Blok: Kanıtlar vs Müdahale & Rehberlik Günlüğü -->
             <section class="grid gap-4 lg:grid-cols-2 mt-4">
                 <!-- Sol Kolon: Akademik Kanıtlar -->
                 <div class="space-y-4">
@@ -554,7 +656,7 @@ export function renderGuidanceStudentDetail(studentId) {
                     </article>
                 </div>
 
-                <!-- Sağ Kolon: Müdahale ve Sonuç Değerlendirmesi -->
+                <!-- Sağ Kolon: Müdahale ve Rehberlik Günlüğü -->
                 <div class="space-y-4">
                     <!-- Önerilen İlk Müdahale Eylem Planı -->
                     <article class="app-panel p-5 space-y-4 bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-200/60 dark:border-indigo-900/50">
@@ -582,9 +684,37 @@ export function renderGuidanceStudentDetail(studentId) {
                                 <li class="flex items-center gap-1.5"><i class="fas fa-check text-emerald-500 text-[10px]"></i> Süreli mini pekiştirme denemesi</li>
                             </ul>
                         </div>
-                        <button onclick="showStudyPlanSetup('${studentId}')" class="btn-primary w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 min-h-[44px]">
-                            <i class="fas fa-compass"></i> Çalışma Planı Oluştur
-                        </button>
+                        <div class="flex items-center gap-2 pt-1">
+                            <button onclick="showGuidanceRecordModal('${studentId}')" class="btn-primary flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 min-h-[44px]">
+                                <i class="fas fa-clipboard-list"></i> Rehberlik Kaydı Ekle
+                            </button>
+                            <button onclick="showStudyPlanSetup('${studentId}')" class="btn-secondary flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 min-h-[44px]">
+                                <i class="fas fa-compass"></i> Çalışma Planı
+                            </button>
+                        </div>
+                    </article>
+
+                    <!-- Rehberlik Günlüğü Bölümü -->
+                    <article class="app-panel p-5 space-y-3.5">
+                        <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-black text-base text-gray-900 dark:text-white">Rehberlik Günlüğü</h3>
+                                    ${detail.dueGuidanceRecordsCount > 0 ? `
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
+                                            ${detail.dueGuidanceRecordsCount} Takip Bekliyor
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                <p class="text-xs text-gray-500 mt-0.5">Öğretmen gözlem, müdahale ve takip geçmişi</p>
+                            </div>
+                            <button onclick="showGuidanceRecordModal('${studentId}')" class="btn-secondary px-3 py-1.5 text-xs font-bold min-h-[36px] flex items-center gap-1">
+                                <i class="fas fa-plus text-[10px]"></i> Kayıt Ekle
+                            </button>
+                        </div>
+                        <div class="space-y-3">
+                            ${guidanceRecordsHtml}
+                        </div>
                     </article>
 
                     <!-- Çalışma Planı Öncesi / Sonrası Karşılaştırması -->
@@ -653,6 +783,273 @@ export function renderGuidanceStudentDetail(studentId) {
     `;
 }
 
+// ==================== GUIDANCE RECORDS MODAL DIALOGS ====================
+
+/**
+ * Shows the Create / Edit Guidance Record modal dialog with prefill support.
+ */
+export function showGuidanceRecordModal(studentId, recordId = null) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    let initialData = {
+        type: 'academic',
+        issue: '',
+        action: '',
+        followUpDate: '',
+        note: ''
+    };
+
+    if (recordId) {
+        const records = getStudentGuidanceRecords(student);
+        const record = records.find(r => r.id === recordId);
+        if (record) {
+            initialData = {
+                type: record.type || 'academic',
+                issue: record.issue || '',
+                action: record.action || '',
+                followUpDate: record.followUpDate || '',
+                note: record.note || ''
+            };
+        }
+    } else {
+        const homeworks = getStudentOdevler(student);
+        const prefill = buildSuggestedPrefill(student, homeworks);
+        initialData = {
+            ...initialData,
+            ...prefill
+        };
+    }
+
+    const modalId = 'guidanceRecordModal';
+    document.getElementById(modalId)?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'app-modal-backdrop';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+        <div class="app-modal-card max-w-lg w-full space-y-4" onclick="event.stopPropagation()">
+            <div class="app-modal-header">
+                <div>
+                    <h2 class="app-page-title text-lg">${recordId ? 'Rehberlik Kaydını Düzenle' : 'Yeni Rehberlik Kaydı Ekle'}</h2>
+                    <p class="app-page-subtitle">${escapeHtml(student.adSoyad)} için müdahale ve takip planı.</p>
+                </div>
+                <button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Kapat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form onsubmit="event.preventDefault(); saveGuidanceRecordForm('${studentId}', ${recordId ? `'${recordId}'` : 'null'})" class="space-y-3.5">
+                <!-- Kayıt Türü -->
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Kayıt Türü</label>
+                    <select id="grFormType" class="student-form-input min-h-[40px] text-xs">
+                        ${Object.entries(GUIDANCE_RECORD_TYPES).map(([key, label]) => `
+                            <option value="${key}" ${initialData.type === key ? 'selected' : ''}>${escapeHtml(label)}</option>
+                        `).join('')}
+                    </select>
+                </div>
+
+                <!-- Sorun / Gözlem -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Sorun / Gözlem <span class="text-rose-500">*</span></label>
+                        ${!recordId && initialData.issue ? '<span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded">Öneri Dolduruldu</span>' : ''}
+                    </div>
+                    <textarea id="grFormIssue" required rows="2" class="student-form-input text-xs leading-relaxed" placeholder="Örn: Katı Basıncı konusunda bilgi eksikliği ve soru kalıplarında zorlanma">${escapeHtml(initialData.issue)}</textarea>
+                </div>
+
+                <!-- Planlanan / Uygulanan Müdahale -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Planlanan / Uygulanan Müdahale <span class="text-rose-500">*</span></label>
+                        ${!recordId && initialData.action ? '<span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded">Öneri Dolduruldu</span>' : ''}
+                    </div>
+                    <textarea id="grFormAction" required rows="2" class="student-form-input text-xs leading-relaxed" placeholder="Örn: 20 dk hedefli konu tekrarı yapıldı, 25 soruluk pekiştirme ödevi verildi">${escapeHtml(initialData.action)}</textarea>
+                </div>
+
+                <!-- Takip Tarihi -->
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Takip Tarihi (Opsiyonel)</label>
+                    <input type="date" id="grFormFollowUpDate" value="${escapeHtml(initialData.followUpDate)}" class="student-form-input min-h-[40px] text-xs">
+                    <p class="text-[11px] text-gray-400">Bu tarihte sistemde takip hatırlatma vurgusu görüntülenecektir.</p>
+                </div>
+
+                <!-- Ek Not -->
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Ek Notlar (Opsiyonel)</label>
+                    <textarea id="grFormNote" rows="2" class="student-form-input text-xs" placeholder="Öğrencinin yaklaşımı, veli görüşmesi vb.">${escapeHtml(initialData.note)}</textarea>
+                </div>
+
+                <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <button type="button" onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary flex-1 py-2.5 min-h-[44px] text-xs font-semibold">
+                        İptal
+                    </button>
+                    <button type="submit" class="btn-primary flex-1 py-2.5 min-h-[44px] text-xs font-bold">
+                        <i class="fas fa-save mr-1"></i> ${recordId ? 'Değişiklikleri Kaydet' : 'Rehberlik Kaydını Kaydet'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+/**
+ * Saves guidance record from the form submission.
+ */
+export function saveGuidanceRecordForm(studentId, recordId = null) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const type = document.getElementById('grFormType')?.value || 'academic';
+    const issue = document.getElementById('grFormIssue')?.value || '';
+    const action = document.getElementById('grFormAction')?.value || '';
+    const followUpDate = document.getElementById('grFormFollowUpDate')?.value || null;
+    const note = document.getElementById('grFormNote')?.value || '';
+
+    if (!issue.trim() || !action.trim()) {
+        alert('Lütfen Sorun/Gözlem ve Planlanan / Uygulanan Müdahale alanlarını doldurunuz.');
+        return;
+    }
+
+    if (recordId) {
+        updateGuidanceRecord(student, recordId, {
+            type,
+            issue: issue.trim(),
+            action: action.trim(),
+            followUpDate: followUpDate ? followUpDate.slice(0, 10) : null,
+            note: note.trim()
+        });
+    } else {
+        createGuidanceRecord(student, {
+            type,
+            issue: issue.trim(),
+            action: action.trim(),
+            followUpDate: followUpDate ? followUpDate.slice(0, 10) : null,
+            note: note.trim()
+        });
+    }
+
+    saveStudentsData(students);
+    document.getElementById('guidanceRecordModal')?.remove();
+    renderGuidanceStudentDetail(studentId);
+}
+
+/**
+ * Shows the modal to complete/evaluate a guidance record.
+ */
+export function showCompleteGuidanceRecordModal(studentId, recordId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const records = getStudentGuidanceRecords(student);
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+
+    const modalId = 'completeGuidanceRecordModal';
+    document.getElementById(modalId)?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'app-modal-backdrop';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+        <div class="app-modal-card max-w-lg w-full space-y-4" onclick="event.stopPropagation()">
+            <div class="app-modal-header">
+                <div>
+                    <h2 class="app-page-title text-lg">Rehberlik Takibini Sonuçlandır</h2>
+                    <p class="app-page-subtitle">${escapeHtml(student.adSoyad)} · Müdahale Sonuç Değerlendirmesi</p>
+                </div>
+                <button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Kapat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Kayıt Özeti -->
+            <div class="p-3.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200/60 dark:border-gray-800 space-y-1 text-xs">
+                <p class="text-gray-500"><span class="font-bold text-gray-800 dark:text-gray-200">Gözlem:</span> ${escapeHtml(record.issue)}</p>
+                <p class="text-gray-500"><span class="font-bold text-gray-800 dark:text-gray-200">Planlanan / Uygulanan Müdahale:</span> ${escapeHtml(record.action)}</p>
+            </div>
+
+            <form onsubmit="event.preventDefault(); saveCompleteGuidanceRecordForm('${studentId}', '${recordId}')" class="space-y-3.5">
+                <!-- Sonuç Seçimi -->
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Öğretmen Değerlendirmesi / Sonuç <span class="text-rose-500">*</span></label>
+                    <select id="grCompleteResult" class="student-form-input min-h-[40px] text-xs font-bold">
+                        ${Object.entries(GUIDANCE_RESULT_OPTIONS).map(([key, label]) => `
+                            <option value="${key}">${escapeHtml(label)}</option>
+                        `).join('')}
+                    </select>
+                    <p class="text-[11px] text-gray-400">"Henüz Ölçülmedi" seçilirse kayıt açık ve takipte kalır; diğer sonuçlar takibi tamamlar.</p>
+                </div>
+
+                <!-- Sonuç Notu -->
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Değerlendirme Notu (Opsiyonel)</label>
+                    <textarea id="grCompleteResultNote" rows="3" class="student-form-input text-xs" placeholder="Öğrencinin konuyu kavrama düzeyi, yeni net durumu veya pekişme durumu..."></textarea>
+                </div>
+
+                <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <button type="button" onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary flex-1 py-2.5 min-h-[44px] text-xs font-semibold">
+                        İptal
+                    </button>
+                    <button type="submit" class="btn-primary flex-1 py-2.5 min-h-[44px] text-xs font-bold">
+                        <i class="fas fa-save mr-1"></i> Sonucu Kaydet
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+/**
+ * Saves completion of guidance record.
+ */
+export function saveCompleteGuidanceRecordForm(studentId, recordId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const result = document.getElementById('grCompleteResult')?.value || 'positive';
+    const resultNote = document.getElementById('grCompleteResultNote')?.value || '';
+
+    completeGuidanceRecord(student, recordId, {
+        result,
+        resultNote: resultNote.trim()
+    });
+
+    saveStudentsData(students);
+    document.getElementById('completeGuidanceRecordModal')?.remove();
+    renderGuidanceStudentDetail(studentId);
+}
+
+/**
+ * Confirms and deletes a guidance record safely.
+ */
+export function confirmDeleteGuidanceRecord(studentId, recordId) {
+    if (!confirm('Bu rehberlik kaydı kalıcı olarak silinecek. Emin misiniz?')) {
+        return;
+    }
+
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    deleteGuidanceRecord(student, recordId);
+    saveStudentsData(students);
+    renderGuidanceStudentDetail(studentId);
+}
+
 export function updateGuidanceFilters(nextFilters = {}) {
     const current = window._guidanceFilters || {};
     const merged = { ...current, ...nextFilters };
@@ -690,3 +1087,8 @@ window.filterGuidanceStudents = filterGuidanceStudents;
 window.openGuidanceStudent = openGuidanceStudent;
 window.openStudentCockpitDirect = openStudentCockpitDirect;
 window.openCockpitHomework = openCockpitHomework;
+window.showGuidanceRecordModal = showGuidanceRecordModal;
+window.saveGuidanceRecordForm = saveGuidanceRecordForm;
+window.showCompleteGuidanceRecordModal = showCompleteGuidanceRecordModal;
+window.saveCompleteGuidanceRecordForm = saveCompleteGuidanceRecordForm;
+window.confirmDeleteGuidanceRecord = confirmDeleteGuidanceRecord;

@@ -13,6 +13,12 @@ import {
     getStudentInitials
 } from './guidance-center-insights.js';
 
+import {
+    getStudentGuidanceRecords,
+    isGuidanceRecordDue,
+    buildSuggestedPrefill
+} from './guidance-records.js';
+
 import { normalizeHomeworkErrorAnalysis, normalizeHataNedeniLabel, normalizeHataNedeniKey } from './homework-error-topics.js';
 
 function safeNumber(value) {
@@ -240,6 +246,36 @@ export function getStudentActivityTimeline(student, limit = 8) {
         }
     });
 
+    // Guidance Records & Interventions
+    const guidanceRecords = getStudentGuidanceRecords(student);
+    guidanceRecords.forEach(rec => {
+        // Created / Recorded event
+        const createdDateStr = rec.date || String(rec.createdAt).slice(0, 10);
+        if (isValidDateString(createdDateStr)) {
+            events.push({
+                date: createdDateStr,
+                formattedDate: rec.formattedDate || formatActivityDate(createdDateStr),
+                type: 'guidance',
+                typeLabel: 'Rehberlik Kaydı',
+                icon: 'fa-clipboard-list',
+                detail: `${rec.typeLabel || 'Akademik'}: ${rec.issue || 'Müdahale planlandı'}`
+            });
+        }
+
+        // Completed / Evaluated event
+        if (rec.status === 'completed' && rec.closedAt && rec.result !== 'pending' && isValidDateString(rec.closedAt.slice(0, 10))) {
+            const closedDateStr = rec.closedAt.slice(0, 10);
+            events.push({
+                date: closedDateStr,
+                formattedDate: formatActivityDate(closedDateStr),
+                type: 'guidance_result',
+                typeLabel: 'Rehberlik Takibi Tamamlandı',
+                icon: 'fa-clipboard-check',
+                detail: `${rec.resultLabel ? `Öğretmen Değerlendirmesi: ${rec.resultLabel}` : 'Müdahale tamamlandı'}${rec.resultNote ? ` · ${rec.resultNote}` : ''}`
+            });
+        }
+    });
+
     events.sort((a, b) => String(b.date).localeCompare(String(a.date)));
     return events.slice(0, limit);
 }
@@ -253,6 +289,10 @@ export function buildStudentGuidanceDetail(student, allHomeworks = null, now = n
     const errorReasons = getErrorReasonsDistribution(student, homeworks);
     const interventionImpact = getInterventionBeforeAfter(student);
     const timeline = getStudentActivityTimeline(student, 8);
+
+    const guidanceRecords = getStudentGuidanceRecords(student);
+    const dueGuidanceRecordsCount = guidanceRecords.filter(r => isGuidanceRecordDue(r, now)).length;
+    const suggestedPrefill = buildSuggestedPrefill(student, homeworks, now);
 
     const mainProblemSummary = getStudentMainProblemSummary({
         priority: priorityData.priority,
@@ -311,6 +351,9 @@ export function buildStudentGuidanceDetail(student, allHomeworks = null, now = n
         interventionImpact,
         timeline,
         recentLessons,
-        recentExams
+        recentExams,
+        guidanceRecords,
+        dueGuidanceRecordsCount,
+        suggestedPrefill
     };
 }

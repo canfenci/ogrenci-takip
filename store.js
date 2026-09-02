@@ -668,7 +668,8 @@ export function normalizeStudent(s) {
         errorResets: s.errorResets || {},
         growthPlan: s.growthPlan || {},
         weeklyGoals: s.weeklyGoals || {},
-        weeklyGoalProgress: s.weeklyGoalProgress || {}
+        weeklyGoalProgress: s.weeklyGoalProgress || {},
+        guidanceRecords: Array.isArray(s.guidanceRecords) ? s.guidanceRecords : (Array.isArray(s.rehberlikKayitlari) ? s.rehberlikKayitlari : (Array.isArray(s.guidanceNotes) ? s.guidanceNotes : []))
     };
 }
 
