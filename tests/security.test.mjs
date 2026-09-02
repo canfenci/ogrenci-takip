@@ -34,7 +34,7 @@ test('successful authentication restores navigation before cloud profile loading
   assert.match(index, /if \(window\.restoreNavigationLayout\) window\.restoreNavigationLayout\(\)/);
   assert.match(index, /if \(window\.renderAppLoadingState\) window\.renderAppLoadingState\(\)/);
   assert.match(auth, /mainContent\.className = "app-workspace w-full md:w-3\/4/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('mobile layout contains wide schedules and keeps Safari forms usable', async () => {
@@ -75,7 +75,7 @@ test('login offers privacy-preserving Firebase password reset', async () => {
   assert.match(auth, /Bu adresle kayıtlı bir hesap varsa/);
   assert.doesNotMatch(auth, /Bu e-posta adresi kayıtlı değil/);
   assert.match(auth, /auth\/too-many-requests/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('registration requires a versioned KVKK notice acknowledgment without conflating consent', async () => {
@@ -101,7 +101,7 @@ test('registration requires a versioned KVKK notice acknowledgment without confl
   assert.match(index, /import '\.\/privacy-notice\.js'/);
   assert.match(students, /Gizlilik ve KVKK Aydınlatma Metni/);
   assert.match(serviceWorker, /privacy-notice\.js/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('account deletion reauthenticates and removes every owned cloud collection before auth', async () => {
@@ -126,7 +126,7 @@ test('account deletion reauthenticates and removes every owned cloud collection 
   assert.match(index, /import '\.\/account-deletion\.js'/);
   assert.match(students, /Hesabımı ve Verilerimi Sil/);
   assert.match(serviceWorker, /account-deletion\.js/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('public homework links are disabled and are not included in reminders', async () => {
@@ -197,7 +197,7 @@ test('manual local recovery requires the exact verified account and an empty clo
   assert.match(students, /Yerel Kayıt Kurtarma/);
   assert.match(students, /Açık hesap:/);
   assert.match(students, /startLocalDataRecovery/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('guest trial mode is clearly labeled and isolated from account-local records', async () => {
@@ -222,7 +222,7 @@ test('guest trial mode is clearly labeled and isolated from account-local record
   assert.match(profile, /!store\.isGuestMode/);
   assert.match(resources, /window\.store\?\.isGuestMode/);
   assert.match(reminders, /window\.localDataKey/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('resource books sync per verified teacher while guest books remain local', async () => {
@@ -243,7 +243,7 @@ test('resource books sync per verified teacher while guest books remain local', 
   assert.match(resources, /collection\('resourceBooks'\)/);
   assert.match(resources, /userId: user\.uid/);
   assert.match(resources, /window\.store\?\.isGuestMode/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('first use requires a complete local teacher profile that remains editable in settings', async () => {
@@ -511,7 +511,7 @@ test('lesson records use the shared professional layout and mobile cards', async
   assert.match(finance, /app-disclosure/);
   assert.match(finance, /mobile-attendance-/);
   assert.match(finance, /hidden md:block app-panel/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('the shared palette uses indigo actions and semantic status colors', async () => {
@@ -523,7 +523,7 @@ test('the shared palette uses indigo actions and semantic status colors', async 
   assert.match(index, /\.btn-primary/);
   assert.doesNotMatch(index, /sidebar-icon text-xl text-(?:blue|green|violet|purple|indigo|orange|pink|teal|amber)-500/);
   assert.match(finance, /Ders Kaydını Kaydet/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('schedule groups and settings use the unified workspace design', async () => {
@@ -535,7 +535,7 @@ test('schedule groups and settings use the unified workspace design', async () =
   assert.doesNotMatch(schedule, /Excel Çizelgesi/);
   assert.match(groups, /app-page-title">Sınıf & Gruplar/);
   assert.match(students, /app-page-title">Ayarlar/);
-  assert.match(serviceWorker, /canfenci-cache-v84/);
+  assert.match(serviceWorker, /canfenci-cache-v85/);
 });
 
 test('exam assignment modal and student cockpit use shared professional surfaces', async () => {

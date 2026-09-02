@@ -25,6 +25,13 @@ import {
     shiftWeekRange,
     formatWeekDateRange
 } from './guidance-weekly-insights.js';
+import {
+    buildGuidanceReportData,
+    normalizeGuidanceReportFilename
+} from './guidance-report-insights.js';
+import {
+    generateGuidancePdf
+} from './guidance-report-pdf.js';
 
 export function renderGuidancePage(options = {}) {
     store.currentPage = 'guidance';
@@ -1237,6 +1244,9 @@ export function renderGuidanceStudentDetail(studentId) {
                         <button onclick="openCockpitHomework('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold">
                             <i class="fas fa-plus mr-1"></i> Ödev Ata
                         </button>
+                        <button onclick="openGuidanceReportModal('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-bold flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800" title="Öğrenci Rehberlik Gelişim Raporu (PDF)">
+                            <i class="fas fa-file-pdf text-red-500"></i> Rehberlik Raporu
+                        </button>
                         <button onclick="openStudentCockpitDirect('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold" title="Öğrenci Kokpiti">
                             <i class="fas fa-chart-line mr-1"></i> Kokpiti Aç
                         </button>
@@ -1757,6 +1767,218 @@ export function openCockpitHomework(studentId) {
     }
 }
 
+export function openGuidanceReportModal(studentId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const modalId = 'guidanceReportModal';
+    document.getElementById(modalId)?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'app-modal-backdrop';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+        <div class="app-modal-card max-w-lg w-full space-y-4" onclick="event.stopPropagation()">
+            <div class="app-modal-header">
+                <div>
+                    <h2 class="app-page-title text-lg flex items-center gap-2">
+                        <i class="fas fa-file-pdf text-red-500"></i> Rehberlik Gelişim Raporu
+                    </h2>
+                    <p class="app-page-subtitle">${escapeHtml(student.adSoyad)} (${escapeHtml(student.sinif ? `${student.sinif}. Sınıf` : 'Öğrenci')})</p>
+                </div>
+                <button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Kapat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="guidanceReportForm" onsubmit="event.preventDefault(); downloadGuidanceReportPdf('${studentId}');" class="space-y-4">
+                <!-- Dönem Seçimi -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Rapor Dönemi</label>
+                    <select id="reportPeriodSelect" class="form-input text-xs w-full min-h-[44px]">
+                        <option value="4weeks" selected>Son 4 Hafta (Önerilen)</option>
+                        <option value="8weeks">Son 8 Hafta</option>
+                        <option value="term">Bu Dönem</option>
+                        <option value="all">Tüm Geçmiş</option>
+                    </select>
+                </div>
+
+                <!-- Dahil Edilecek Bölümler -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">Dahil Edilecek Bölümler</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-200 dark:border-gray-800 text-xs">
+                        <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
+                            <input type="checkbox" id="sec_academicSummary" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">Akademik Durum Özeti</span>
+                        </label>
+                        <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
+                            <input type="checkbox" id="sec_examTrend" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">Deneme & Net Gelişimi</span>
+                        </label>
+                        <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
+                            <input type="checkbox" id="sec_weakTopics" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">Zayıf Ünite ve Konular</span>
+                        </label>
+                        <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
+                            <input type="checkbox" id="sec_errorReasons" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">Hata Nedenleri Dağılımı</span>
+                        </label>
+                        <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
+                            <input type="checkbox" id="sec_homeworkSummary" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">Ödev & Çalışma Disiplini</span>
+                        </label>
+                        <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
+                            <input type="checkbox" id="sec_guidanceInterventions" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">Rehberlik Müdahaleleri</span>
+                        </label>
+                        <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
+                            <input type="checkbox" id="sec_openFollowUps" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">Devam Eden Takipler</span>
+                        </label>
+                        <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
+                            <input type="checkbox" id="sec_nextActions" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">Önerilen Sonraki Adımlar</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Öğretmen Notu (Opsiyonel, yerel durum) -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Öğretmen Değerlendirmesi / Veli Notu (İsteğe Bağlı)</label>
+                    <textarea id="reportTeacherNote" rows="2" class="form-input text-xs w-full py-2" placeholder="Rapora eklenecek özel öğretmen değerlendirmesi veya notu..."></textarea>
+                </div>
+
+                <!-- Modal Actions -->
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800 flex-wrap">
+                    <button type="button" onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary min-h-[44px] px-4 text-xs font-semibold">
+                        Vazgeç
+                    </button>
+                    ${typeof navigator !== 'undefined' && navigator.share ? `
+                        <button type="button" onclick="shareGuidanceReportPdf('${studentId}')" class="btn-secondary min-h-[44px] px-4 text-xs font-bold flex items-center gap-1.5">
+                            <i class="fas fa-share-nodes"></i> Paylaş
+                        </button>
+                    ` : ''}
+                    <button type="button" onclick="printGuidanceReportPdf('${studentId}')" class="btn-secondary min-h-[44px] px-4 text-xs font-bold flex items-center gap-1.5">
+                        <i class="fas fa-print"></i> Yazdır
+                    </button>
+                    <button type="submit" class="btn-primary min-h-[44px] px-5 text-xs font-bold flex items-center gap-1.5">
+                        <i class="fas fa-file-pdf"></i> PDF İndir
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+function getGuidanceReportOptionsFromModal() {
+    const periodSelect = document.getElementById('reportPeriodSelect');
+    const period = periodSelect ? periodSelect.value : '4weeks';
+    const teacherNoteInput = document.getElementById('reportTeacherNote');
+    const teacherNote = teacherNoteInput ? teacherNoteInput.value.trim() : '';
+
+    const sections = {
+        academicSummary: document.getElementById('sec_academicSummary')?.checked ?? true,
+        examTrend: document.getElementById('sec_examTrend')?.checked ?? true,
+        weakTopics: document.getElementById('sec_weakTopics')?.checked ?? true,
+        errorReasons: document.getElementById('sec_errorReasons')?.checked ?? true,
+        homeworkSummary: document.getElementById('sec_homeworkSummary')?.checked ?? true,
+        guidanceInterventions: document.getElementById('sec_guidanceInterventions')?.checked ?? true,
+        openFollowUps: document.getElementById('sec_openFollowUps')?.checked ?? true,
+        nextActions: document.getElementById('sec_nextActions')?.checked ?? true,
+        teacherNote: true
+    };
+
+    return { period, teacherNote, sections };
+}
+
+export function downloadGuidanceReportPdf(studentId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const modalOptions = getGuidanceReportOptionsFromModal();
+    const reportData = buildGuidanceReportData(student, modalOptions);
+    if (!reportData) return;
+
+    const filename = normalizeGuidanceReportFilename({
+        studentName: reportData.student.name,
+        date: reportData.period.endDate
+    });
+
+    try {
+        const doc = generateGuidancePdf(reportData);
+        doc.save(filename);
+    } catch (err) {
+        console.error("PDF oluşturma hatası:", err);
+        alert("PDF oluşturulurken bir hata oluştu: " + err.message);
+    }
+}
+
+export async function shareGuidanceReportPdf(studentId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const modalOptions = getGuidanceReportOptionsFromModal();
+    const reportData = buildGuidanceReportData(student, modalOptions);
+    if (!reportData) return;
+
+    const filename = normalizeGuidanceReportFilename({
+        studentName: reportData.student.name,
+        date: reportData.period.endDate
+    });
+
+    try {
+        const doc = generateGuidancePdf(reportData);
+        const pdfBlob = doc.output('blob');
+        const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            await navigator.share({
+                title: `CanFenci - ${reportData.student.name} Rehberlik Raporu`,
+                text: `${reportData.student.name} öğrencimizin rehberlik gelişim ve takip raporu.`,
+                files: [pdfFile]
+            });
+            return;
+        } else if (navigator.share) {
+            await navigator.share({
+                title: `CanFenci - ${reportData.student.name} Rehberlik Raporu`,
+                text: `${reportData.student.name} öğrencimizin rehberlik gelişim raporu (${reportData.student.periodLabel}).`
+            });
+            return;
+        }
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.warn("Paylaşım desteklenmiyor veya iptal edildi, PDF indiriliyor:", err);
+            downloadGuidanceReportPdf(studentId);
+        }
+    }
+}
+
+export function printGuidanceReportPdf(studentId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const modalOptions = getGuidanceReportOptionsFromModal();
+    const reportData = buildGuidanceReportData(student, modalOptions);
+    if (!reportData) return;
+
+    try {
+        const doc = generateGuidancePdf(reportData);
+        const blobUrl = doc.output('bloburl');
+        window.open(blobUrl, '_blank');
+    } catch (err) {
+        console.error("PDF yazdırma hatası:", err);
+        downloadGuidanceReportPdf(studentId);
+    }
+}
+
 window.renderGuidancePage = renderGuidancePage;
 window.renderGuidanceStudentDetail = renderGuidanceStudentDetail;
 window.updateGuidanceFilters = updateGuidanceFilters;
@@ -1769,3 +1991,7 @@ window.saveGuidanceRecordForm = saveGuidanceRecordForm;
 window.showCompleteGuidanceRecordModal = showCompleteGuidanceRecordModal;
 window.saveCompleteGuidanceRecordForm = saveCompleteGuidanceRecordForm;
 window.confirmDeleteGuidanceRecord = confirmDeleteGuidanceRecord;
+window.openGuidanceReportModal = openGuidanceReportModal;
+window.downloadGuidanceReportPdf = downloadGuidanceReportPdf;
+window.shareGuidanceReportPdf = shareGuidanceReportPdf;
+window.printGuidanceReportPdf = printGuidanceReportPdf;
