@@ -169,7 +169,7 @@ test('UX-06.6 Scenario J & K: Next follow up date extraction', () => {
         id: 's6',
         adSoyad: 'Zeynep Ak',
         guidanceRecords: [
-            { id: 'r1', status: 'open', followUpDate: '2026-09-08', issue: 'Soru kontrolü' }
+            { id: 'r1', createdAt: '2026-09-01', status: 'open', followUpDate: '2026-09-08', issue: 'Soru kontrolü' }
         ]
     };
 
@@ -643,7 +643,7 @@ test('UX-06.6.1 Scenario H & I: Upcoming follow-up strictly picks today or futur
             // Past overdue
             { id: 'r1', status: 'open', followUpDate: '2026-08-25', issue: 'Eski açık takip' },
             // Upcoming future
-            { id: 'r2', status: 'open', followUpDate: '2026-09-10', issue: 'Gelecek takip' }
+            { id: 'r2', createdAt: '2026-09-01', status: 'open', followUpDate: '2026-09-10', issue: 'Gelecek takip' }
         ]
     };
 
