@@ -393,7 +393,12 @@ export function renderGuidancePage(options = {}) {
                             <p class="text-[11px] font-black uppercase tracking-[.08em]">${label}</p>
                         </div>
                         <p class="mt-3 text-2xl font-black ${valueClass || 'text-slate-900 dark:text-white'}">${value}</p>
-                                  <!-- Segmented Control Tabs (Karar Merkezi vs Takip Takvimi vs Haftalık Özet) -->
+                        <p class="mt-1 text-xs text-gray-500">${detail}</p>
+                    </article>
+                `).join('')}
+            </section>
+
+            <!-- Segmented Control Tabs (Karar Merkezi vs Takip Takvimi vs Haftalık Özet) -->
             <div class="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800 mt-4 mb-3 overflow-x-auto">
                 <button onclick="updateGuidanceFilters({tab:'decision'})" class="py-2.5 px-4 text-sm font-black border-b-2 flex items-center gap-2 transition min-h-[44px] whitespace-nowrap ${currentTab === 'decision' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}">
                     <i class="fas fa-brain"></i> Karar Merkezi

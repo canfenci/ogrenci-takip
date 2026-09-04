@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { 
     shouldRenderInitialView, 
     markStartupUserNavigation, 
@@ -151,4 +152,18 @@ test('HOTFIX-01.4 Scenario O: Boot Idempotency & single DOMContentLoaded strateg
     assert.match(index, /let isAppBooted = false;/);
     assert.match(index, /if \(isAppBooted\) return;\s*isAppBooted = true;/);
     assert.match(index, /document\.addEventListener\('DOMContentLoaded', bootApp, \{ once: true \}\);/);
+});
+
+test('HOTFIX-01.5 Scenario P: All root javascript modules pass node --check syntax validation', async () => {
+    const rootDir = fileURLToPath(new URL('..', import.meta.url));
+    const allFiles = await readdir(rootDir);
+    const files = allFiles.filter(f => f.endsWith('.js') && !f.startsWith('.'));
+
+    const { execFileSync } = await import('node:child_process');
+    for (const f of files) {
+        const filePath = resolve(rootDir, f);
+        assert.doesNotThrow(() => {
+            execFileSync(process.execPath, ['--check', filePath], { stdio: 'pipe' });
+        }, `Syntax error in ${f}`);
+    }
 });
