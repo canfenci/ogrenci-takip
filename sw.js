@@ -1,4 +1,11 @@
-const CACHE_NAME = "canfenci-cache-v85";
+const CACHE_NAME = "canfenci-cache-v86";
+const STATIC_ASSET_EXTENSIONS = ['.js', '.mjs', '.css', '.png', '.jpg', '.jpeg', '.svg', '.webp', '.woff2', '.woff', '.json', '.ico'];
+
+function isSameOriginStaticAsset(requestUrl) {
+  const pathname = requestUrl.pathname.toLowerCase();
+  return STATIC_ASSET_EXTENSIONS.some(ext => pathname.endsWith(ext)) || pathname.endsWith('/') || pathname.endsWith('/index.html');
+}
+
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -76,7 +83,7 @@ self.addEventListener("activate", event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
+          if (cache.startsWith('canfenci-cache-') && cache !== CACHE_NAME) {
             console.log("[Service Worker] Cleaning old cache:", cache);
             return caches.delete(cache);
           }
@@ -93,7 +100,10 @@ self.addEventListener("fetch", event => {
   const requestUrl = new URL(event.request.url);
   if (requestUrl.protocol !== 'http:' && requestUrl.protocol !== 'https:') return;
   if (requestUrl.origin !== self.location.origin) return;
-  if (requestUrl.search) return;
+
+  const isStaticAsset = isSameOriginStaticAsset(requestUrl);
+  // Only bypass query-string requests if they are NOT static assets (e.g. API/dynamic search)
+  if (requestUrl.search && !isStaticAsset) return;
 
   const isFreshnessCritical = event.request.mode === "navigate" || ['document', 'script', 'style'].includes(event.request.destination);
   if (isFreshnessCritical) {
@@ -103,13 +113,13 @@ self.addEventListener("fetch", event => {
           if (response && response.status === 200) caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
           return response;
         })
-        .catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html")))
+        .catch(() => caches.match(event.request, { ignoreSearch: true }).then(cached => cached || caches.match("./index.html")))
     );
     return;
   }
 
   event.respondWith(
-    caches.match(event.request)
+    caches.match(event.request, { ignoreSearch: true })
       .then(cachedResponse => {
         if (cachedResponse) {
           // Serve from cache and update in background (Stale-While-Revalidate)
