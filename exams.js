@@ -1,7 +1,7 @@
 // ==================== EXAM ANALYSIS & MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, getKonuListesiBySinif, getKonuListesiBySinifAndDers, GENEL_DERSLER_GORUNUM, GENEL_DERSLER_KEY, HATA_KODLARI, POPULER_LISELER, getErrorColor, calculateNet, escapeHtml, loadSchedule, loadDersKayitlari, getStudentOdevler } from './store.js';
+import { store, loadStudentsData, saveStudentsData, getKonuListesiBySinif, getKonuListesiBySinifAndDers, GENEL_DERSLER_GORUNUM, GENEL_DERSLER_KEY, HATA_KODLARI, POPULER_LISELER, getErrorColor, calculateNet, escapeHtml, loadSchedule, loadDersKayitlari, getStudentOdevler, addStudentArrayRecord, updateStudentArrayRecord, deleteStudentArrayRecord, bulkAddStudentExam } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { MANUAL_RESOURCE_VALUE, readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
 
@@ -271,7 +271,7 @@ export function closeDenemeAtaModal() {
     document.getElementById('denemeAtaModal')?.remove();
 }
 
-export function saveDenemeAta() {
+export async function saveDenemeAta() {
     const examName = document.getElementById('denemeAtaExamName')?.value.trim();
     if (!examName) {
         alert("Deneme adı girin");
@@ -323,7 +323,7 @@ export function saveDenemeAta() {
     }
     
     const newExam = {
-        id: "ex_" + Date.now(),
+        id: "ex_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
         denemeAdi: examName,
         tarih: new Date().toISOString().slice(0, 10),
         tip: tip,
@@ -352,16 +352,26 @@ export function saveDenemeAta() {
         }
     }
     
-    const students = loadStudentsData();
-    for (let sid of selectedStudents) {
-        const idx = students.findIndex(s => s.id === sid);
-        if (idx !== -1) {
-            if (!students[idx].denemeler) students[idx].denemeler = [];
-            students[idx].denemeler.push(JSON.parse(JSON.stringify(newExam)));
+    const isCloud = Boolean(store.useFirestore && window.isFirebaseActive && window.db && !store.isGuestMode);
+    if (!isCloud) {
+        const students = loadStudentsData();
+        for (let sid of selectedStudents) {
+            const idx = students.findIndex(s => s.id === sid);
+            if (idx !== -1) {
+                if (!students[idx].denemeler) students[idx].denemeler = [];
+                students[idx].denemeler.push(JSON.parse(JSON.stringify(newExam)));
+            }
+        }
+        saveStudentsData(students);
+        alert(`${selectedStudents.length} öğrenciye deneme başarıyla eklendi.`);
+    } else {
+        const bulkRes = await bulkAddStudentExam(selectedStudents, newExam);
+        if (bulkRes.failedCount > 0) {
+            alert(`${bulkRes.successCount}/${bulkRes.totalCount} öğrenciye deneme eklendi. ${bulkRes.failedCount} öğrencide hata oluştu.`);
+        } else {
+            alert(`${bulkRes.successCount} öğrenciye deneme başarıyla eklendi.`);
         }
     }
-    saveStudentsData(students);
-    alert(`${selectedStudents.length} öğrenciye deneme başarıyla eklendi.`);
     closeDenemeAtaModal();
     if (window.renderHomeScreen) window.renderHomeScreen();
 }
@@ -511,7 +521,7 @@ export function editBransExam(studentId, examId, exam) {
     renderBransExamForm();
 }
 
-export function saveBransExamEdit(studentId, examId) {
+export async function saveBransExamEdit(studentId, examId) {
     const examName = document.getElementById('editExamName')?.value.trim();
     if (!examName) {
         alert("Deneme adı girin");
@@ -558,8 +568,8 @@ export function saveBransExamEdit(studentId, examId) {
         return;
     }
     const net = calculateNet(toplamDogru, toplamYanlis);
-    students[sIdx].denemeler[examIndex] = { ...exam, denemeAdi: examName, sorular: updatedSorular, toplamDogru, toplamYanlis, toplamBos, toplamNet: net, toplamSoru: soruSayisi };
-    saveStudentsData(students);
+    const updatedExam = { ...exam, denemeAdi: examName, sorular: updatedSorular, toplamDogru, toplamYanlis, toplamBos, toplamNet: net, toplamSoru: soruSayisi };
+    await updateStudentArrayRecord(studentId, 'denemeler', exam.id, updatedExam);
     if (window.renderStudentPanel) window.renderStudentPanel(studentId);
 }
 
@@ -663,7 +673,7 @@ export function editGenelExam(studentId, examId, exam) {
     updateAll();
 }
 
-export function saveGenelExamEdit(studentId, examId) {
+export async function saveGenelExamEdit(studentId, examId) {
     const examName = document.getElementById('editExamName')?.value.trim();
     if (!examName) {
         alert("Deneme adı girin");
@@ -727,8 +737,8 @@ export function saveGenelExamEdit(studentId, examId) {
             soruIndex++;
         }
     }
-    students[sIdx].denemeler[examIndex] = { ...exam, denemeAdi: examName, sorular: updatedSorular, dersSonuclari: dersSonuclari, toplamDogru, toplamYanlis, toplamBos, toplamNet: net, toplamSoru: exam.toplamSoru };
-    saveStudentsData(students);
+    const updatedExam = { ...exam, denemeAdi: examName, sorular: updatedSorular, dersSonuclari: dersSonuclari, toplamDogru, toplamYanlis, toplamBos, toplamNet: net, toplamSoru: exam.toplamSoru };
+    await updateStudentArrayRecord(studentId, 'denemeler', exam.id, updatedExam);
     if (window.renderStudentPanel) window.renderStudentPanel(studentId);
 }
 
@@ -783,15 +793,10 @@ export function viewExam(studentId, examId) {
     document.body.appendChild(modal);
 }
 
-export function deleteExam(studentId, examId) {
+export async function deleteExam(studentId, examId) {
     if (confirm("Bu denemeyi silmek istediğinize emin misiniz?")) {
-        let students = loadStudentsData();
-        const sIdx = students.findIndex(s => s.id === studentId);
-        if (sIdx !== -1) {
-            students[sIdx].denemeler = students[sIdx].denemeler.filter(e => e.id !== examId);
-            saveStudentsData(students);
-            if (window.renderStudentPanel) window.renderStudentPanel(studentId);
-        }
+        await deleteStudentArrayRecord(studentId, 'denemeler', examId);
+        if (window.renderStudentPanel) window.renderStudentPanel(studentId);
     }
 }
 
@@ -1013,6 +1018,8 @@ window.showDenemeAtaModal = showDenemeAtaModal;
 window.renderDenemeAtaModal = renderDenemeAtaModal;
 window.closeDenemeAtaModal = closeDenemeAtaModal;
 window.saveDenemeAta = saveDenemeAta;
+window.saveBransExamEdit = saveBransExamEdit;
+window.saveGenelExamEdit = saveGenelExamEdit;
 window.editExam = editExam;
 window.viewExam = viewExam;
 window.deleteExam = deleteExam;

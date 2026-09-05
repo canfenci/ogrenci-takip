@@ -795,6 +795,358 @@ export async function updateStudentProfile(studentId, patch) {
     }
 }
 
+export const STUDENT_ARRAY_FIELDS = ['denemeler', 'guidanceRecords'];
+
+export function applyArrayMutation(currentArray, operation, { record = null, recordId = null, patch = null, field = null } = {}) {
+    const list = Array.isArray(currentArray) ? [...currentArray] : [];
+
+    if (operation === 'ARRAY_ADD') {
+        if (!record || typeof record !== 'object') {
+            throw new Error('Record object is required for ARRAY_ADD');
+        }
+        if (!record.id) {
+            throw new Error('record.id is required for ARRAY_ADD');
+        }
+        const existingIdx = list.findIndex(item => item && item.id === record.id);
+        if (existingIdx !== -1) {
+            return { nextArray: list, noop: true, duplicate: true, recordId: record.id };
+        }
+        const nextArray = field === 'guidanceRecords' ? [record, ...list] : [...list, record];
+        return { nextArray, noop: false, duplicate: false, recordId: record.id };
+    }
+
+    if (operation === 'ARRAY_UPDATE_BY_ID') {
+        const targetId = recordId || (patch && patch.id) || (record && record.id);
+        if (!targetId) {
+            throw new Error('recordId is required for ARRAY_UPDATE_BY_ID');
+        }
+        const existingIdx = list.findIndex(item => item && item.id === targetId);
+        if (existingIdx === -1) {
+            return { nextArray: list, noop: true, notFound: true, recordId: targetId };
+        }
+        const existing = list[existingIdx];
+        const updatePayload = patch !== undefined && patch !== null ? patch : record;
+        const merged = (typeof updatePayload === 'object' && updatePayload !== null && !Array.isArray(updatePayload))
+            ? { ...existing, ...updatePayload, id: existing.id }
+            : updatePayload;
+        list[existingIdx] = merged;
+        return { nextArray: list, noop: false, notFound: false, recordId: targetId };
+    }
+
+    if (operation === 'ARRAY_DELETE_BY_ID') {
+        const targetId = recordId || (record && record.id);
+        if (!targetId) {
+            throw new Error('recordId is required for ARRAY_DELETE_BY_ID');
+        }
+        const nextArray = list.filter(item => item && item.id !== targetId);
+        if (nextArray.length === list.length) {
+            return { nextArray: list, noop: true, notFound: true, recordId: targetId };
+        }
+        return { nextArray, noop: false, notFound: false, recordId: targetId };
+    }
+
+    throw new Error(`Unsupported array operation: "${operation}"`);
+}
+
+export async function mutateStudentArrayRecord({
+    studentId,
+    field,
+    operation,
+    record = null,
+    recordId = null,
+    patch = null
+}) {
+    if (!studentId) {
+        throw new Error('studentId is required');
+    }
+    if (!STUDENT_ARRAY_FIELDS.includes(field)) {
+        throw new Error(`Field "${field}" is not a permitted array field`);
+    }
+    if (!['ARRAY_ADD', 'ARRAY_UPDATE_BY_ID', 'ARRAY_DELETE_BY_ID'].includes(operation)) {
+        throw new Error(`Invalid operation "${operation}"`);
+    }
+
+    const isCloud = Boolean(store.useFirestore && window.isFirebaseActive && window.db && !store.isGuestMode);
+
+    // 1. Guest / Local Mode
+    if (!isCloud) {
+        try {
+            if (!Array.isArray(store.globalStudents)) {
+                store.globalStudents = [];
+            }
+            let sIdx = store.globalStudents.findIndex(s => s.id === studentId);
+            let targetStudent = sIdx !== -1 ? store.globalStudents[sIdx] : null;
+
+            let localList = [];
+            try {
+                localList = JSON.parse(localStorage.getItem(localDataKey(STORAGE_KEY))) || [];
+            } catch (_) {
+                localList = store.globalStudents || [];
+            }
+            let localIdx = localList.findIndex(s => s.id === studentId);
+
+            if (!targetStudent && localIdx !== -1) {
+                targetStudent = localList[localIdx];
+                store.globalStudents.push(targetStudent);
+                sIdx = store.globalStudents.length - 1;
+            }
+
+            if (!targetStudent) {
+                throw new Error(`Student ${studentId} not found`);
+            }
+
+            const currentArray = Array.isArray(targetStudent[field]) ? [...targetStudent[field]] : [];
+            const { nextArray, noop, duplicate, notFound, recordId: effectiveRecordId } = applyArrayMutation(
+                currentArray,
+                operation,
+                { record, recordId, patch, field }
+            );
+
+            targetStudent[field] = nextArray;
+            if (sIdx !== -1) {
+                store.globalStudents[sIdx][field] = nextArray;
+            }
+            if (localIdx !== -1) {
+                localList[localIdx][field] = nextArray;
+            } else {
+                localList.push(targetStudent);
+            }
+            localStorage.setItem(localDataKey(STORAGE_KEY), JSON.stringify(localList));
+
+            const msg = resolveSyncStatusMessage({ ok: true, mode: 'local' });
+            if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+
+            return {
+                ok: true,
+                mode: 'local',
+                operation,
+                field,
+                studentId,
+                recordId: effectiveRecordId,
+                noop: Boolean(noop),
+                duplicate: Boolean(duplicate),
+                notFound: Boolean(notFound),
+                writeCount: noop ? 0 : 1,
+                nextArray
+            };
+        } catch (e) {
+            console.error("mutateStudentArrayRecord local write error", e);
+            const msg = resolveSyncStatusMessage({ ok: false, mode: 'local' });
+            if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+            return { ok: false, mode: 'local', error: e, studentId, field, operation };
+        }
+    }
+
+    // 2. Cloud Offline Mode
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (isOffline) {
+        const storeStudent = (store.globalStudents || []).find(s => s.id === studentId);
+        const currentArray = storeStudent && Array.isArray(storeStudent[field]) ? [...storeStudent[field]] : [];
+        const { nextArray, noop, duplicate, notFound, recordId: effectiveRecordId } = applyArrayMutation(
+            currentArray,
+            operation,
+            { record, recordId, patch, field }
+        );
+
+        if (storeStudent) {
+            storeStudent[field] = nextArray;
+        }
+
+        if (noop) {
+            return {
+                ok: true,
+                mode: 'firestore',
+                queued: false,
+                noop: true,
+                duplicate: Boolean(duplicate),
+                notFound: Boolean(notFound),
+                writeCount: 0,
+                studentId,
+                field,
+                operation,
+                recordId: effectiveRecordId,
+                nextArray
+            };
+        }
+
+        const docRef = window.db.collection("students").doc(studentId);
+        const writePromise = docRef.update({ [field]: nextArray });
+        if (writePromise && typeof writePromise.catch === 'function') {
+            writePromise.catch(err => console.error("Offline array mutation error:", err));
+        }
+
+        if (window.showSyncStatus) {
+            const queuedMsg = resolveSyncStatusMessage({ mode: 'firestore', queued: true });
+            window.showSyncStatus(queuedMsg.text, queuedMsg.isError);
+        }
+
+        return {
+            ok: true,
+            mode: 'firestore',
+            queued: true,
+            writeCount: 1,
+            studentId,
+            field,
+            operation,
+            recordId: effectiveRecordId,
+            nextArray
+        };
+    }
+
+    // 3. Cloud Online Mode (Firestore Transaction)
+    if (window.showSyncStatus) {
+        window.showSyncStatus("⏳ Buluta kaydediliyor...", false);
+    }
+
+    const docRef = window.db.collection("students").doc(studentId);
+    let mutationResult = null;
+
+    try {
+        await window.db.runTransaction(async (tx) => {
+            const snap = await tx.get(docRef);
+            const exists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
+            if (!exists) {
+                throw new Error(`Student document ${studentId} not found`);
+            }
+            const data = (typeof snap.data === 'function' ? snap.data() : snap.data) || {};
+            const currentArray = Array.isArray(data[field]) ? [...data[field]] : [];
+            const { nextArray, noop, duplicate, notFound, recordId: effectiveRecordId } = applyArrayMutation(
+                currentArray,
+                operation,
+                { record, recordId, patch, field }
+            );
+
+            if (!noop) {
+                tx.update(docRef, { [field]: nextArray });
+            }
+
+            mutationResult = {
+                noop: Boolean(noop),
+                duplicate: Boolean(duplicate),
+                notFound: Boolean(notFound),
+                recordId: effectiveRecordId,
+                nextArray
+            };
+        });
+
+        // Update in-memory state with transaction result
+        const storeStudent = (store.globalStudents || []).find(s => s.id === studentId);
+        if (storeStudent && mutationResult?.nextArray) {
+            storeStudent[field] = mutationResult.nextArray;
+        }
+
+        const msg = resolveSyncStatusMessage({ ok: true, mode: 'firestore' });
+        if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+
+        return {
+            ok: true,
+            mode: 'firestore',
+            writeCount: mutationResult?.noop ? 0 : 1,
+            noop: mutationResult?.noop || false,
+            duplicate: mutationResult?.duplicate || false,
+            notFound: mutationResult?.notFound || false,
+            studentId,
+            field,
+            operation,
+            recordId: mutationResult?.recordId || recordId,
+            nextArray: mutationResult?.nextArray
+        };
+    } catch (err) {
+        console.error("mutateStudentArrayRecord error", err);
+        if (window.handleFirebaseError) window.handleFirebaseError(err);
+        const msg = resolveSyncStatusMessage({ ok: false, mode: 'firestore' });
+        if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+        return {
+            ok: false,
+            mode: 'firestore',
+            error: err,
+            studentId,
+            field,
+            operation
+        };
+    }
+}
+
+export async function addStudentArrayRecord(studentId, field, record) {
+    return mutateStudentArrayRecord({
+        studentId,
+        field,
+        operation: 'ARRAY_ADD',
+        record
+    });
+}
+
+export async function updateStudentArrayRecord(studentId, field, recordId, patchOrRecord) {
+    return mutateStudentArrayRecord({
+        studentId,
+        field,
+        operation: 'ARRAY_UPDATE_BY_ID',
+        recordId,
+        patch: patchOrRecord
+    });
+}
+
+export async function deleteStudentArrayRecord(studentId, field, recordId) {
+    return mutateStudentArrayRecord({
+        studentId,
+        field,
+        operation: 'ARRAY_DELETE_BY_ID',
+        recordId
+    });
+}
+
+export async function addStudentExam(studentId, exam) {
+    return addStudentArrayRecord(studentId, 'denemeler', exam);
+}
+
+export async function updateStudentExam(studentId, examId, updatedExam) {
+    return updateStudentArrayRecord(studentId, 'denemeler', examId, updatedExam);
+}
+
+export async function deleteStudentExam(studentId, examId) {
+    return deleteStudentArrayRecord(studentId, 'denemeler', examId);
+}
+
+export async function addGuidanceRecordAtomic(studentId, record) {
+    return addStudentArrayRecord(studentId, 'guidanceRecords', record);
+}
+
+export async function updateGuidanceRecordAtomic(studentId, recordId, updates) {
+    return updateStudentArrayRecord(studentId, 'guidanceRecords', recordId, updates);
+}
+
+export async function deleteGuidanceRecordAtomic(studentId, recordId) {
+    return deleteStudentArrayRecord(studentId, 'guidanceRecords', recordId);
+}
+
+export async function bulkAddStudentExam(studentIds, exam) {
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+        return { ok: true, successCount: 0, failedCount: 0, totalCount: 0, results: [] };
+    }
+    const promises = studentIds.map(sid => {
+        const examCopy = JSON.parse(JSON.stringify(exam));
+        return addStudentArrayRecord(sid, 'denemeler', examCopy);
+    });
+    const settled = await Promise.allSettled(promises);
+    const results = settled.map((res, index) => {
+        const sid = studentIds[index];
+        if (res.status === 'fulfilled') {
+            return { studentId: sid, ...res.value };
+        } else {
+            return { studentId: sid, ok: false, error: res.reason };
+        }
+    });
+    const successCount = results.filter(r => r.ok).length;
+    const failedCount = results.filter(r => !r.ok).length;
+    return {
+        ok: failedCount === 0,
+        successCount,
+        failedCount,
+        totalCount: studentIds.length,
+        results
+    };
+}
+
 let currentSaveStudentsOperationId = 0;
 
 export async function saveStudentsData(students) {
@@ -1159,4 +1511,17 @@ window.PROFILE_SCALAR_FIELDS = PROFILE_SCALAR_FIELDS;
 window.sanitizeProfilePatch = sanitizeProfilePatch;
 window.createStudentDocument = createStudentDocument;
 window.updateStudentProfile = updateStudentProfile;
+window.STUDENT_ARRAY_FIELDS = STUDENT_ARRAY_FIELDS;
+window.applyArrayMutation = applyArrayMutation;
+window.mutateStudentArrayRecord = mutateStudentArrayRecord;
+window.addStudentArrayRecord = addStudentArrayRecord;
+window.updateStudentArrayRecord = updateStudentArrayRecord;
+window.deleteStudentArrayRecord = deleteStudentArrayRecord;
+window.addStudentExam = addStudentExam;
+window.updateStudentExam = updateStudentExam;
+window.deleteStudentExam = deleteStudentExam;
+window.addGuidanceRecordAtomic = addGuidanceRecordAtomic;
+window.updateGuidanceRecordAtomic = updateGuidanceRecordAtomic;
+window.deleteGuidanceRecordAtomic = deleteGuidanceRecordAtomic;
+window.bulkAddStudentExam = bulkAddStudentExam;
 }

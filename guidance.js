@@ -1,4 +1,4 @@
-import { loadStudentsData, saveStudentsData, escapeHtml, store, getStudentOdevler } from './store.js';
+import { loadStudentsData, saveStudentsData, escapeHtml, store, getStudentOdevler, addStudentArrayRecord, updateStudentArrayRecord, deleteStudentArrayRecord } from './store.js';
 import { updateMobileNavActive } from './auth.js';
 import { buildGuidanceCenterDashboard, getStudentInitials } from './guidance-center-insights.js';
 import { buildStudentGuidanceDetail } from './guidance-student-insights.js';
@@ -1575,7 +1575,7 @@ export function showGuidanceRecordModal(studentId, recordId = null) {
 /**
  * Saves guidance record from the form submission.
  */
-export function saveGuidanceRecordForm(studentId, recordId = null) {
+export async function saveGuidanceRecordForm(studentId, recordId = null) {
     const students = loadStudentsData();
     const student = students.find(s => s.id === studentId);
     if (!student) return;
@@ -1592,24 +1592,25 @@ export function saveGuidanceRecordForm(studentId, recordId = null) {
     }
 
     if (recordId) {
-        updateGuidanceRecord(student, recordId, {
+        const updatedRecord = updateGuidanceRecord(student, recordId, {
             type,
             issue: issue.trim(),
             action: action.trim(),
             followUpDate: followUpDate ? followUpDate.slice(0, 10) : null,
             note: note.trim()
         });
+        await updateStudentArrayRecord(studentId, 'guidanceRecords', recordId, updatedRecord);
     } else {
-        createGuidanceRecord(student, {
+        const newRecord = createGuidanceRecord(student, {
             type,
             issue: issue.trim(),
             action: action.trim(),
             followUpDate: followUpDate ? followUpDate.slice(0, 10) : null,
             note: note.trim()
         });
+        await addStudentArrayRecord(studentId, 'guidanceRecords', newRecord);
     }
 
-    saveStudentsData(students);
     document.getElementById('guidanceRecordModal')?.remove();
     if (store.currentPage === 'guidance-detail' || window.currentPage === 'guidance-detail') {
         renderGuidanceStudentDetail(studentId);
@@ -1692,7 +1693,7 @@ export function showCompleteGuidanceRecordModal(studentId, recordId) {
 /**
  * Saves completion of guidance record.
  */
-export function saveCompleteGuidanceRecordForm(studentId, recordId) {
+export async function saveCompleteGuidanceRecordForm(studentId, recordId) {
     const students = loadStudentsData();
     const student = students.find(s => s.id === studentId);
     if (!student) return;
@@ -1700,12 +1701,13 @@ export function saveCompleteGuidanceRecordForm(studentId, recordId) {
     const result = document.getElementById('grCompleteResult')?.value || 'positive';
     const resultNote = document.getElementById('grCompleteResultNote')?.value || '';
 
-    completeGuidanceRecord(student, recordId, {
+    const completedRecord = completeGuidanceRecord(student, recordId, {
         result,
         resultNote: resultNote.trim()
     });
 
-    saveStudentsData(students);
+    await updateStudentArrayRecord(studentId, 'guidanceRecords', recordId, completedRecord);
+
     document.getElementById('completeGuidanceRecordModal')?.remove();
     if (store.currentPage === 'guidance-detail' || window.currentPage === 'guidance-detail') {
         renderGuidanceStudentDetail(studentId);
@@ -1717,7 +1719,7 @@ export function saveCompleteGuidanceRecordForm(studentId, recordId) {
 /**
  * Confirms and deletes a guidance record safely.
  */
-export function confirmDeleteGuidanceRecord(studentId, recordId) {
+export async function confirmDeleteGuidanceRecord(studentId, recordId) {
     if (!confirm('Bu rehberlik kaydı kalıcı olarak silinecek. Emin misiniz?')) {
         return;
     }
@@ -1727,7 +1729,8 @@ export function confirmDeleteGuidanceRecord(studentId, recordId) {
     if (!student) return;
 
     deleteGuidanceRecord(student, recordId);
-    saveStudentsData(students);
+    await deleteStudentArrayRecord(studentId, 'guidanceRecords', recordId);
+
     if (store.currentPage === 'guidance-detail' || window.currentPage === 'guidance-detail') {
         renderGuidanceStudentDetail(studentId);
     } else {
