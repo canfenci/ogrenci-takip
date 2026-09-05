@@ -1,7 +1,7 @@
 // ==================== STUDENTS MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, loadSchedule, loadDersKayitlari, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM, localDataKey } from './store.js';
+import { store, loadStudentsData, saveStudentsData, createStudentDocument, updateStudentProfile, loadSchedule, loadDersKayitlari, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM, localDataKey } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { getBransOrtalamaNet, getGenelOrtalamaNet, getOrtalamaNet, getKonuBazliBasarilar, getBestWorstTopics, getMotivationMessage, getHataIstatistikleri, lgsPuanHesapla } from './exams.js';
@@ -326,7 +326,7 @@ export function editStudent(id) {
     document.body.appendChild(modal);
 }
 
-export function saveStudentEdit(id) {
+export async function saveStudentEdit(id) {
     const name = document.getElementById('editName')?.value.trim();
     const school = document.getElementById('editSchool')?.value.trim();
     const sinif = document.getElementById('editSinif')?.value;
@@ -339,20 +339,21 @@ export function saveStudentEdit(id) {
     const veliTel = document.getElementById('editVeliTel')?.value.trim();
     const validation = validateStudentInput({ name, school, grade: sinif, target, net, fee: ucret, phone: veliTel });
     if (!validation.valid) return alert(validation.errors.join('\n'));
-    const students = loadStudentsData();
-    const sIdx = students.findIndex(s => s.id === id);
-    if (sIdx !== -1) {
-        students[sIdx].adSoyad = validation.values.name;
-        students[sIdx].okul = validation.values.school;
-        students[sIdx].sinif = validation.values.grade;
-        students[sIdx].hedefLise = validation.values.target;
-        students[sIdx].hedefNet = validation.values.net;
-        students[sIdx].dersUcreti = validation.values.fee;
-        students[sIdx].veliTel = validation.values.phone;
-        saveStudentsData(students);
-        document.getElementById('editStudentModal')?.remove();
-        renderHomeScreen();
-    }
+
+    const patch = {
+        adSoyad: validation.values.name,
+        okul: validation.values.school,
+        sinif: validation.values.grade,
+        hedefLise: validation.values.target,
+        hedefNet: validation.values.net,
+        dersUcreti: validation.values.fee,
+        veliTel: validation.values.phone
+    };
+
+    const updatePromise = updateStudentProfile(id, patch);
+    document.getElementById('editStudentModal')?.remove();
+    renderHomeScreen();
+    await updatePromise;
 }
 
 export function showAddStudentModal() {
@@ -419,7 +420,7 @@ export function closeAddStudentModal() {
     document.getElementById('addStudentModal')?.remove();
 }
 
-export function addStudentFromModal() {
+export async function addStudentFromModal() {
     const name = document.getElementById('newName')?.value.trim();
     const school = document.getElementById('newSchool')?.value.trim();
     const sinif = document.getElementById('newSinif')?.value;
@@ -432,8 +433,8 @@ export function addStudentFromModal() {
     const veliTel = document.getElementById('newVeliTel')?.value.trim();
     const validation = validateStudentInput({ name, school, grade: sinif, target, net, fee: ucret, phone: veliTel });
     if (!validation.valid) return alert(validation.errors.join('\n'));
-    const students = loadStudentsData();
-    students.push({
+
+    const newStudent = {
         id: "std" + Date.now(),
         adSoyad: validation.values.name,
         sinif: validation.values.grade,
@@ -446,10 +447,12 @@ export function addStudentFromModal() {
         studyPlan: {},
         errorResets: {},
         growthPlan: {}
-    });
-    saveStudentsData(students);
+    };
+
+    const createPromise = createStudentDocument(newStudent);
     closeAddStudentModal();
     renderHomeScreen();
+    await createPromise;
 }
 
 export function toggleReportMenu() {

@@ -567,6 +567,234 @@ export function resolveSyncStatusMessage(syncResult) {
     return null;
 }
 
+export const PROFILE_SCALAR_FIELDS = [
+    'adSoyad',
+    'sinif',
+    'okul',
+    'hedefLise',
+    'hedefNet',
+    'dersUcreti',
+    'veliTel'
+];
+
+export function sanitizeProfilePatch(patch) {
+    if (!patch || typeof patch !== 'object') return {};
+    const sanitized = {};
+    for (const key of PROFILE_SCALAR_FIELDS) {
+        if (key in patch && patch[key] !== undefined) {
+            sanitized[key] = patch[key];
+        }
+    }
+    return sanitized;
+}
+
+export async function createStudentDocument(student) {
+    if (!student || typeof student !== 'object' || !student.id) {
+        throw new Error('Valid student object with id is required');
+    }
+
+    const isCloud = Boolean(store.useFirestore && window.isFirebaseActive && window.db && !store.isGuestMode);
+
+    // 1. Guest / Local mode
+    if (!isCloud) {
+        try {
+            if (!Array.isArray(store.globalStudents)) {
+                store.globalStudents = [];
+            }
+            const existingIdx = store.globalStudents.findIndex(s => s.id === student.id);
+            if (existingIdx !== -1) {
+                store.globalStudents[existingIdx] = student;
+            } else {
+                store.globalStudents.push(student);
+            }
+            localStorage.setItem(localDataKey(STORAGE_KEY), JSON.stringify(store.globalStudents));
+            const msg = resolveSyncStatusMessage({ ok: true, mode: 'local' });
+            if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+            return { ok: true, mode: 'local', writeCount: 1, studentId: student.id };
+        } catch (e) {
+            console.error("createStudentDocument local write error", e);
+            const msg = resolveSyncStatusMessage({ ok: false, mode: 'local' });
+            if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+            return { ok: false, mode: 'local', error: e, studentId: student.id };
+        }
+    }
+
+    // 2. Cloud mode (Firestore)
+    if (!Array.isArray(store.globalStudents)) {
+        store.globalStudents = [];
+    }
+    const existingIdx = store.globalStudents.findIndex(s => s.id === student.id);
+    if (existingIdx !== -1) {
+        store.globalStudents[existingIdx] = student;
+    } else {
+        store.globalStudents.push(student);
+    }
+
+    const user = window.auth?.currentUser;
+    const userId = user ? user.uid : null;
+    const docData = buildStudentDocData(student, userId);
+
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    const writePromise = window.db.collection("students").doc(student.id).set(docData);
+
+    if (isOffline) {
+        if (writePromise && typeof writePromise.catch === 'function') {
+            writePromise.catch(err => console.error("Offline createStudentDocument error:", err));
+        }
+        if (window.showSyncStatus) {
+            const queuedMsg = resolveSyncStatusMessage({ mode: 'firestore', queued: true });
+            window.showSyncStatus(queuedMsg.text, queuedMsg.isError);
+        }
+        return {
+            ok: true,
+            mode: 'firestore',
+            queued: true,
+            writeCount: 1,
+            studentId: student.id
+        };
+    }
+
+    if (window.showSyncStatus) {
+        window.showSyncStatus("⏳ Buluta kaydediliyor...", false);
+    }
+
+    try {
+        await writePromise;
+        const msg = resolveSyncStatusMessage({ ok: true, mode: 'firestore' });
+        if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+        return {
+            ok: true,
+            mode: 'firestore',
+            writeCount: 1,
+            studentId: student.id
+        };
+    } catch (err) {
+        console.error("createStudentDocument error", err);
+        if (window.handleFirebaseError) window.handleFirebaseError(err);
+        const msg = resolveSyncStatusMessage({ ok: false, mode: 'firestore' });
+        if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+        return {
+            ok: false,
+            mode: 'firestore',
+            error: err,
+            studentId: student.id
+        };
+    }
+}
+
+export async function updateStudentProfile(studentId, patch) {
+    if (!studentId) throw new Error('studentId is required');
+
+    const sanitizedPatch = sanitizeProfilePatch(patch);
+    const keysToUpdate = Object.keys(sanitizedPatch);
+
+    // Empty patch check (safe no-op, Firestore write = 0, no fake success message)
+    if (keysToUpdate.length === 0) {
+        return {
+            ok: true,
+            noop: true,
+            writeCount: 0,
+            studentId
+        };
+    }
+
+    const isCloud = Boolean(store.useFirestore && window.isFirebaseActive && window.db && !store.isGuestMode);
+
+    // 1. Guest / Local mode
+    if (!isCloud) {
+        try {
+            if (Array.isArray(store.globalStudents)) {
+                const s = store.globalStudents.find(item => item.id === studentId);
+                if (s) {
+                    Object.assign(s, sanitizedPatch);
+                }
+            }
+            let localList = [];
+            try {
+                localList = JSON.parse(localStorage.getItem(localDataKey(STORAGE_KEY))) || [];
+            } catch (_) {
+                localList = store.globalStudents || [];
+            }
+            const localIdx = localList.findIndex(item => item.id === studentId);
+            if (localIdx !== -1) {
+                Object.assign(localList[localIdx], sanitizedPatch);
+                localStorage.setItem(localDataKey(STORAGE_KEY), JSON.stringify(localList));
+            }
+            const msg = resolveSyncStatusMessage({ ok: true, mode: 'local' });
+            if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+            return {
+                ok: true,
+                mode: 'local',
+                writeCount: 1,
+                fieldsUpdated: keysToUpdate,
+                studentId
+            };
+        } catch (e) {
+            console.error("updateStudentProfile local write error", e);
+            const msg = resolveSyncStatusMessage({ ok: false, mode: 'local' });
+            if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+            return { ok: false, mode: 'local', error: e, studentId };
+        }
+    }
+
+    // 2. Cloud mode (Firestore)
+    if (Array.isArray(store.globalStudents)) {
+        const s = store.globalStudents.find(item => item.id === studentId);
+        if (s) {
+            Object.assign(s, sanitizedPatch);
+        }
+    }
+
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    const writePromise = window.db.collection("students").doc(studentId).update(sanitizedPatch);
+
+    if (isOffline) {
+        if (writePromise && typeof writePromise.catch === 'function') {
+            writePromise.catch(err => console.error("Offline updateStudentProfile error:", err));
+        }
+        if (window.showSyncStatus) {
+            const queuedMsg = resolveSyncStatusMessage({ mode: 'firestore', queued: true });
+            window.showSyncStatus(queuedMsg.text, queuedMsg.isError);
+        }
+        return {
+            ok: true,
+            mode: 'firestore',
+            queued: true,
+            writeCount: 1,
+            fieldsUpdated: keysToUpdate,
+            studentId
+        };
+    }
+
+    if (window.showSyncStatus) {
+        window.showSyncStatus("⏳ Buluta kaydediliyor...", false);
+    }
+
+    try {
+        await writePromise;
+        const msg = resolveSyncStatusMessage({ ok: true, mode: 'firestore' });
+        if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+        return {
+            ok: true,
+            mode: 'firestore',
+            writeCount: 1,
+            fieldsUpdated: keysToUpdate,
+            studentId
+        };
+    } catch (err) {
+        console.error("updateStudentProfile error", err);
+        if (window.handleFirebaseError) window.handleFirebaseError(err);
+        const msg = resolveSyncStatusMessage({ ok: false, mode: 'firestore' });
+        if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+        return {
+            ok: false,
+            mode: 'firestore',
+            error: err,
+            studentId
+        };
+    }
+}
+
 let currentSaveStudentsOperationId = 0;
 
 export async function saveStudentsData(students) {
@@ -927,4 +1155,8 @@ window.saveGroupsData = saveGroupsData;
 window.deleteGroupData = deleteGroupData;
 window.buildStudentDocData = buildStudentDocData;
 window.resolveSyncStatusMessage = resolveSyncStatusMessage;
+window.PROFILE_SCALAR_FIELDS = PROFILE_SCALAR_FIELDS;
+window.sanitizeProfilePatch = sanitizeProfilePatch;
+window.createStudentDocument = createStudentDocument;
+window.updateStudentProfile = updateStudentProfile;
 }
