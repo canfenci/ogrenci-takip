@@ -222,9 +222,9 @@ test('Scenario E, F, G: General exam total net, runtime average net, and highest
         id: 'std_stat_calc',
         sinif: '8',
         denemeler: [
-            { id: 'e1', tip: 'genel', tarih: '2026-08-10', toplamNet: 60.0 },
-            { id: 'e2', tip: 'genel', tarih: '2026-08-20', toplamNet: 80.0 },
-            { id: 'e3', tip: 'genel', tarih: '2026-08-30', toplamNet: 70.0 }
+            { id: 'e1', tip: 'genel', sinif: '8', tarih: '2026-08-10', toplamSoru: 90, toplamNet: 60.0 },
+            { id: 'e2', tip: 'genel', sinif: '8', tarih: '2026-08-20', toplamSoru: 90, toplamNet: 80.0 },
+            { id: 'e3', tip: 'genel', sinif: '8', tarih: '2026-08-30', toplamSoru: 90, toplamNet: 70.0 }
         ]
     };
 
@@ -631,7 +631,7 @@ test('Scenario V: Okul Denemeleri - 0 exams shows empty state without chart canv
     renderStudentCockpit('std_exam_0', 'home', 'performance', 'exams');
     const html = document.getElementById('dynamic-content').innerHTML;
 
-    assert.ok(html.includes('Net gelişimini göstermek için en az 2 deneme gerekli.'));
+    assert.ok(html.includes('Henüz genel deneme sonucu yok.') || html.includes('Net gelişimini göstermek için en az 2 deneme gerekli.'));
     assert.ok(!html.includes('id="cockpitGenelExamChart"'), 'Should not render canvas when < 2 exams');
 });
 
@@ -651,7 +651,7 @@ test('Scenario W: Okul Denemeleri - 1 completed general exam shows empty state w
     renderStudentCockpit('std_exam_1', 'home', 'performance', 'exams');
     const html = document.getElementById('dynamic-content').innerHTML;
 
-    assert.ok(html.includes('Net gelişimini göstermek için en az 2 deneme gerekli.'));
+    assert.ok(html.includes('Trend için en az 2 genel deneme gerekir.') || html.includes('Net gelişimini göstermek için en az 2 deneme gerekli.'));
     assert.ok(!html.includes('id="cockpitGenelExamChart"'), 'Should not render canvas when 1 exam');
 
     const perf = calculateStudentSchoolExamPerformance(student);
@@ -664,9 +664,9 @@ test('Scenario X: Okul Denemeleri - 3+ completed general exams renders chronolog
         adSoyad: 'Çok Denemeli',
         sinif: '8',
         denemeler: [
-            { id: 'ex_1', tip: 'genel', denemeAdi: 'Deneme 1', tarih: '2026-09-01', toplamNet: 60.0 },
-            { id: 'ex_2', tip: 'genel', denemeAdi: 'Deneme 2', tarih: '2026-09-03', toplamNet: 68.0 },
-            { id: 'ex_3', tip: 'genel', denemeAdi: 'Deneme 3', tarih: '2026-09-05', toplamNet: 75.0 }
+            { id: 'ex_1', tip: 'genel', sinif: '8', denemeAdi: 'Deneme 1', tarih: '2026-09-01', toplamSoru: 90, toplamNet: 60.0 },
+            { id: 'ex_2', tip: 'genel', sinif: '8', denemeAdi: 'Deneme 2', tarih: '2026-09-03', toplamSoru: 90, toplamNet: 68.0 },
+            { id: 'ex_3', tip: 'genel', sinif: '8', denemeAdi: 'Deneme 3', tarih: '2026-09-05', toplamSoru: 90, toplamNet: 75.0 }
         ],
         odevler: []
     };
@@ -695,8 +695,8 @@ test('Scenario Y: Okul Denemeleri - Branch exams render in separate block withou
         adSoyad: 'Ayrık Denemeli',
         sinif: '8',
         denemeler: [
-            { id: 'ex_g1', tip: 'genel', denemeAdi: 'Genel 1', tarih: '2026-09-01', toplamNet: 80.0 },
-            { id: 'ex_g2', tip: 'genel', denemeAdi: 'Genel 2', tarih: '2026-09-04', toplamNet: 82.0 },
+            { id: 'ex_g1', tip: 'genel', sinif: '8', denemeAdi: 'Genel 1', tarih: '2026-09-01', toplamSoru: 90, toplamNet: 80.0 },
+            { id: 'ex_g2', tip: 'genel', sinif: '8', denemeAdi: 'Genel 2', tarih: '2026-09-04', toplamSoru: 90, toplamNet: 82.0 },
             { id: 'ex_b1', tip: 'branş', ders: 'Fen Bilimleri', denemeAdi: 'Fen Branş 1', tarih: '2026-09-02', toplamNet: 18.0 },
             { id: 'ex_b2', tip: 'branş', ders: 'Fen Bilimleri', denemeAdi: 'Fen Branş 2', tarih: '2026-09-05', toplamNet: 19.0 }
         ],

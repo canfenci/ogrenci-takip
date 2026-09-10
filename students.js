@@ -11,7 +11,7 @@ import { renderLessonReminderCenter } from './lesson-reminders.js';
 import { calculateTopicExamProgress } from './topic-exam-insights.js';
 import { addResourceBook, deleteResourceBook, loadResourceBooks } from './resource-books.js';
 import { backupFileName, buildFullBackup, summarizeBackupData, validateFullBackup } from './backup.js';
-import { buildCockpitStatusItems, cockpitTimelineIcons, formatCockpitNet, getCockpitData, getStudentInitials } from './student-cockpit-insights.js';
+import { buildCockpitStatusItems, cockpitTimelineIcons, formatCockpitNet, getCockpitData, getStudentInitials, getCockpitExamComparabilityKey } from './student-cockpit-insights.js';
 import { buildHomeworkPerformanceInsights } from './guidance-performance-insights.js';
 
 let selectedSettingsResourceGrade = '';
@@ -292,6 +292,8 @@ export function renderCockpitExamsSection(student, sortedExams) {
     const id = student.id;
     const formatDate = date => formatTimelineDate(date);
     const pendingCount = sortedExams.filter(ex => isExamResultPending(ex)).length;
+    const genelCount = sortedExams.filter(ex => ex.tip === 'genel').length;
+    const genelCountLabel = genelCount === 1 ? '1 genel deneme' : `${genelCount} genel deneme`;
 
     let examsListHtml = '';
     if (sortedExams.length === 0) {
@@ -384,7 +386,7 @@ export function renderCockpitExamsSection(student, sortedExams) {
                             <h3 class="text-base sm:text-lg font-black text-gray-900 dark:text-white">Denemeler</h3>
                             ${pendingCount > 0 ? `<span class="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950/60 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60"><i class="fas fa-clock text-[10px]"></i> ${pendingCount} sonuç bekliyor</span>` : ''}
                         </div>
-                        <p class="mt-0.5 text-xs text-gray-500">Atanmış ve tamamlanmış tüm denemeler</p>
+                        <p class="mt-0.5 text-xs text-gray-500">Atanmış ve tamamlanmış tüm denemeler · ${genelCountLabel}</p>
                     </div>
                 </div>
             </div>
@@ -489,25 +491,47 @@ export function calculateStudentSchoolExamPerformance(student) {
 
     // Genel Deneme Özeti
     const genelCompleted = genelExams.filter(e => !isExamResultPending(e));
-    const genelLatest = genelCompleted.length > 0 ? genelCompleted[0] : (genelExams.length > 0 ? genelExams[0] : null);
+
+    // Comparability matching (same scale & grade)
+    const withKeys = [...genelCompleted].reverse().map(exam => ({
+        exam,
+        key: getCockpitExamComparabilityKey(exam, student)
+    }));
+    const targetKey = withKeys.slice().reverse().find(item => item.key !== null)?.key;
+    // When ALL keys are null: use only the latest exam (do NOT aggregate unknown-scale exams)
+    const comparableChronological = targetKey
+        ? withKeys.filter(item => item.key === targetKey).map(item => item.exam)
+        : (withKeys.length > 0 && withKeys.at(-1).key === null ? [withKeys.at(-1).exam] : []);
+    const recentComparable = comparableChronological.slice(-5);
+
+    const genelLatest = recentComparable.length > 0
+        ? recentComparable.at(-1)
+        : (genelCompleted.length > 0 ? genelCompleted[0] : (genelExams.length > 0 ? genelExams[0] : null));
+
     const genelLatestNet = genelLatest && genelLatest.toplamNet !== undefined && genelLatest.toplamNet !== null
         ? Number(genelLatest.toplamNet)
         : null;
-    const genelAvgNet = genelCompleted.length > 0
-        ? Number((genelCompleted.reduce((sum, e) => sum + (Number(e.toplamNet) || 0), 0) / genelCompleted.length).toFixed(2))
-        : (genelExams.length > 0 && genelExams[0].toplamNet !== undefined ? Number(genelExams[0].toplamNet) : null);
-    const genelMaxNet = genelCompleted.length > 0
-        ? Math.max(...genelCompleted.map(e => Number(e.toplamNet) || 0))
-        : (genelExams.length > 0 && genelExams[0].toplamNet !== undefined ? Number(genelExams[0].toplamNet) : null);
+
+    const genelAvgNet = recentComparable.length > 0
+        ? Number((recentComparable.reduce((sum, e) => sum + (Number(e.toplamNet) || 0), 0) / recentComparable.length).toFixed(2))
+        : (genelCompleted.length > 0
+            ? Number((genelCompleted.reduce((sum, e) => sum + (Number(e.toplamNet) || 0), 0) / genelCompleted.length).toFixed(2))
+            : (genelExams.length > 0 && genelExams[0].toplamNet !== undefined ? Number(genelExams[0].toplamNet) : null));
+
+    const genelMaxNet = comparableChronological.length > 0
+        ? Math.max(...comparableChronological.map(e => Number(e.toplamNet) || 0))
+        : (genelCompleted.length > 0
+            ? Math.max(...genelCompleted.map(e => Number(e.toplamNet) || 0))
+            : (genelExams.length > 0 && genelExams[0].toplamNet !== undefined ? Number(genelExams[0].toplamNet) : null));
 
     let genelTrendDelta = null;
-    if (genelCompleted.length >= 2) {
-        const first = Number(genelCompleted[0].toplamNet) || 0;
-        const second = Number(genelCompleted[1].toplamNet) || 0;
-        genelTrendDelta = Number((first - second).toFixed(2));
+    if (recentComparable.length >= 2) {
+        const gFirst = Number(recentComparable[0].toplamNet) || 0;
+        const gLast = Number(recentComparable.at(-1).toplamNet) || 0;
+        genelTrendDelta = Number((gLast - gFirst).toFixed(2));
     }
 
-    const genelChronological = [...genelCompleted].reverse();
+    const genelChronological = recentComparable;
     let genelTrend = null;
     let genelTrendLabel = 'Trend için yeterli deneme yok';
     let genelChronologicalDelta = null;
@@ -529,18 +553,19 @@ export function calculateStudentSchoolExamPerformance(student) {
 
     // Branş Deneme Özeti
     const bransCompleted = bransExams.filter(e => !isExamResultPending(e));
-    const bransLatest = bransCompleted.length > 0 ? bransCompleted[0] : (bransExams.length > 0 ? bransExams[0] : null);
+    const bransChronologicalAll = [...bransCompleted].reverse();
+    const bransChronological = bransChronologicalAll.slice(-5);
+    const bransLatest = bransChronological.length > 0 ? bransChronological.at(-1) : (bransCompleted.length > 0 ? bransCompleted[0] : (bransExams.length > 0 ? bransExams[0] : null));
     const bransLatestNet = bransLatest && bransLatest.toplamNet !== undefined && bransLatest.toplamNet !== null
         ? Number(bransLatest.toplamNet)
         : null;
-    const bransAvgNet = bransCompleted.length > 0
-        ? Number((bransCompleted.reduce((sum, e) => sum + (Number(e.toplamNet) || 0), 0) / bransCompleted.length).toFixed(2))
+    const bransAvgNet = bransChronological.length > 0
+        ? Number((bransChronological.reduce((sum, e) => sum + (Number(e.toplamNet) || 0), 0) / bransChronological.length).toFixed(2))
         : (bransExams.length > 0 && bransExams[0].toplamNet !== undefined ? Number(bransExams[0].toplamNet) : null);
-    const bransMaxNet = bransCompleted.length > 0
-        ? Math.max(...bransCompleted.map(e => Number(e.toplamNet) || 0))
+    const bransMaxNet = bransChronologicalAll.length > 0
+        ? Math.max(...bransChronologicalAll.map(e => Number(e.toplamNet) || 0))
         : (bransExams.length > 0 && bransExams[0].toplamNet !== undefined ? Number(bransExams[0].toplamNet) : null);
 
-    const bransChronological = [...bransCompleted].reverse();
     let bransTrend = null;
     let bransTrendLabel = 'Trend için yeterli deneme yok';
     let bransChronologicalDelta = null;
@@ -661,6 +686,8 @@ export function calculateStudentSchoolExamPerformance(student) {
         genelSummary: {
             totalCount: genelExams.length,
             completedCount: genelCompleted.length,
+            comparableCount: comparableChronological.length,
+            latestExam: genelLatest,
             latestNet: genelLatestNet,
             averageNet: genelAvgNet,
             maxNet: genelMaxNet,
@@ -869,87 +896,167 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
 
     // perfSubTab === 'exams'
     const examPerf = calculateStudentSchoolExamPerformance(student);
+    const completedGenelCount = examPerf.genelChronological.length;
 
-    return `
-        ${subTabsNav}
-        <div class="space-y-4">
-            <!-- Genel Deneme Özeti (Section 6 & 12) -->
-            <div class="app-panel p-5">
-                <div class="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 pb-3">
-                    <div>
-                        <h3 class="text-lg font-black text-gray-900 dark:text-white">Genel Deneme Performansı</h3>
-                        <p class="text-xs text-gray-500 mt-0.5">90 soruluk LGS genel deneme sonuçları</p>
-                    </div>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                        ${examPerf.genelSummary.totalCount} Deneme
-                    </span>
+    // Genel Deneme KPI Alanı (Exam Count Aware)
+    let genelKpiCardsHtml = '';
+    if (completedGenelCount === 0) {
+        genelKpiCardsHtml = `
+            <div class="grid grid-cols-2 gap-3 mt-4">
+                <div class="app-panel p-3">
+                    <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Genel Deneme</p>
+                    <p class="text-xl font-black text-gray-900 dark:text-white mt-1">0</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Henüz sonuç yok</p>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/60 dark:border-gray-800">
-                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Son Deneme Neti</p>
-                        <p class="text-2xl font-black text-slate-900 dark:text-white mt-1">${examPerf.genelSummary.latestNet !== null ? `${formatCockpitNet(examPerf.genelSummary.latestNet)} net` : '—'}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">En son genel deneme</p>
-                    </div>
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/60 dark:border-gray-800">
-                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Ortalama Net</p>
-                        <p class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${examPerf.genelSummary.averageNet !== null ? `${formatCockpitNet(examPerf.genelSummary.averageNet)} net` : '—'}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">${examPerf.genelSummary.completedCount} deneme ortalaması</p>
-                    </div>
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/60 dark:border-gray-800">
-                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">En Yüksek Net</p>
-                        <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">${examPerf.genelSummary.maxNet !== null ? `${formatCockpitNet(examPerf.genelSummary.maxNet)} net` : '—'}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Zirve net başarısı</p>
-                    </div>
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/60 dark:border-gray-800">
-                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Net Eğilimi</p>
-                        <p class="text-2xl font-black ${examPerf.genelSummary.trendDelta !== null && examPerf.genelSummary.trendDelta >= 0 ? 'text-emerald-600' : (examPerf.genelSummary.trendDelta !== null ? 'text-red-600' : 'text-slate-900 dark:text-white')} mt-1">
-                            ${examPerf.genelSummary.trendDelta !== null ? `${examPerf.genelSummary.trendDelta >= 0 ? '+' : ''}${formatCockpitNet(examPerf.genelSummary.trendDelta)}` : '—'}
-                        </p>
-                        <p class="text-xs text-gray-500 mt-0.5">${examPerf.genelSummary.trendDelta !== null ? (examPerf.genelSummary.trendDelta >= 0 ? 'Son denemede artış' : 'Son denemede düşüş') : 'Yeterli veri yok'}</p>
-                    </div>
-                </div>
-
-                <!-- Genel Deneme Net Gelişimi Grafiği -->
-                <div class="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                        <div>
-                            <h4 class="font-black text-base text-gray-900 dark:text-white">Net Gelişimi</h4>
-                            <p class="text-xs text-gray-500 mt-0.5">90 soru üzerinden genel deneme netlerinin zaman içindeki değişimi</p>
-                        </div>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            ${examPerf.genelChronological.length >= 2 ? `
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
-                                    examPerf.genelSummary.trend === 'improving' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
-                                    (examPerf.genelSummary.trend === 'declining' ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300 border border-red-200 dark:border-red-800' :
-                                    'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700')
-                                }">
-                                    <i class="fas ${examPerf.genelSummary.trend === 'improving' ? 'fa-arrow-trend-up text-emerald-600' : (examPerf.genelSummary.trend === 'declining' ? 'fa-arrow-trend-down text-red-600' : 'fa-minus text-gray-500')} mr-1"></i>
-                                    ${examPerf.genelSummary.trendLabel}
-                                </span>
-                            ` : ''}
-                        </div>
-                    </div>
-                    <div class="h-64 mt-2">
-                        ${examPerf.genelChronological.length >= 2 ? `
-                            <canvas id="cockpitGenelExamChart" aria-label="Genel deneme net gelişim grafiği"></canvas>
-                        ` : `
-                            <div class="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-200 text-center text-sm text-gray-500 dark:border-gray-700 p-6">
-                                <div>
-                                    <i class="fas fa-chart-line text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
-                                    <p>Net gelişimini göstermek için en az 2 deneme gerekli.</p>
-                                </div>
-                            </div>
-                        `}
-                    </div>
+                <div class="app-panel p-3">
+                    <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Eğilim</p>
+                    <p class="text-xl font-black text-gray-900 dark:text-white mt-1">—</p>
+                    <p class="text-xs text-gray-500 mt-0.5">En az 2 deneme gerekli</p>
                 </div>
             </div>
+        `;
+    } else if (completedGenelCount === 1) {
+        genelKpiCardsHtml = `
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+                <div class="app-panel p-3">
+                    <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Son Deneme</p>
+                    <p class="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${formatCockpitNet(examPerf.genelSummary.latestNet)} net</p>
+                    <p class="text-xs text-gray-500 mt-0.5 truncate">${escapeHtml(examPerf.genelSummary.latestExam?.denemeAdi || 'En son genel deneme')}</p>
+                </div>
+                <div class="app-panel p-3">
+                    <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Deneme Sayısı</p>
+                    <p class="text-xl font-black text-gray-900 dark:text-white mt-1">1</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Genel deneme</p>
+                </div>
+                <div class="app-panel p-3">
+                    <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Eğilim</p>
+                    <p class="text-xl font-black text-gray-900 dark:text-white mt-1">—</p>
+                    <p class="text-xs text-gray-500 mt-0.5">En az 2 deneme gerekli</p>
+                </div>
+            </div>
+        `;
+    } else {
+        genelKpiCardsHtml = `
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+                <div class="app-panel p-3">
+                    <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Son Net</p>
+                    <p class="text-xl font-black text-gray-900 dark:text-white mt-1">${formatCockpitNet(examPerf.genelSummary.latestNet)} net</p>
+                    <p class="text-xs text-gray-500 mt-0.5">En son genel deneme</p>
+                </div>
+                <div class="app-panel p-3">
+                    <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">${completedGenelCount >= 5 ? 'Son 5 Ort.' : `Son ${completedGenelCount} Ort.`}</p>
+                    <p class="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${formatCockpitNet(examPerf.genelSummary.averageNet)} net</p>
+                    <p class="text-xs text-gray-500 mt-0.5">${completedGenelCount} deneme ortalaması</p>
+                </div>
+                <div class="app-panel p-3">
+                    <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">En Yüksek Net</p>
+                    <p class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">${formatCockpitNet(examPerf.genelSummary.maxNet)} net</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Zirve net başarısı</p>
+                </div>
+                <div class="app-panel p-3">
+                    <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Eğilim</p>
+                    <p class="text-xl font-black ${examPerf.genelSummary.trend === 'improving' ? 'text-emerald-600 dark:text-emerald-400' : (examPerf.genelSummary.trend === 'declining' ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white')} mt-1">
+                        ${examPerf.genelSummary.trendDelta !== null ? `${examPerf.genelSummary.trendDelta >= 0 ? '+' : ''}${formatCockpitNet(examPerf.genelSummary.trendDelta)}` : '—'}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-0.5">${examPerf.genelSummary.trendLabel}</p>
+                </div>
+            </div>
+        `;
+    }
 
-            <!-- Fen Branş Denemeleri Özeti (Section 12) -->
-            ${examPerf.bransSummary.totalCount > 0 ? `
-            <div class="app-panel p-5">
+    // Genel Deneme Net Gelişimi Alanı
+    let genelChartAreaHtml = '';
+    if (completedGenelCount === 0) {
+        genelChartAreaHtml = `
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                <div class="py-4 text-center text-xs text-gray-400">
+                    <i class="fas fa-chart-line text-xl text-gray-300 dark:text-gray-600 mb-1.5"></i>
+                    <p class="font-medium text-gray-500 dark:text-gray-400">Henüz genel deneme sonucu yok.</p>
+                </div>
+            </div>
+        `;
+    } else if (completedGenelCount === 1) {
+        genelChartAreaHtml = `
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                <div class="py-4 text-center text-xs text-gray-400">
+                    <i class="fas fa-chart-line text-xl text-indigo-400 dark:text-indigo-500 mb-1.5"></i>
+                    <p class="font-medium text-gray-700 dark:text-gray-300">Son sonuç: ${formatCockpitNet(examPerf.genelSummary.latestNet)} net</p>
+                    <p class="text-gray-500 dark:text-gray-400 mt-0.5">Trend için en az 2 genel deneme gerekir.</p>
+                </div>
+            </div>
+        `;
+    } else {
+        genelChartAreaHtml = `
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <div>
+                        <h4 class="font-black text-sm text-gray-900 dark:text-white">Net Gelişimi</h4>
+                        <p class="text-xs text-gray-500">90 soru üzerinden genel deneme netlerinin zaman içindeki değişimi</p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
+                            examPerf.genelSummary.trend === 'improving' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
+                            (examPerf.genelSummary.trend === 'declining' ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300 border border-red-200 dark:border-red-800' :
+                            'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700')
+                        }">
+                            <i class="fas ${examPerf.genelSummary.trend === 'improving' ? 'fa-arrow-trend-up text-emerald-600' : (examPerf.genelSummary.trend === 'declining' ? 'fa-arrow-trend-down text-red-600' : 'fa-minus text-gray-500')} mr-1"></i>
+                            ${examPerf.genelSummary.trendLabel}
+                        </span>
+                    </div>
+                </div>
+                <div class="h-56 sm:h-60 mt-2">
+                    <canvas id="cockpitGenelExamChart" aria-label="Genel deneme net gelişim grafiği"></canvas>
+                </div>
+            </div>
+        `;
+    }
+
+    // Fen Branş Denemeleri Alanı
+    let bransSectionHtml = '';
+    if (examPerf.bransSummary.totalCount > 0) {
+        const completedBransCount = examPerf.bransChronological.length;
+        let bransChartAreaHtml = '';
+        if (completedBransCount < 2) {
+            bransChartAreaHtml = `
+                <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                    <div class="py-4 text-center text-xs text-gray-400">
+                        <i class="fas fa-chart-line text-xl text-emerald-400 dark:text-emerald-500 mb-1.5"></i>
+                        <p class="font-medium text-gray-700 dark:text-gray-300">${examPerf.bransSummary.latestNet !== null ? `Son branş sonucu: ${formatCockpitNet(examPerf.bransSummary.latestNet)} net` : 'Henüz branş deneme sonucu yok.'}</p>
+                        <p class="text-gray-500 dark:text-gray-400 mt-0.5">Fen branş gelişimini göstermek için en az 2 branş denemesi gerekli.</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            bransChartAreaHtml = `
+                <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                        <div>
+                            <h4 class="font-black text-sm text-gray-900 dark:text-white">Fen Branş Net Gelişimi</h4>
+                            <p class="text-xs text-gray-500">20 soru üzerinden branş deneme netlerinin zaman içindeki değişimi</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
+                                examPerf.bransSummary.trend === 'improving' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
+                                (examPerf.bransSummary.trend === 'declining' ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300 border border-red-200 dark:border-red-800' :
+                                'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700')
+                            }">
+                                <i class="fas ${examPerf.bransSummary.trend === 'improving' ? 'fa-arrow-trend-up text-emerald-600' : (examPerf.bransSummary.trend === 'declining' ? 'fa-arrow-trend-down text-red-600' : 'fa-minus text-gray-500')} mr-1"></i>
+                                ${examPerf.bransSummary.trendLabel}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="h-56 sm:h-60 mt-2">
+                        <canvas id="cockpitBransExamChart" aria-label="Fen branş deneme net gelişim grafiği"></canvas>
+                    </div>
+                </div>
+            `;
+        }
+
+        bransSectionHtml = `
+            <div class="app-panel p-4 sm:p-5">
                 <div class="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 pb-3">
                     <div>
-                        <h3 class="text-lg font-black text-gray-900 dark:text-white">Fen Bilimleri Branş Denemeleri</h3>
+                        <h3 class="text-base sm:text-lg font-black text-gray-900 dark:text-white">Fen Bilimleri Branş Denemeleri</h3>
                         <p class="text-xs text-gray-500 mt-0.5">20 soruluk konu ve branş deneme sonuçları</p>
                     </div>
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -957,76 +1064,73 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                     </span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/60 dark:border-gray-800">
+                    <div class="app-panel p-3">
                         <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Son Branş Neti</p>
-                        <p class="text-2xl font-black text-slate-900 dark:text-white mt-1">${examPerf.bransSummary.latestNet !== null ? `${formatCockpitNet(examPerf.bransSummary.latestNet)} net` : '—'}</p>
+                        <p class="text-xl font-black text-slate-900 dark:text-white mt-1">${examPerf.bransSummary.latestNet !== null ? `${formatCockpitNet(examPerf.bransSummary.latestNet)} net` : '—'}</p>
                         <p class="text-xs text-gray-500 mt-0.5">Sonuçlanan branş denemesi</p>
                     </div>
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/60 dark:border-gray-800">
+                    <div class="app-panel p-3">
                         <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Ortalama Branş Neti</p>
-                        <p class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${examPerf.bransSummary.averageNet !== null ? `${formatCockpitNet(examPerf.bransSummary.averageNet)} net` : '—'}</p>
+                        <p class="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${examPerf.bransSummary.averageNet !== null ? `${formatCockpitNet(examPerf.bransSummary.averageNet)} net` : '—'}</p>
                         <p class="text-xs text-gray-500 mt-0.5">${examPerf.bransSummary.completedCount} branş ortalaması</p>
                     </div>
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/60 dark:border-gray-800">
+                    <div class="app-panel p-3">
                         <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">En Yüksek Branş Neti</p>
-                        <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">${examPerf.bransSummary.maxNet !== null ? `${formatCockpitNet(examPerf.bransSummary.maxNet)} net` : '—'}</p>
+                        <p class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">${examPerf.bransSummary.maxNet !== null ? `${formatCockpitNet(examPerf.bransSummary.maxNet)} net` : '—'}</p>
                         <p class="text-xs text-gray-500 mt-0.5">En iyi branş denemesi</p>
                     </div>
                 </div>
-
-                <!-- Fen Branş Net Gelişimi Grafiği -->
-                <div class="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                        <div>
-                            <h4 class="font-black text-base text-gray-900 dark:text-white">Fen Branş Net Gelişimi</h4>
-                            <p class="text-xs text-gray-500 mt-0.5">20 soru üzerinden branş deneme netlerinin zaman içindeki değişimi</p>
-                        </div>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            ${examPerf.bransChronological.length >= 2 ? `
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
-                                    examPerf.bransSummary.trend === 'improving' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
-                                    (examPerf.bransSummary.trend === 'declining' ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300 border border-red-200 dark:border-red-800' :
-                                    'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700')
-                                }">
-                                    <i class="fas ${examPerf.bransSummary.trend === 'improving' ? 'fa-arrow-trend-up text-emerald-600' : (examPerf.bransSummary.trend === 'declining' ? 'fa-arrow-trend-down text-red-600' : 'fa-minus text-gray-500')} mr-1"></i>
-                                    ${examPerf.bransSummary.trendLabel}
-                                </span>
-                            ` : ''}
-                        </div>
-                    </div>
-                    <div class="h-64 mt-2">
-                        ${examPerf.bransChronological.length >= 2 ? `
-                            <canvas id="cockpitBransExamChart" aria-label="Fen branş deneme net gelişim grafiği"></canvas>
-                        ` : `
-                            <div class="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-200 text-center text-sm text-gray-500 dark:border-gray-700 p-6">
-                                <div>
-                                    <i class="fas fa-chart-line text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
-                                    <p>Fen branş gelişimini göstermek için en az 2 branş denemesi gerekli.</p>
-                                </div>
-                            </div>
-                        `}
-                    </div>
-                </div>
+                ${bransChartAreaHtml}
             </div>
-            ` : ''}
+        `;
+    }
 
-            <!-- Eksik Analiz Durumu (Section 10) -->
+    return `
+        ${subTabsNav}
+        <div class="space-y-4">
+            <!-- Genel Deneme Özeti -->
+            <div class="app-panel p-4 sm:p-5">
+                <div class="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-gray-900 dark:text-white">Genel Deneme Performansı</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">90 soruluk LGS genel deneme sonuçları</p>
+                    </div>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        ${examPerf.genelSummary.totalCount !== examPerf.genelSummary.completedCount
+                            ? (examPerf.genelSummary.completedCount !== examPerf.genelSummary.comparableCount
+                                ? `${examPerf.genelSummary.completedCount} / ${examPerf.genelSummary.totalCount} tamamlandı · ${examPerf.genelSummary.comparableCount} karşılaştırılabilir`
+                                : `${examPerf.genelSummary.completedCount} / ${examPerf.genelSummary.totalCount} Deneme`)
+                            : (examPerf.genelSummary.completedCount !== examPerf.genelSummary.comparableCount
+                                ? `${examPerf.genelSummary.totalCount} kayıt · ${examPerf.genelSummary.comparableCount} karşılaştırılabilir`
+                                : `${examPerf.genelSummary.totalCount} Deneme`)}
+                    </span>
+                </div>
+                ${genelKpiCardsHtml}
+                ${genelChartAreaHtml}
+            </div>
+
+            <!-- Fen Branş Denemeleri Özeti -->
+            ${bransSectionHtml}
+
+            <!-- Eksik Analiz Durumu -->
             ${examPerf.unassignedCount > 0 ? `
-            <div class="p-3.5 bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-center gap-3">
-                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-                    <i class="fas fa-triangle-exclamation text-sm"></i>
-                </div>
-                <div class="text-xs">
-                    <p class="font-bold text-amber-900 dark:text-amber-200">Eksik Hata Analizi</p>
-                    <p class="text-amber-700 dark:text-amber-400 mt-0.5">${examPerf.unassignedCount} soru için hata nedeni girilmemiş. Deneme düzenleme ekranından hata nedenlerini tamamlayabilirsiniz.</p>
+            <div class="p-3.5 bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                        <i class="fas fa-triangle-exclamation text-sm"></i>
+                    </div>
+                    <div class="text-xs">
+                        <p class="font-bold text-amber-900 dark:text-amber-200">Eksik Hata Analizi</p>
+                        <p class="text-amber-700 dark:text-amber-400 mt-0.5">${examPerf.unassignedCount} soru için hata nedeni girilmemiş. Deneme düzenleme ekranından hata nedenlerini tamamlayabilirsiniz.</p>
+                    </div>
                 </div>
             </div>
             ` : ''}
 
-            <!-- 2 Kolon: En Çok Zorlanılan Konular vs Hata Nedenleri (Section 8 & 9) -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- 2 Kolon: En Çok Zorlanılan Konular vs Hata Nedenleri -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                 <!-- Sol: En Çok Zorlanılan Konular -->
-                <div class="app-panel p-5 space-y-3">
+                <div class="app-panel p-4 sm:p-5 space-y-3">
                     <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                         <div>
                             <h4 class="font-black text-base text-gray-900 dark:text-white">En Çok Zorlanılan Konular</h4>
@@ -1034,14 +1138,14 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                         </div>
                         <span class="text-xs font-bold text-gray-400">${examPerf.weakTopics.length} konu</span>
                     </div>
-                    <div class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                    <div class="space-y-2 max-h-80 overflow-y-auto pr-1">
                         ${examPerf.weakTopics.length > 0 ? examPerf.weakTopics.map(t => `
-                            <div class="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
+                            <div class="p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
                                 <div class="min-w-0 flex-1">
                                     <p class="text-sm font-bold text-gray-900 dark:text-white truncate">${escapeHtml(t.topic)}</p>
                                     <p class="text-xs text-gray-400 mt-0.5">${t.examCount} farklı denemede tekrar etti</p>
                                 </div>
-                                <div class="flex items-center gap-2 shrink-0">
+                                <div class="flex items-center gap-1.5 shrink-0">
                                     <span class="text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded border border-red-100 dark:border-red-900/50">
                                         ${t.wrong}Y
                                     </span>
@@ -1063,7 +1167,7 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                 </div>
 
                 <!-- Sağ: Hata Nedenleri Dağılımı -->
-                <div class="app-panel p-5 space-y-3">
+                <div class="app-panel p-4 sm:p-5 space-y-3">
                     <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                         <div>
                             <h4 class="font-black text-base text-gray-900 dark:text-white">Hata Nedenleri</h4>
@@ -1071,15 +1175,15 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                         </div>
                         <span class="text-xs font-bold text-gray-400">${examPerf.analyzedCount} analiz edilmiş</span>
                     </div>
-                    <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    <div class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
                         ${examPerf.analyzedCount > 0 ? examPerf.errorReasons.map(r => `
                             <div class="space-y-1">
                                 <div class="flex items-center justify-between text-xs">
                                     <div class="flex items-center gap-2">
                                         <span class="px-1.5 py-0.5 rounded text-[10px] font-black text-white" style="background-color: ${r.color}">${escapeHtml(r.code)}</span>
-                                        <span class="font-bold text-gray-800 dark:text-gray-200">${escapeHtml(r.label)}</span>
+                                        <span class="font-bold text-gray-800 dark:text-gray-200 truncate">${escapeHtml(r.label)}</span>
                                     </div>
-                                    <span class="font-black text-gray-900 dark:text-white">${r.count} soru (%${r.percentage})</span>
+                                    <span class="font-black text-gray-900 dark:text-white shrink-0">${r.count} soru (%${r.percentage})</span>
                                 </div>
                                 <div class="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                                     <div class="h-full rounded-full transition-all duration-300" style="width: ${r.percentage}%; background-color: ${r.color}"></div>
@@ -1096,7 +1200,7 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                 </div>
             </div>
 
-            <!-- Denemeler Listesi (Section 15 & Scenario O) -->
+            <!-- Denemeler Listesi -->
             ${examsSectionHtml}
         </div>
     `;
