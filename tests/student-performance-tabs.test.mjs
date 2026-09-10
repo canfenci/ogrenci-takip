@@ -178,9 +178,9 @@ test('Scenario C: Ödevler sub-tab renders existing homework performance insight
     renderStudentCockpit('std_hw_1', 'home', 'performance', 'homework');
     const html = document.getElementById('dynamic-content').innerHTML;
 
-    assert.ok(html.includes('Verilen Ödev'), 'Must show Verilen Ödev KPI');
-    assert.ok(html.includes('Tamamlanan'), 'Must show Tamamlanan KPI');
-    assert.ok(html.includes('Eksik / Yapılmayan'), 'Must show Eksik KPI');
+    assert.ok(html.includes('Ödev Disiplini'), 'Must show Ödev Disiplini KPI');
+    assert.ok(html.includes('tamamlandı'), 'Must show completion count');
+    assert.ok(html.includes('Ortalama Başarı'), 'Must show Ortalama Başarı KPI');
     assert.ok(html.includes('Mevsimler ve İklim'), 'Must show topic weakness');
     assert.ok(html.includes('Ödevlerde Zorlanılan Konular'), 'Must show weak topics card');
 });
@@ -554,8 +554,8 @@ test('Scenario S: Ödevler - 3+ completed homeworks renders trend series, badges
     assert.ok(html.includes('Ödev Performansı'), 'Should have Ödev Performansı card title');
     assert.ok(html.includes('Yükseliş'), 'Should show Yükseliş trend badge for improving success percent');
     assert.ok(html.includes('Son Başarı: %'), 'Should show latest success percent badge');
-    assert.ok(html.includes('Ortalama Başarı: %'), 'Should show average success percent badge');
-    assert.ok(html.includes('En Yüksek Başarı: %'), 'Should show max success percent badge');
+    assert.ok(html.includes('Ortalama Başarı'), 'Should show average success percent in KPI');
+    assert.ok(html.includes('En Yüksek: %'), 'Should show max success percent badge');
     assert.ok(!html.includes('undefined'), 'Must never render undefined in HTML');
     assert.ok(!html.includes('NaN'), 'Must never render NaN in HTML');
     assert.ok(!html.includes('— net'), 'Must not render — net placeholder');
@@ -883,7 +883,7 @@ test('Scenario AE: Max value calculation - maxSuccessPercent is exact without un
     renderStudentCockpit('std_max_val', 'home', 'performance', 'homework');
     const html = document.getElementById('dynamic-content').innerHTML;
 
-    assert.ok(html.includes('En Yüksek Başarı: %95'), 'Must render En Yüksek Başarı: %95');
+    assert.ok(html.includes('En Yüksek: %95'), 'Must render En Yüksek: %95');
     assert.ok(!html.includes('— net'), 'Must not render — net placeholder');
     assert.ok(!html.includes('undefined'), 'Must not render undefined');
     assert.ok(!html.includes('NaN'), 'Must not render NaN');

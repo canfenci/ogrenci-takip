@@ -707,43 +707,46 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
         const hwInsights = buildHomeworkPerformanceInsights(student, homeworks);
         const hwPerf = calculateStudentHomeworkPerformance(student, homeworks);
         const todayStr = new Date().toISOString().slice(0, 10);
-        const missingHwCount = homeworks.filter(h => h && (h.durum === 'yapilmadi' || h.durum === 'eksik')).length;
+        const totalHw = homeworks.length;
+        const completedHw = hwInsights.summary.totalCompleted;
+        const completionRate = totalHw > 0 ? Math.round((completedHw / totalHw) * 100) : null;
         const overdueHwCount = homeworks.filter(h => h && h.durum !== 'tamamlandi' && h.bitisTarihi && h.bitisTarihi < todayStr).length;
+
+        const avgSuccessDisplay = hwPerf.averageSuccessPercent !== null
+            ? `%${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 1 }).format(hwPerf.averageSuccessPercent)}`
+            : '—';
+        const avgNetDisplay = hwPerf.averageNet !== null
+            ? `${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(hwPerf.averageNet)} net`
+            : '—';
+
+        const avgDyChip = (hwInsights.summary.averageCorrect !== null && hwInsights.summary.averageWrong !== null)
+            ? `Ort. D/Y: ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(hwInsights.summary.averageCorrect)} / ${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(hwInsights.summary.averageWrong)}`
+            : null;
 
         return `
             ${subTabsNav}
             <div class="space-y-4">
-                <!-- Ödev KPI'ları -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <!-- Ödev KPI'ları (4 Kart) -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div class="app-panel p-3">
-                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Verilen Ödev</p>
-                        <p class="text-xl font-black text-gray-900 dark:text-white mt-1">${homeworks.length}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Toplam kayıt</p>
-                    </div>
-                    <div class="app-panel p-3">
-                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Tamamlanan</p>
-                        <p class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">${hwInsights.summary.totalCompleted}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">${homeworks.length > 0 ? Math.round((hwInsights.summary.totalCompleted / homeworks.length) * 100) : 0}% tamamlama</p>
-                    </div>
-                    <div class="app-panel p-3">
-                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Eksik / Yapılmayan</p>
-                        <p class="text-xl font-black ${missingHwCount > 0 ? 'text-red-500' : 'text-gray-900 dark:text-white'} mt-1">${missingHwCount}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Teslim edilmedi</p>
+                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Ödev Disiplini</p>
+                        <p class="text-xl font-black ${completionRate !== null ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'} mt-1">${completionRate !== null ? `%${completionRate}` : '—'}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${totalHw > 0 ? `${completedHw} / ${totalHw} tamamlandı` : 'Henüz ödev yok'}</p>
                     </div>
                     <div class="app-panel p-3">
                         <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Geciken</p>
                         <p class="text-xl font-black ${overdueHwCount > 0 ? 'text-amber-500' : 'text-gray-900 dark:text-white'} mt-1">${overdueHwCount}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Süresi geçen</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${overdueHwCount > 0 ? 'Süresi geçen' : 'Geciken ödev yok'}</p>
                     </div>
                     <div class="app-panel p-3">
-                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Ortalama D / Y</p>
-                        <p class="text-xl font-black text-gray-900 dark:text-white mt-1">${hwInsights.summary.averageCorrect !== null ? `${hwInsights.summary.averageCorrect}D / ${hwInsights.summary.averageWrong}Y` : '—'}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Soru ortalaması</p>
+                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Ortalama Başarı</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-white mt-1">${avgSuccessDisplay}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${hwPerf.averageSuccessPercent !== null ? 'Tamamlanan ödevler' : 'Tamamlanan ödev yok'}</p>
                     </div>
                     <div class="app-panel p-3">
                         <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">Ortalama Net</p>
-                        <p class="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${hwInsights.summary.averageNet !== null ? `${hwInsights.summary.averageNet} net` : '—'}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Ödev net ortalaması</p>
+                        <p class="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">${avgNetDisplay}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${hwPerf.averageNet !== null ? 'Tamamlanan ödevler' : 'Tamamlanan ödev yok'}</p>
                     </div>
                 </div>
 
@@ -757,17 +760,17 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                         <div class="flex items-center gap-2 flex-wrap">
                             ${hwPerf.latestSuccessPercent !== null ? `
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                                    Son Başarı: %${hwPerf.latestSuccessPercent}
-                                </span>
-                            ` : ''}
-                            ${hwPerf.averageSuccessPercent !== null ? `
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                    Ortalama Başarı: %${hwPerf.averageSuccessPercent}
+                                    Son Başarı: %${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 1 }).format(hwPerf.latestSuccessPercent)}
                                 </span>
                             ` : ''}
                             ${hwPerf.maxSuccessPercent !== null ? `
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                    En Yüksek Başarı: %${hwPerf.maxSuccessPercent}
+                                    En Yüksek: %${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 1 }).format(hwPerf.maxSuccessPercent)}
+                                </span>
+                            ` : ''}
+                            ${avgDyChip ? `
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                    ${avgDyChip}
                                 </span>
                             ` : ''}
                             ${hwPerf.chronological.length >= 2 ? `
@@ -782,7 +785,7 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                             ` : ''}
                         </div>
                     </div>
-                    <div class="h-64 mt-2">
+                    <div class="h-60 sm:h-64 mt-2">
                         ${hwPerf.chronological.length >= 2 ? `
                             <canvas id="cockpitHomeworkPerfChart" aria-label="Ödev başarı yüzdesi gelişim grafiği"></canvas>
                         ` : `
@@ -797,8 +800,8 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                 </div>
 
                 <!-- 2 Kolon: Ödevlerde Zorlanılan Konular vs Hata Nedenleri -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="app-panel p-5 space-y-3">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                    <div class="app-panel p-4 sm:p-5 space-y-3">
                         <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                             <div>
                                 <h4 class="font-black text-base text-gray-900 dark:text-white">Ödevlerde Zorlanılan Konular</h4>
@@ -806,14 +809,14 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                             </div>
                             <span class="text-xs font-bold text-gray-400">${hwInsights.weakTopics.length} konu</span>
                         </div>
-                        <div class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                        <div class="space-y-2 max-h-80 overflow-y-auto pr-1">
                             ${hwInsights.weakTopics.length > 0 ? hwInsights.weakTopics.map(t => `
-                                <div class="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
+                                <div class="p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
                                     <div class="min-w-0 flex-1">
                                         <p class="text-sm font-bold text-gray-900 dark:text-white truncate">${escapeHtml(t.unite)} - ${escapeHtml(t.konu)}</p>
                                         <p class="text-xs text-gray-400 mt-0.5">${t.assignmentCount} ödevde tekrar etti</p>
                                     </div>
-                                    <span class="text-xs font-black text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50">
+                                    <span class="text-xs font-black text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 shrink-0">
                                         ${t.errorCount} hata
                                     </span>
                                 </div>
@@ -826,19 +829,19 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                         </div>
                     </div>
 
-                    <div class="app-panel p-5 space-y-3">
+                    <div class="app-panel p-4 sm:p-5 space-y-3">
                         <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                             <div>
                                 <h4 class="font-black text-base text-gray-900 dark:text-white">Hata Nedenleri Dağılımı</h4>
                                 <p class="text-xs text-gray-500 mt-0.5">Ödevlerde işaretlenen hata sebepleri</p>
                             </div>
                         </div>
-                        <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
+                        <div class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
                             ${hwInsights.errorReasons.filter(r => r.count > 0).length > 0 ? hwInsights.errorReasons.filter(r => r.count > 0).map(r => `
                                 <div class="space-y-1">
                                     <div class="flex items-center justify-between text-xs">
-                                        <span class="font-bold text-gray-800 dark:text-gray-200">${escapeHtml(r.label)}</span>
-                                        <span class="font-black text-gray-900 dark:text-white">${r.count} soru (%${r.percentage})</span>
+                                        <span class="font-bold text-gray-800 dark:text-gray-200 truncate pr-2">${escapeHtml(r.label)}</span>
+                                        <span class="font-black text-gray-900 dark:text-white shrink-0">${r.count} soru (%${r.percentage})</span>
                                     </div>
                                     <div class="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                                         <div class="h-full rounded-full transition-all duration-300" style="width: ${r.percentage}%; background-color: ${r.color || '#3b82f6'}"></div>
