@@ -294,3 +294,124 @@ test('Scenario N: Action button wiring preserved', () => {
     assert.ok(html.includes('Yeni Ödev Ata'), 'Must have action button text');
     assert.ok(html.includes('min-h-[44px]'), 'Must respect accessibility touch target size');
 });
+
+test('Scenario P: Real student fixture metrics precision (%81,7, 13,86 net, 14,57 / 2,14)', () => {
+    // Exact 11 homeworks matching the real student persisted data with canonical totals (102 Doğru, 15 Yanlış)
+    const student = {
+        id: 'std_real_fixture',
+        adSoyad: 'Gerçek Öğrenci',
+        sinif: '8',
+        denemeler: [],
+        odevler: [
+            // 7 Completed homeworks: 102 Doğru, 15 Yanlış in total
+            { id: 'h1', durum: 'tamamlandi', tarih: '2026-08-10', bitisTarihi: '2026-08-12', dogru: 18, yanlis: 0, toplamSoru: 18 },
+            { id: 'h2', durum: 'tamamlandi', tarih: '2026-08-15', bitisTarihi: '2026-08-17', dogru: 15, yanlis: 0, toplamSoru: 15 },
+            { id: 'h3', durum: 'tamamlandi', tarih: '2026-08-20', bitisTarihi: '2026-08-22', dogru: 14, yanlis: 0, toplamSoru: 14 },
+            { id: 'h4', durum: 'tamamlandi', tarih: '2026-08-25', bitisTarihi: '2026-08-27', dogru: 12, yanlis: 0, toplamSoru: 12 },
+            { id: 'h5', durum: 'tamamlandi', tarih: '2026-08-30', bitisTarihi: '2026-09-01', dogru: 15, yanlis: 3, toplamSoru: 19 },
+            { id: 'h6', durum: 'tamamlandi', tarih: '2026-09-03', bitisTarihi: '2026-09-05', dogru: 14, yanlis: 6, toplamSoru: 24 },
+            { id: 'h7', durum: 'tamamlandi', tarih: '2026-09-07', bitisTarihi: '2026-09-09', dogru: 14, yanlis: 6, toplamSoru: 25 },
+            // 3 Overdue
+            { id: 'h8', durum: 'verildi', tarih: '2026-08-20', bitisTarihi: '2026-08-25', toplamSoru: 20 },
+            { id: 'h9', durum: 'yapilmadi', tarih: '2026-09-01', bitisTarihi: '2026-09-05', toplamSoru: 20 },
+            { id: 'h10', durum: 'verildi', tarih: '2026-09-05', bitisTarihi: '2026-09-08', toplamSoru: 20 },
+            // 1 Active pending
+            { id: 'h11', durum: 'verildi', tarih: '2026-09-10', bitisTarihi: '2026-09-15', toplamSoru: 20 }
+        ]
+    };
+    storageMap.set(localDataKey(STORAGE_KEY), JSON.stringify([student]));
+    store.globalStudents = [student];
+
+    renderStudentCockpit('std_real_fixture', 'home', 'performance', 'homework');
+    const html = document.getElementById('dynamic-content').innerHTML;
+
+    // 1. Ödev Disiplini: 7/11 = 64%
+    assert.ok(html.includes('%64'), 'Must show %64 discipline');
+    assert.ok(html.includes('7 / 11 tamamlandı'), 'Must show 7 / 11 completed');
+
+    // 2. Geciken: 3
+    assert.ok(html.includes('3') && html.includes('Süresi geçen'), 'Must show 3 overdue');
+
+    // 3. Ortalama Başarı: %81,7
+    assert.ok(html.includes('%81,7'), 'Must show %81,7 with 1 decimal place');
+
+    // 4. Ortalama Net: 13,86 net
+    assert.ok(html.includes('13,86 net'), 'Must show 13,86 net with 2 decimal places');
+
+    // Graph summary strip: Ort. D/Y: 14,57 / 2,14
+    assert.ok(html.includes('Ort. D/Y: 14,57 / 2,14'), 'Must show Ort. D/Y: 14,57 / 2,14 with exact precision');
+});
+
+test('Scenario Q: Error reasons bar percentage fidelity without minimum 12% distortion (Small percentage 2%)', () => {
+    const student = {
+        id: 'std_err_fidelity',
+        adSoyad: 'Emir Kaya',
+        sinif: '8',
+        denemeler: [],
+        odevler: [
+            {
+                id: 'hw_fid_1',
+                durum: 'tamamlandi',
+                tarih: '2026-09-01',
+                bitisTarihi: '2026-09-03',
+                dogru: 0,
+                yanlis: 50,
+                toplamSoru: 50,
+                yanlisAnalizi: [
+                    { unite: 'Madde', konu: 'Periyodik', adet: 49, hataNedenleri: ['Dikkatsizlik'] },
+                    { unite: 'Madde', konu: 'Fiziksel', adet: 1, hataNedenleri: ['İşlem Hatası'] }
+                ]
+            }
+        ]
+    };
+    storageMap.set(localDataKey(STORAGE_KEY), JSON.stringify([student]));
+    store.globalStudents = [student];
+
+    renderStudentCockpit('std_err_fidelity', 'home', 'performance', 'homework');
+    const html = document.getElementById('dynamic-content').innerHTML;
+
+    // 49/50 = 98%, 1/50 = 2%
+    assert.ok(html.includes('style="width: 98%'), 'Major error must have width: 98%');
+    assert.ok(html.includes('style="width: 2%'), 'Minor error must have width: 2%');
+    assert.doesNotMatch(html, /style="width:\s*12%/, 'Minor error must NOT be distorted to 12%');
+    assert.ok(html.includes('(%98)'), 'Must show %98 text');
+    assert.ok(html.includes('(%2)'), 'Must show %2 text');
+});
+
+test('Scenario R: Multiple error reasons proportional distribution (53%, 33%, 13%)', () => {
+    const student = {
+        id: 'std_err_multi',
+        adSoyad: 'Gamze Çelik',
+        sinif: '8',
+        denemeler: [],
+        odevler: [
+            {
+                id: 'hw_multi_1',
+                durum: 'tamamlandi',
+                tarih: '2026-09-01',
+                bitisTarihi: '2026-09-03',
+                dogru: 5,
+                yanlis: 15,
+                toplamSoru: 20,
+                yanlisAnalizi: [
+                    { unite: 'DNA', konu: 'Replikasyon', adet: 8, hataNedenleri: ['Dikkatsizlik'] },
+                    { unite: 'DNA', konu: 'Mutasyon', adet: 5, hataNedenleri: ['Bilgi Eksikliği'] },
+                    { unite: 'DNA', konu: 'Modifikasyon', adet: 2, hataNedenleri: ['İşlem Hatası'] }
+                ]
+            }
+        ]
+    };
+    storageMap.set(localDataKey(STORAGE_KEY), JSON.stringify([student]));
+    store.globalStudents = [student];
+
+    renderStudentCockpit('std_err_multi', 'home', 'performance', 'homework');
+    const html = document.getElementById('dynamic-content').innerHTML;
+
+    // 8/15 = 53%, 5/15 = 33%, 2/15 = 13%
+    assert.ok(html.includes('style="width: 53%'), '8/15 must have width: 53%');
+    assert.ok(html.includes('style="width: 33%'), '5/15 must have width: 33%');
+    assert.ok(html.includes('style="width: 13%'), '2/15 must have width: 13%');
+    assert.ok(html.includes('8 soru (%53)'), 'Must render 8 soru (%53)');
+    assert.ok(html.includes('5 soru (%33)'), 'Must render 5 soru (%33)');
+    assert.ok(html.includes('2 soru (%13)'), 'Must render 2 soru (%13)');
+});
