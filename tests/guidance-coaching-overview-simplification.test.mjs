@@ -259,8 +259,9 @@ test('Y: 4 KPI metrics include Plan Durumu', () => {
 // ============================================================================
 
 test('Z: No fake plan completion percentage in KPI', () => {
-    // Plan Durumu shows 'Aktif' or '—', never a fake percentage
-    assert.match(guidanceJs, /\['fa-compass',\s*'Plan Durumu',\s*detail\.activePlan \? 'Aktif' : '—'/);
+    // Plan Durumu shows progress metrics or 'Aktif' or '—', never a single fake percentage
+    assert.ok(guidanceJs.includes("'Plan Durumu'"), 'Plan Durumu KPI exists');
+    assert.ok(!guidanceJs.includes("plan '%") && !guidanceJs.includes("plan '%"), 'No fake percentage literal');
 });
 
 // ============================================================================

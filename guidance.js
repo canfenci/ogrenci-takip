@@ -1,4 +1,5 @@
 import { loadStudentsData, saveStudentsData, escapeHtml, store, getStudentOdevler, addStudentArrayRecord, updateStudentArrayRecord, deleteStudentArrayRecord } from './store.js';
+import { getQuestionProgress, getTaskProgress, getExamProgress, getBranchProgress, getTopicProgress, getTaskCompletionState, getPlanProgressSummary } from './coaching-plan-progress.js';
 import { updateMobileNavActive } from './auth.js';
 import { buildGuidanceCenterDashboard, getStudentInitials, formatActivityDate } from './guidance-center-insights.js';
 import { buildStudentGuidanceDetail, buildCoachingSummary, getLatestTeacherOpinion } from './guidance-student-insights.js';
@@ -999,7 +1000,7 @@ export function renderGuidanceStudentDetail(studentId) {
         ['fa-file-lines', 'Son Net', detail.recentExams.length ? `${detail.recentExams[0].net.toFixed(2)} net` : '—', detail.recentExams[0]?.name || 'Genel deneme kaydı yok'],
         ['fa-bullseye', 'Hedefe Kalan', detail.hedefNet ? (detail.targetGap !== null ? (detail.targetGap <= 0 ? 'Hedefe ulaşıldı' : `${detail.targetGap.toFixed(2)} net`) : '—') : '—', detail.hedefNet ? `${detail.hedefNet} net hedef` : 'Hedef belirlenmedi'],
         ['fa-list-check', 'Ödev Disiplini', detail.discipline ? `%${detail.discipline.completionRate}` : '—', detail.discipline ? `${detail.discipline.completed}/${detail.discipline.total} tamamlandı` : 'Ödev kaydı yok'],
-        ['fa-compass', 'Plan Durumu', detail.activePlan ? 'Aktif' : '—', detail.activePlan ? escapeHtml(detail.activePlan.subject) : 'Plan yok']
+        ['fa-compass', 'Plan Durumu', detail.activePlan ? (student.coachingPlan ? (() => { const qp = getQuestionProgress(student.coachingPlan); const tp = getTaskProgress(student.coachingPlan); return `Soru ${qp.actual}/${qp.target || '—'} · Görev ${tp.completed}/${tp.total}`; })() : 'Aktif') : '—', detail.activePlan ? escapeHtml(detail.activePlan.subject) : 'Plan yok']
     ];
 
     // Weak topics HTML
@@ -1921,10 +1922,23 @@ export function renderGuidanceStudentDetail(studentId) {
 
             let coachingPlanSummaryHtml = '';
             if (coachingPlan) {
-                const wt = coachingPlan.weeklyTargets || {};
-                const bt = coachingPlan.branchTargets || [];
-                const taskCount = coachingPlan.tasks?.length || 0;
-                const completedCount = coachingPlan.tasks?.filter(t => t.completed).length || 0;
+                const progress = getPlanProgressSummary(coachingPlan);
+                const qProg = progress.questions;
+                const tProg = progress.tasks;
+                const eProg = progress.exams;
+                const examTotal = (eProg.generalActual || 0) + (eProg.branchActual || 0);
+                const examTarget = (eProg.generalTarget || 0) + (eProg.branchTarget || 0);
+                const fmtPct = (pct) => pct != null ? `%${pct}` : '—';
+                const fmtBar = (pct) => {
+                    if (pct == null) return '';
+                    const w = Math.min(pct, 100);
+                    const color = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                    return `<div class="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mt-1"><div class="${color} h-full rounded-full" style="width:${w}%"></div></div>`;
+                };
+                const fmtMetric = (label, actual, target, pct, extra) => {
+                    const valText = target != null ? `${actual} / ${target}` : `${actual}`;
+                    return `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">${label}</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${valText}${extra ? ` <span class="text-[10px] font-bold text-gray-400">${extra}</span>` : ''}</p><span class="text-[10px] font-bold ${pct != null ? (pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}">${fmtPct(pct)}</span>${fmtBar(pct)}</div>`;
+                };
                 coachingPlanSummaryHtml = `
                     <article class="app-panel p-4 space-y-3">
                         <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
@@ -1932,20 +1946,28 @@ export function renderGuidanceStudentDetail(studentId) {
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-200/80">${escapeHtml(coachingPlan.weekStart || '')} – ${escapeHtml(coachingPlan.weekEnd || '')}</span>
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                            ${wt.totalQuestions != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Soru Hedefi</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.totalQuestions}</p></div>` : ''}
-                            ${wt.generalExams != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Genel Deneme</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.generalExams}</p></div>` : ''}
-                            ${wt.branchExams != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Branş Denemesi</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.branchExams}</p></div>` : ''}
-                            ${wt.readingTarget != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Okuma (dk)</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.readingTarget}</p></div>` : ''}
-                            ${wt.reviewSessions != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Tekrar Oturumu</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.reviewSessions}</p></div>` : ''}
-                            <div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Görevler</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${completedCount} / ${taskCount}</p></div>
+                            ${fmtMetric('Soru', qProg.actual, qProg.target, qProg.percent)}
+                            ${fmtMetric('Görev', `${tProg.completed} / ${tProg.total}`, null, tProg.percent, tProg.total > 0 ? `${tProg.total - tProg.completed} kaldı` : '')}
+                            ${fmtMetric('Deneme', examTotal, examTarget || null, examTarget > 0 ? Math.round((examTotal / examTarget) * 100) : null, (eProg.generalActual > 0 || eProg.branchActual > 0) ? `${eProg.generalActual} genel · ${eProg.branchActual} branş` : '')}
                         </div>
-                        ${bt.length > 0 ? `
+                        ${progress.branches.length > 0 ? `
                             <div class="space-y-1.5">
                                 <p class="text-[10px] font-black uppercase tracking-wide text-gray-500">Branş Hedefleri</p>
-                                ${bt.map(b => `
-                                    <div class="flex items-center justify-between text-xs p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900/50">
-                                        <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(b.subject || '')}</span>
-                                        <span class="font-bold text-gray-900 dark:text-white">${b.questionTarget != null ? b.questionTarget + ' soru' : ''}</span>
+                                ${progress.branches.map(b => `
+                                    <div class="text-xs p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                                        <div class="flex items-center justify-between"><span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(b.subject)}</span><span class="font-bold text-gray-900 dark:text-white">${b.actual} / ${b.target != null ? b.target : '—'}${b.target != null ? ` ${fmtPct(b.percent)}` : ''}</span></div>
+                                        ${b.percent != null ? fmtBar(b.percent) : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        ${progress.topics.length > 0 ? `
+                            <div class="space-y-1.5">
+                                <p class="text-[10px] font-black uppercase tracking-wide text-gray-500">Konu Hedefleri</p>
+                                ${progress.topics.map(t => `
+                                    <div class="text-xs p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                                        <div class="flex items-center justify-between"><span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(t.topic)} <span class="text-gray-400">· ${escapeHtml(t.subject)}</span></span><span class="font-bold text-gray-900 dark:text-white">${t.actual} / ${t.target != null ? t.target : '—'}${t.target != null ? ` ${fmtPct(t.percent)}` : ''}</span></div>
+                                        ${t.percent != null ? fmtBar(t.percent) : ''}
                                     </div>
                                 `).join('')}
                             </div>
@@ -2011,18 +2033,22 @@ export function renderGuidanceStudentDetail(studentId) {
                                             const title = task.title || task.konu || task.name || task.text || 'Çalışma Görevi';
                                             const desc = task.description || task.aciklama || task.detail || '';
                                             const question = task.questionTarget || task.questionCount || task.soru || null;
+                                            const completedCount = task.completedCount || 0;
                                             const duration = task.duration || task.durationMinutes || task.sure || null;
                                             const resource = task.resource || task.kaynak || null;
                                             const isDone = Boolean(task.completed || task.tamamlandi);
+                                            const state = getTaskCompletionState(task);
+                                            const stateColors = { completed: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', in_progress: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800', not_started: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' };
+                                            const stateLabels = { completed: 'Tamamlandı', in_progress: 'Devam Ediyor', not_started: 'Başlanmadı' };
                                             return `
                                                 <div class="p-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200/70 dark:border-gray-800 text-xs space-y-1.5">
                                                     <div class="flex items-start justify-between gap-1.5">
                                                         <p class="font-bold text-gray-800 dark:text-gray-200 leading-snug ${isDone ? 'line-through opacity-70' : ''}">${escapeHtml(title)}</p>
-                                                        ${isDone ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 shrink-0">Tamamlandı</span>' : ''}
+                                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-black border shrink-0 ${stateColors[state]}">${stateLabels[state]}</span>
                                                     </div>
                                                     ${desc ? `<p class="text-[11px] text-gray-500">${escapeHtml(desc)}</p>` : ''}
                                                     <div class="flex flex-wrap gap-1.5 pt-0.5 text-[10px] text-gray-500 font-semibold">
-                                                        ${question ? `<span class="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">${question} soru</span>` : ''}
+                                                        ${question ? `<span class="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">${completedCount} / ${question} soru</span>` : ''}
                                                         ${duration ? `<span class="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">${duration} dk</span>` : ''}
                                                         ${resource ? `<span class="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 truncate max-w-[120px]">${escapeHtml(resource)}</span>` : ''}
                                                     </div>
