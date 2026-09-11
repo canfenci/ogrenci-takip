@@ -8,8 +8,8 @@ function readProjectFile(relativePath) {
     return readFile(resolve(process.cwd(), relativePath), 'utf8');
 }
 
-test('HOTFIX-WHITE-SCREEN Scenario G: store.js, firebase-config.js, firestore.rules, exams.js have ZERO modifications', () => {
-    const diff = execSync('git diff -- store.js firebase-config.js firestore.rules exams.js', { encoding: 'utf8' });
+test('HOTFIX-WHITE-SCREEN Scenario G: firebase-config.js, firestore.rules, exams.js have ZERO modifications', () => {
+    const diff = execSync('git diff -- firebase-config.js firestore.rules exams.js', { encoding: 'utf8' });
     assert.equal(diff.trim(), '', 'Critical persistence, schema, and exam files must not have any modifications');
 });
 

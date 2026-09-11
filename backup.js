@@ -308,6 +308,26 @@ function mergeStudent(existingStudent, incomingStudent) {
         };
     }
 
+    if (existing.coachingPlan || incoming.coachingPlan) {
+        merged.coachingPlan = {
+            ...(existing.coachingPlan || {}),
+            ...(incoming.coachingPlan || {})
+        };
+    }
+
+    if (existing.studyPlanHistory || incoming.studyPlanHistory) {
+        const exHistory = Array.isArray(existing.studyPlanHistory) ? existing.studyPlanHistory : [];
+        const inHistory = Array.isArray(incoming.studyPlanHistory) ? incoming.studyPlanHistory : [];
+        const historyMap = new Map();
+        for (const item of exHistory) {
+            if (item && item.id) historyMap.set(item.id, item);
+        }
+        for (const item of inHistory) {
+            if (item && item.id) historyMap.set(item.id, item);
+        }
+        merged.studyPlanHistory = Array.from(historyMap.values());
+    }
+
     // 4. Any other custom array/object fields
     for (const [key, val] of Object.entries(incoming)) {
         if (key in merged) continue;

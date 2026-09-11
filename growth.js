@@ -43,15 +43,23 @@ export async function deleteStudyTask(studentId, gun, taskIdxOrText) {
     let occurrence = 0;
     if (typeof taskIdxOrText === 'number') {
         taskIdx = taskIdxOrText;
-        taskText = s?.studyPlan?.[gun]?.[taskIdx] || null;
+        const rawTask = s?.studyPlan?.[gun]?.[taskIdx] || null;
+        taskText = typeof rawTask === 'string' ? rawTask : (rawTask?.title || null);
         if (s?.studyPlan?.[gun] && taskText) {
             for (let i = 0; i < taskIdx; i++) {
-                if (s.studyPlan[gun][i] === taskText) occurrence++;
+                const prevTask = s.studyPlan[gun][i];
+                const prevText = typeof prevTask === 'string' ? prevTask : (prevTask?.title || null);
+                if (prevText === taskText) occurrence++;
             }
         }
     } else if (typeof taskIdxOrText === 'string') {
         taskText = taskIdxOrText;
-        taskIdx = Array.isArray(s?.studyPlan?.[gun]) ? s.studyPlan[gun].indexOf(taskText) : -1;
+        if (Array.isArray(s?.studyPlan?.[gun])) {
+            taskIdx = s.studyPlan[gun].findIndex(t => {
+                const tText = typeof t === 'string' ? t : (t?.title || null);
+                return tText === taskText;
+            });
+        }
     }
     const res = await deleteStudyTaskAtomic(studentId, gun, { taskText, taskIdx, occurrence });
     if (res && !res.ok && res.blockedOffline) {
@@ -188,6 +196,274 @@ export async function autoPopulateStudyPlan(studentId, configuration = {}) {
 }
 export const generateAdaptiveStudyPlan = autoPopulateStudyPlan;
 
+import { createEmptyCoachingPlan, normalizeCoachingPlan, createHistorySnapshot, getWeekStart, getWeekEnd } from './coaching-plan-model.js';
+import { saveCoachingPlan } from './store.js';
+
+export async function saveCoachingPlanForStudent(studentId, coachingPlanData) {
+    if (!studentId) throw new Error('studentId is required');
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return { ok: false, error: 'Student not found' };
+
+    const plan = normalizeCoachingPlan(coachingPlanData || createEmptyCoachingPlan());
+    const res = await saveCoachingPlan(studentId, plan);
+    if (!res || !res.ok) {
+        if (typeof alert === 'function') {
+            alert(res?.error?.message || 'Koçluk planı kaydedilirken bir hata oluştu.');
+        }
+        return res;
+    }
+    showSyncStatus('📋 Koçluk planı kaydedildi', false);
+
+    if (store.currentPage === 'guidance' || store.currentPage === 'guidance-detail' || typeof window.renderGuidanceStudentDetail === 'function') {
+        window._guidanceStudentTab = 'study';
+        if (typeof window.renderGuidanceStudentDetail === 'function') {
+            window.renderGuidanceStudentDetail(studentId);
+        }
+    }
+    return res;
+}
+
+export async function archiveCoachingPlanForStudent(studentId) {
+    if (!studentId) throw new Error('studentId is required');
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return { ok: false, error: 'Student not found' };
+
+    const currentPlan = student.coachingPlan;
+    if (!currentPlan || typeof currentPlan !== 'object') return { ok: false, error: 'No active coaching plan' };
+
+    const snapshot = createHistorySnapshot(currentPlan);
+    const history = Array.isArray(student.studyPlanHistory) ? [...student.studyPlanHistory] : [];
+    if (snapshot) history.push(snapshot);
+
+    const archivedPlan = { ...currentPlan, status: 'archived', updatedAt: new Date().toISOString() };
+    const res = await saveCoachingPlan(studentId, archivedPlan, history);
+    if (!res || !res.ok) {
+        if (typeof alert === 'function') {
+            alert(res?.error?.message || 'Plan arşivlenirken bir hata oluştu.');
+        }
+        return res;
+    }
+    showSyncStatus('📦 Plan arşivlendi', false);
+    return res;
+}
+
+let _cpEditorCounter = 0;
+
+export function showCoachingPlanEditor(studentId, existingPlan) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    document.getElementById('coachingPlanEditorModal')?.remove();
+    const isEdit = Boolean(existingPlan && existingPlan.id);
+    const plan = existingPlan || createEmptyCoachingPlan();
+    const wt = plan.weeklyTargets || {};
+    const branches = Array.isArray(plan.branchTargets) ? plan.branchTargets : [];
+    const topics = Array.isArray(plan.topicTargets) ? plan.topicTargets : [];
+    const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
+    const branchesJson = JSON.stringify(branches).replace(/"/g, '&quot;');
+    const topicsJson = JSON.stringify(topics).replace(/"/g, '&quot;');
+    const tasksJson = JSON.stringify(tasks).replace(/"/g, '&quot;');
+    const dayOptions = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'].map(d => `<option value="${d}">${d}</option>`).join('');
+    const taskTypeOptions = `<option value="question">Soru</option><option value="exam">Deneme</option><option value="review">Tekrar</option><option value="reading">Okuma</option><option value="custom">Özel</option>`;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="coachingPlanEditorModal" class="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto" role="dialog" aria-modal="true">
+            <div class="app-modal max-w-3xl mx-auto my-4 sm:my-8">
+                <div class="app-modal-header flex items-start justify-between gap-4">
+                    <div><h3 class="text-xl font-black">${isEdit ? 'Koçluk Planını Düzenle' : 'Koçluk Planı Oluştur'}</h3><p class="text-sm text-gray-500 mt-1">${escapeHtml(student.adSoyad)} için plan oluşturun.</p></div>
+                    <button onclick="closeCoachingPlanEditor()" class="min-w-[44px] min-h-[44px] text-gray-500" aria-label="Kapat"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="app-modal-body space-y-6">
+                    <input type="hidden" id="cpEditId" value="${isEdit ? escapeHtml(plan.id) : ''}">
+                    <input type="hidden" id="cpEditCreatedAt" value="${isEdit ? escapeHtml(plan.createdAt || '') : ''}">
+                    <input type="hidden" id="cpBranchesData" value='${branchesJson}'>
+                    <input type="hidden" id="cpTopicsData" value='${topicsJson}'>
+                    <input type="hidden" id="cpTasksData" value='${tasksJson}'>
+
+                    <section>
+                        <h4 class="font-black text-sm mb-3">Genel Hedefler</h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <label class="text-xs font-bold">Haftalık Toplam Soru<input type="number" id="cpTotalQuestions" min="0" step="1" value="${wt.totalQuestions ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
+                            <label class="text-xs font-bold">Genel Deneme Hedefi<input type="number" id="cpGeneralExams" min="0" step="1" value="${wt.generalExams ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
+                            <label class="text-xs font-bold">Branş Deneme Hedefi<input type="number" id="cpBranchExams" min="0" step="1" value="${wt.branchExams ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
+                            <label class="text-xs font-bold">Okuma Hedefi<input type="number" id="cpReadingTarget" min="0" step="1" value="${wt.readingTarget ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
+                            <label class="text-xs font-bold">Tekrar Oturumu<input type="number" id="cpReviewSessions" min="0" step="1" value="${wt.reviewSessions ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
+                        </div>
+                    </section>
+
+                    <section>
+                        <div class="flex items-center justify-between mb-3"><h4 class="font-black text-sm">Branş Hedefleri</h4><button onclick="addCpBranch()" class="btn-secondary min-h-[44px] px-3 text-xs font-bold"><i class="fas fa-plus mr-1"></i>Branş Hedefi</button></div>
+                        <div id="cpBranchRows" class="space-y-2"></div>
+                    </section>
+
+                    <section>
+                        <div class="flex items-center justify-between mb-3"><h4 class="font-black text-sm">Konu Hedefleri</h4><button onclick="addCpTopic()" class="btn-secondary min-h-[44px] px-3 text-xs font-bold"><i class="fas fa-plus mr-1"></i>Konu Hedefi</button></div>
+                        <div id="cpTopicRows" class="space-y-2"></div>
+                    </section>
+
+                    <section>
+                        <div class="flex items-center justify-between mb-3"><h4 class="font-black text-sm">Haftalık Görevler</h4><button onclick="addCpTask()" class="btn-secondary min-h-[44px] px-3 text-xs font-bold"><i class="fas fa-plus mr-1"></i>Görev</button></div>
+                        <div id="cpTaskRows" class="space-y-3"></div>
+                    </section>
+                </div>
+                <div class="app-modal-actions">
+                    <button onclick="closeCoachingPlanEditor()" class="btn-secondary min-h-[44px]">Vazgeç</button>
+                    <button onclick="saveCoachingPlanFromEditor('${studentId}')" class="btn-primary min-h-[44px]"><i class="fas fa-save mr-1"></i>${isEdit ? 'Güncelle' : 'Oluştur'}</button>
+                </div>
+            </div>
+        </div>`);
+    _cpEditorCounter = 0;
+    renderCpBranchRows();
+    renderCpTopicRows();
+    renderCpTaskRows(dayOptions, taskTypeOptions);
+}
+
+function renderCpBranchRows() {
+    const data = JSON.parse(document.getElementById('cpBranchesData').value || '[]');
+    const container = document.getElementById('cpBranchRows');
+    if (!container) return;
+    if (!data.length) { container.innerHTML = '<p class="text-xs text-gray-400 dark:text-gray-500 italic">Henüz branş hedefi eklenmedi.</p>'; return; }
+    container.innerHTML = data.map((b, i) => `
+        <div class="flex flex-col sm:flex-row gap-2 items-end rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-900/50">
+            <label class="text-xs font-bold flex-1 w-full">Ders<input type="text" data-cp-branch="${i}" data-field="subject" value="${escapeHtml(b.subject || '')}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+            <label class="text-xs font-bold w-24">Soru Hedefi<input type="number" min="0" step="1" data-cp-branch="${i}" data-field="questionTarget" value="${b.questionTarget ?? ''}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+            <label class="text-xs font-bold w-24">Deneme Hedefi<input type="number" min="0" step="1" data-cp-branch="${i}" data-field="examTarget" value="${b.examTarget ?? ''}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+            <button onclick="removeCpBranch(${i})" class="min-w-[44px] min-h-[44px] text-red-500 hover:text-red-700 flex-shrink-0" title="Sil"><i class="fas fa-trash"></i></button>
+        </div>`).join('');
+    container.querySelectorAll('input[data-cp-branch]').forEach(el => {
+        el.addEventListener('input', () => {
+            const arr = JSON.parse(document.getElementById('cpBranchesData').value || '[]');
+            const idx = Number(el.dataset.cpBranch);
+            const field = el.dataset.field;
+            if (field === 'subject') arr[idx].subject = el.value;
+            else arr[idx][field] = el.value === '' ? null : Number(el.value);
+            document.getElementById('cpBranchesData').value = JSON.stringify(arr);
+        });
+    });
+}
+
+function renderCpTopicRows() {
+    const data = JSON.parse(document.getElementById('cpTopicsData').value || '[]');
+    const container = document.getElementById('cpTopicRows');
+    if (!container) return;
+    if (!data.length) { container.innerHTML = '<p class="text-xs text-gray-400 dark:text-gray-500 italic">Henüz konu hedefi eklenmedi.</p>'; return; }
+    container.innerHTML = data.map((t, i) => `
+        <div class="flex flex-col sm:flex-row gap-2 items-end rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-900/50">
+            <label class="text-xs font-bold flex-1 w-full">Ders<input type="text" data-cp-topic="${i}" data-field="subject" value="${escapeHtml(t.subject || '')}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+            <label class="text-xs font-bold flex-1 w-full">Konu<input type="text" data-cp-topic="${i}" data-field="topic" value="${escapeHtml(t.topic || '')}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+            <label class="text-xs font-bold w-24">Soru Hedefi<input type="number" min="0" step="1" data-cp-topic="${i}" data-field="questionTarget" value="${t.questionTarget ?? ''}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+            <button onclick="removeCpTopic(${i})" class="min-w-[44px] min-h-[44px] text-red-500 hover:text-red-700 flex-shrink-0" title="Sil"><i class="fas fa-trash"></i></button>
+        </div>`).join('');
+    container.querySelectorAll('input[data-cp-topic]').forEach(el => {
+        el.addEventListener('input', () => {
+            const arr = JSON.parse(document.getElementById('cpTopicsData').value || '[]');
+            const idx = Number(el.dataset.cpTopic);
+            const field = el.dataset.field;
+            if (field === 'subject' || field === 'topic') arr[idx][field] = el.value;
+            else arr[idx][field] = el.value === '' ? null : Number(el.value);
+            document.getElementById('cpTopicsData').value = JSON.stringify(arr);
+        });
+    });
+}
+
+function renderCpTaskRows(dayOptions, taskTypeOptions) {
+    const data = JSON.parse(document.getElementById('cpTasksData').value || '[]');
+    const container = document.getElementById('cpTaskRows');
+    if (!container) return;
+    if (!data.length) { container.innerHTML = '<p class="text-xs text-gray-400 dark:text-gray-500 italic">Henüz görev eklenmedi.</p>'; return; }
+    if (!dayOptions) dayOptions = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'].map(d => `<option value="${d}">${d}</option>`).join('');
+    if (!taskTypeOptions) taskTypeOptions = '<option value="question">Soru</option><option value="exam">Deneme</option><option value="review">Tekrar</option><option value="reading">Okuma</option><option value="custom">Özel</option>';
+    container.innerHTML = data.map((t, i) => `
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-900/50 space-y-2">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400">Görev #${i + 1}</span>
+                <button onclick="removeCpTask(${i})" class="min-w-[44px] min-h-[44px] text-red-500 hover:text-red-700" title="Sil"><i class="fas fa-trash"></i></button>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <label class="text-xs font-bold">Görev<input type="text" data-cp-task="${i}" data-field="title" value="${escapeHtml(t.title || '')}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+                <label class="text-xs font-bold">Tür<select data-cp-task="${i}" data-field="taskType" class="student-form-input mt-1 min-h-[44px] w-full">${taskTypeOptions.replace(`value="${t.taskType || 'question'}"`, `value="${t.taskType || 'question'}" selected`)}</select></label>
+                <label class="text-xs font-bold">Ders<input type="text" data-cp-task="${i}" data-field="subject" value="${escapeHtml(t.subject || '')}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+                <label class="text-xs font-bold">Konu<input type="text" data-cp-task="${i}" data-field="topic" value="${escapeHtml(t.topic || '')}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+                <label class="text-xs font-bold">Kaynak<input type="text" data-cp-task="${i}" data-field="resource" value="${escapeHtml(t.resource || '')}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+                <label class="text-xs font-bold">Soru Hedefi<input type="number" min="0" step="1" data-cp-task="${i}" data-field="questionTarget" value="${t.questionTarget ?? ''}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+                <label class="text-xs font-bold">Gün<select data-cp-task="${i}" data-field="dueDay" class="student-form-input mt-1 min-h-[44px] w-full"><option value="">Haftalık</option>${dayOptions.replace(`value="${t.dueDay}"`, `value="${t.dueDay}" selected`)}</select></label>
+                <label class="text-xs font-bold">Süre (dk)<input type="number" min="0" step="5" data-cp-task="${i}" data-field="durationMinutes" value="${t.durationMinutes ?? ''}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+            </div>
+            <label class="text-xs font-bold w-full">Not<input type="text" data-cp-task="${i}" data-field="notes" value="${escapeHtml(t.notes || '')}" class="student-form-input mt-1 min-h-[44px] w-full"></label>
+        </div>`).join('');
+    container.querySelectorAll('input[data-cp-task], select[data-cp-task]').forEach(el => {
+        el.addEventListener('input', () => {
+            const arr = JSON.parse(document.getElementById('cpTasksData').value || '[]');
+            const idx = Number(el.dataset.cpTask);
+            const field = el.dataset.field;
+            const val = el.value;
+            if (['title', 'subject', 'topic', 'resource', 'notes', 'dueDay', 'taskType'].includes(field)) arr[idx][field] = val || undefined;
+            else arr[idx][field] = val === '' ? undefined : Number(val);
+            document.getElementById('cpTasksData').value = JSON.stringify(arr);
+        });
+    });
+}
+
+function _newCpId() { return 'ct_' + Date.now() + '_' + (++_cpEditorCounter); }
+
+if (typeof window !== 'undefined') {
+    window.addCpBranch = function() {
+        const arr = JSON.parse(document.getElementById('cpBranchesData').value || '[]');
+        arr.push({ id: _newCpId(), subject: '', questionTarget: null, examTarget: null });
+        document.getElementById('cpBranchesData').value = JSON.stringify(arr);
+        renderCpBranchRows();
+    };
+    window.removeCpBranch = function(idx) {
+        const arr = JSON.parse(document.getElementById('cpBranchesData').value || '[]');
+        arr.splice(idx, 1);
+        document.getElementById('cpBranchesData').value = JSON.stringify(arr);
+        renderCpBranchRows();
+    };
+    window.addCpTopic = function() {
+        const arr = JSON.parse(document.getElementById('cpTopicsData').value || '[]');
+        arr.push({ id: _newCpId(), subject: '', topic: '', questionTarget: null });
+        document.getElementById('cpTopicsData').value = JSON.stringify(arr);
+        renderCpTopicRows();
+    };
+    window.removeCpTopic = function(idx) {
+        const arr = JSON.parse(document.getElementById('cpTopicsData').value || '[]');
+        arr.splice(idx, 1);
+        document.getElementById('cpTopicsData').value = JSON.stringify(arr);
+        renderCpTopicRows();
+    };
+    window.addCpTask = function() {
+        const arr = JSON.parse(document.getElementById('cpTasksData').value || '[]');
+        arr.push({ id: _newCpId(), title: '', taskType: 'question', subject: '', topic: '', resource: '', questionTarget: null, dueDay: '', durationMinutes: null, notes: '' });
+        document.getElementById('cpTasksData').value = JSON.stringify(arr);
+        renderCpTaskRows();
+    };
+    window.removeCpTask = function(idx) {
+        const arr = JSON.parse(document.getElementById('cpTasksData').value || '[]');
+        arr.splice(idx, 1);
+        document.getElementById('cpTasksData').value = JSON.stringify(arr);
+        renderCpTaskRows();
+    };
+    window.closeCoachingPlanEditor = function() { document.getElementById('coachingPlanEditorModal')?.remove(); };
+    window.saveCoachingPlanFromEditor = async function(studentId) {
+        const val = (id) => { const v = document.getElementById(id)?.value?.trim(); return v === '' || v === null || v === undefined ? null : v; };
+        const numVal = (id) => { const v = document.getElementById(id)?.value?.trim(); if (v === '' || v === null || v === undefined) return null; const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : null; };
+        const editId = val('cpEditId') || undefined;
+        const createdAt = val('cpEditCreatedAt') || undefined;
+        const planData = {
+            id: editId || _newCpId(),
+            createdAt: createdAt || new Date().toISOString(),
+            status: 'draft',
+            weeklyTargets: { totalQuestions: numVal('cpTotalQuestions'), generalExams: numVal('cpGeneralExams'), branchExams: numVal('cpBranchExams'), readingTarget: numVal('cpReadingTarget'), reviewSessions: numVal('cpReviewSessions') },
+            branchTargets: JSON.parse(document.getElementById('cpBranchesData')?.value || '[]'),
+            topicTargets: JSON.parse(document.getElementById('cpTopicsData')?.value || '[]'),
+            tasks: JSON.parse(document.getElementById('cpTasksData')?.value || '[]')
+        };
+        await saveCoachingPlanForStudent(studentId, planData);
+        closeCoachingPlanEditor();
+    };
+}
+
 
 export function exportStudyPlanToPdf(studentId) {
     const students = loadStudentsData();
@@ -210,7 +486,10 @@ export function exportStudyPlanToPdf(studentId) {
     const tableHeaders = gunler.map(gun => `<th>${gun}</th>`).join('');
     const tableCells = gunler.map(gun => {
         const tasks = student.studyPlan && student.studyPlan[gun] ? student.studyPlan[gun] : [];
-        const tasksHtml = tasks.map(task => `<div class="task-item">${escapeHtml(task)}</div>`).join('') 
+        const tasksHtml = tasks.map(task => {
+            const taskTitle = typeof task === 'string' ? task : (task?.title || task?.konu || task?.name || task?.text || 'Görev');
+            return `<div class="task-item">${escapeHtml(taskTitle)}</div>`;
+        }).join('')
             || '<div class="no-tasks">Çalışma planlanmamış.</div>';
         return `<td>${tasksHtml}</td>`;
     }).join('');
@@ -550,6 +829,7 @@ if (typeof window !== 'undefined') {
     window.updateStudyPlanPreview = updateStudyPlanPreview;
     window.createConfiguredStudyPlan = createConfiguredStudyPlan;
     window.exportStudyPlanToPdf = exportStudyPlanToPdf;
+    window.showCoachingPlanEditor = showCoachingPlanEditor;
     window.resetStudentError = resetStudentError;
     window.markErrorAsSolved = markErrorAsSolved;
     window.changeGrowthTarget = changeGrowthTarget;

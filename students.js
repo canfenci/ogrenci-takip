@@ -2470,14 +2470,16 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
         const gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
         const weeklyPlannerHtml = gunler.map(gun => {
             const tasks = student.studyPlan && student.studyPlan[gun] ? student.studyPlan[gun] : [];
-            const tasksListHtml = tasks.map((task, idx) => `
+            const tasksListHtml = tasks.map((task, idx) => {
+                const taskTitle = typeof task === 'string' ? task : (task?.title || task?.konu || task?.name || task?.text || 'Görev');
+                return `
                 <div class="flex justify-between items-center bg-gray-100 dark:bg-gray-700/60 p-1.5 rounded-lg text-sm border border-gray-200 dark:border-gray-600 mb-1 last:mb-0">
-                    <span class="text-gray-700 dark:text-gray-200 font-medium truncate max-w-[80%]" title="${escapeHtml(task)}">${escapeHtml(task)}</span>
+                    <span class="text-gray-700 dark:text-gray-200 font-medium truncate max-w-[80%]" title="${escapeHtml(taskTitle)}">${escapeHtml(taskTitle)}</span>
                     <button onclick="deleteStudyTask('${id}', '${gun}', ${idx})" class="text-red-500 hover:text-red-750 transition p-1">
                         <i class="fas fa-times-circle"></i>
                     </button>
-                </div>
-            `).join('') || '<p class="text-sm text-gray-405 text-center italic py-2">Çalışma planlanmamış.</p>';
+                </div>`;
+            }).join('') || '<p class="text-sm text-gray-405 text-center italic py-2">Çalışma planlanmamış.</p>';
             
             return `
                 <div class="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-3 shadow-sm space-y-2">

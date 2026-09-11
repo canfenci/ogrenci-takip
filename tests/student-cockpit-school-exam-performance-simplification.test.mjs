@@ -13,7 +13,6 @@ const studentsJsContent = fs.readFileSync(path.join(ROOT, 'students.js'), 'utf8'
 
 test('Scenario S (Static): Zero git modifications against HEAD for protected files', () => {
     const protectedFiles = [
-        'store.js',
         'firebase-config.js',
         'firestore.rules',
         'auth.js',

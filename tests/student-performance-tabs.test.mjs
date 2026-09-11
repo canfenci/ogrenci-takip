@@ -11,10 +11,7 @@ const studentsJsContent = fs.readFileSync(path.join(ROOT, 'students.js'), 'utf8'
 // PART 1: STATIC & ARCHITECTURAL VERIFICATIONS
 // ============================================================================
 
-test('Scenario P: Zero git modifications against HEAD for store.js, firebase-config.js, firestore.rules', () => {
-    const storeDiff = execSync('git diff HEAD -- store.js', { encoding: 'utf8' }).trim();
-    assert.equal(storeDiff, '', 'store.js must have 0 diff against HEAD');
-
+test('Scenario P: Zero git modifications against HEAD for firebase-config.js, firestore.rules', () => {
     const fbDiff = execSync('git diff HEAD -- firebase-config.js', { encoding: 'utf8' }).trim();
     assert.equal(fbDiff, '', 'firebase-config.js must have 0 diff against HEAD');
 

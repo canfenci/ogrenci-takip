@@ -55,7 +55,10 @@ export function calculateWeeklyGoalProgress(student, now = new Date()) {
         return date >= new Date(`${weekKey}T00:00:00`) && date < nextWeek ? total + (Number(log.count) || 0) : total;
     }, 0);
     const allStudyTasks = Object.entries(student.studyPlan || {}).flatMap(([day, tasks]) =>
-        (tasks || []).map((task, index) => ({ id: `${day}|${index}|${task}`, day, task })));
+        (tasks || []).map((task, index) => {
+            const taskText = typeof task === 'string' ? task : (task?.title || task?.konu || task?.name || task?.text || '');
+            return { id: `${day}|${index}|${taskText}`, day, task };
+        }));
     const completedIds = student.weeklyGoalProgress?.[weekKey]?.completedTasks || [];
     const completedTaskCount = allStudyTasks.filter(task => completedIds.includes(task.id)).length;
     const latestExam = latestGeneralExam(student);

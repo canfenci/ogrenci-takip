@@ -281,7 +281,13 @@ export function buildGuidancePriority(student, allHomeworks = null, now = new Da
     const targetNet = safeNumber(student.hedefNet);
     const targetGap = (targetNet > 0 && examTrend?.latestNet) ? round(targetNet - examTrend.latestNet) : null;
 
-    const activePlan = student.studyPlanProfile ? {
+    const activePlan = (student.coachingPlan && (student.coachingPlan.status === 'active' || student.coachingPlan.status === 'draft')) ? {
+        subject: student.coachingPlan.branchTargets?.[0]?.subject || 'Genel',
+        stage: 'intermediate',
+        durationWeeks: 1,
+        badge: 'Koçluk Planı',
+        hasPlan: true
+    } : student.studyPlanProfile ? {
         subject: student.studyPlanProfile.subject || 'Genel',
         stage: student.studyPlanProfile.stage || 'beginner',
         durationWeeks: student.studyPlanProfile.durationWeeks || 1,

@@ -1814,6 +1814,9 @@ export function renderGuidanceStudentDetail(studentId) {
             </div>
         `;
     } else if (studentTab === 'study') {
+        const coachingPlan = student.coachingPlan && typeof student.coachingPlan === 'object' && (student.coachingPlan.status === 'active' || student.coachingPlan.status === 'draft')
+            ? student.coachingPlan : null;
+        window.__cpCurrentPlan = coachingPlan;
         const planProfile = student.studyPlanProfile || null;
         const rawStudyPlan = student.studyPlan || {};
         const CANONICAL_DAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
@@ -1821,6 +1824,9 @@ export function renderGuidanceStudentDetail(studentId) {
         const studyIntensityNames = { light: 'Hafif', balanced: 'Dengeli', intensive: 'Yoğun' };
 
         const getStudyTasksForDay = (dayName) => {
+            if (coachingPlan && Array.isArray(coachingPlan.tasks)) {
+                return coachingPlan.tasks.filter(t => t && t.dueDay === dayName);
+            }
             if (!rawStudyPlan || typeof rawStudyPlan !== 'object') return [];
             if (Array.isArray(rawStudyPlan[dayName])) return rawStudyPlan[dayName];
             const matchKey = Object.keys(rawStudyPlan).find(k => k.toLowerCase() === dayName.toLowerCase());
@@ -1829,7 +1835,7 @@ export function renderGuidanceStudentDetail(studentId) {
         };
 
         const totalStudyTasksCount = CANONICAL_DAYS.reduce((sum, day) => sum + getStudyTasksForDay(day).length, 0);
-        const hasPlanProfile = Boolean(planProfile || detail.activePlan);
+        const hasPlanProfile = Boolean(planProfile || detail.activePlan || coachingPlan);
         const hasAnyStudyPlan = hasPlanProfile || totalStudyTasksCount > 0;
 
         let studyPlanMainContentHtml = '';
@@ -1844,22 +1850,25 @@ export function renderGuidanceStudentDetail(studentId) {
                         <h4 class="font-black text-base text-gray-900 dark:text-white">Henüz çalışma planı oluşturulmamış.</h4>
                         <p class="text-xs text-gray-500">Öğrenciye özel seviye, teknik ve gün seçimleriyle akıllı haftalık çalışma programı hazırlayabilirsiniz.</p>
                     </div>
-                    <div>
-                        <button onclick="showStudyPlanSetup('${studentId}')" class="btn-primary min-h-[44px] px-5 text-xs font-bold inline-flex items-center gap-2">
-                            <i class="fas fa-magic"></i> Çalışma Planı Oluştur
+                    <div class="flex items-center gap-2">
+                        <button onclick="showCoachingPlanEditor('${studentId}')" class="btn-primary min-h-[44px] px-5 text-xs font-bold inline-flex items-center gap-2">
+                            <i class="fas fa-clipboard-list"></i> Koçluk Planı Oluştur
+                        </button>
+                        <button onclick="showStudyPlanSetup('${studentId}')" class="btn-secondary min-h-[44px] px-5 text-xs font-bold inline-flex items-center gap-2">
+                            <i class="fas fa-magic"></i> Çalışma Planı
                         </button>
                     </div>
                 </article>
             `;
         } else {
-            const planSubject = planProfile?.subject || detail.activePlan?.subject || 'Genel Program';
-            const planBadge = planProfile?.badge || detail.activePlan?.badge || 'Çalışma Planı';
+            const planSubject = coachingPlan?.branchTargets?.[0]?.subject || planProfile?.subject || detail.activePlan?.subject || 'Genel Program';
+            const planBadge = planProfile?.badge || detail.activePlan?.badge || (coachingPlan ? 'Koçluk Planı' : 'Çalışma Planı');
             const planStage = studyStageNames[planProfile?.stage || detail.activePlan?.stage] || 'Başlangıç';
             const planIntensity = studyIntensityNames[planProfile?.intensity] || 'Dengeli';
             const planDuration = planProfile?.durationWeeks || detail.activePlan?.durationWeeks || 1;
             const planMinutes = planProfile?.dailyMinutes || 30;
-            const planDate = planProfile?.generatedAt ? formatActivityDate(planProfile.generatedAt) : 'Mevcut';
-            const planStatusText = detail.interventionImpact?.status === 'measured' ? detail.interventionImpact.impactLabel : 'Aktif Program';
+            const planDate = coachingPlan?.createdAt ? formatActivityDate(coachingPlan.createdAt) : (planProfile?.generatedAt ? formatActivityDate(planProfile.generatedAt) : 'Mevcut');
+            const planStatusText = coachingPlan ? (coachingPlan.status === 'draft' ? 'Taslak' : 'Aktif Koçluk') : (detail.interventionImpact?.status === 'measured' ? detail.interventionImpact.impactLabel : 'Aktif Program');
 
             const activePlanSummaryCardHtml = `
                 <article class="app-panel p-5 space-y-4 bg-gradient-to-br from-white to-gray-50/60 dark:from-gray-900 dark:to-gray-900/40">
@@ -1883,7 +1892,7 @@ export function renderGuidanceStudentDetail(studentId) {
                                 <i class="fas fa-file-pdf text-emerald-600"></i>
                                 <span>PDF</span>
                             </button>
-                            <button onclick="showStudyPlanSetup('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-bold flex items-center gap-1.5" title="Program Ölçütlerini Yeniden Düzenle">
+                            <button onclick="${coachingPlan ? `showCoachingPlanEditor('${studentId}', window.__cpCurrentPlan)` : `showStudyPlanSetup('${studentId}')`}" class="btn-secondary min-h-[44px] px-3.5 text-xs font-bold flex items-center gap-1.5" title="Programı Düzenle">
                                 <i class="fas fa-edit"></i>
                                 <span>Düzenle</span>
                             </button>
@@ -1909,6 +1918,41 @@ export function renderGuidanceStudentDetail(studentId) {
                     </div>
                 </article>
             `;
+
+            let coachingPlanSummaryHtml = '';
+            if (coachingPlan) {
+                const wt = coachingPlan.weeklyTargets || {};
+                const bt = coachingPlan.branchTargets || [];
+                const taskCount = coachingPlan.tasks?.length || 0;
+                const completedCount = coachingPlan.tasks?.filter(t => t.completed).length || 0;
+                coachingPlanSummaryHtml = `
+                    <article class="app-panel p-4 space-y-3">
+                        <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                            <h3 class="font-black text-sm text-gray-900 dark:text-white">Koçluk Planı Hedefleri</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-200/80">${escapeHtml(coachingPlan.weekStart || '')} – ${escapeHtml(coachingPlan.weekEnd || '')}</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                            ${wt.totalQuestions != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Soru Hedefi</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.totalQuestions}</p></div>` : ''}
+                            ${wt.generalExams != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Genel Deneme</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.generalExams}</p></div>` : ''}
+                            ${wt.branchExams != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Branş Denemesi</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.branchExams}</p></div>` : ''}
+                            ${wt.readingTarget != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Okuma (dk)</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.readingTarget}</p></div>` : ''}
+                            ${wt.reviewSessions != null ? `<div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Tekrar Oturumu</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${wt.reviewSessions}</p></div>` : ''}
+                            <div class="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50"><span class="text-gray-500 font-semibold">Görevler</span><p class="font-black text-gray-900 dark:text-white mt-0.5">${completedCount} / ${taskCount}</p></div>
+                        </div>
+                        ${bt.length > 0 ? `
+                            <div class="space-y-1.5">
+                                <p class="text-[10px] font-black uppercase tracking-wide text-gray-500">Branş Hedefleri</p>
+                                ${bt.map(b => `
+                                    <div class="flex items-center justify-between text-xs p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                                        <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(b.subject || '')}</span>
+                                        <span class="font-bold text-gray-900 dark:text-white">${b.questionTarget != null ? b.questionTarget + ' soru' : ''}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </article>
+                `;
+            }
 
             let weeklyDaysContentHtml = '';
 
@@ -2014,6 +2058,7 @@ export function renderGuidanceStudentDetail(studentId) {
             studyPlanMainContentHtml = `
                 <div class="space-y-4">
                     ${activePlanSummaryCardHtml}
+                    ${coachingPlanSummaryHtml}
                     ${weeklyDaysContentHtml}
                 </div>
             `;

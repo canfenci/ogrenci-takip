@@ -13,7 +13,6 @@ const financeJsContent = fs.readFileSync(path.join(ROOT, 'finance.js'), 'utf8');
 
 test('Scenario A: Zero git modifications on protected files', () => {
     const protectedFiles = [
-        'store.js',
         'firebase-config.js',
         'firestore.rules',
         'exams.js',

@@ -1143,7 +1143,7 @@ export const STUDY_PLAN_DAYS = Object.freeze([
 
 export function isValidGrowthNestedField(path) {
     if (!path || typeof path !== 'string') return false;
-    if (path === 'growthPlan.weeklyTarget' || path === 'growthPlan.logs' || path === 'studyPlan' || path === 'studyPlanProfile' || path === 'errorResets') {
+    if (path === 'growthPlan.weeklyTarget' || path === 'growthPlan.logs' || path === 'studyPlan' || path === 'studyPlanProfile' || path === 'errorResets' || path === 'coachingPlan' || path === 'studyPlanHistory') {
         return true;
     }
     if (path.startsWith('studyPlan.')) {
@@ -1398,12 +1398,18 @@ function resolveStudyTaskDeleteIndex(tasks, identifier) {
     const taskIdx = typeof identifier === 'number' ? identifier : identifier?.taskIdx;
     const taskOccurrence = identifier?.occurrence;
 
+    function getTaskText(t) {
+        if (typeof t === 'string') return t;
+        if (t && typeof t === 'object') return t.title || t.konu || t.name || t.text || null;
+        return null;
+    }
+
     if (typeof taskIdx === 'number' && taskIdx >= 0 && taskIdx < tasks.length) {
-        if (!taskText || tasks[taskIdx] === taskText) {
+        if (!taskText || getTaskText(tasks[taskIdx]) === taskText) {
             if (taskText && typeof taskOccurrence === 'number') {
                 let occurSoFar = 0;
                 for (let k = 0; k < taskIdx; k++) {
-                    if (tasks[k] === taskText) occurSoFar++;
+                    if (getTaskText(tasks[k]) === taskText) occurSoFar++;
                 }
                 if (occurSoFar === taskOccurrence) {
                     return taskIdx;
@@ -1417,7 +1423,7 @@ function resolveStudyTaskDeleteIndex(tasks, identifier) {
     if (taskText && typeof taskOccurrence === 'number') {
         let matchCount = 0;
         for (let i = 0; i < tasks.length; i++) {
-            if (tasks[i] === taskText) {
+            if (getTaskText(tasks[i]) === taskText) {
                 if (matchCount === taskOccurrence) {
                     return i;
                 }
@@ -1427,7 +1433,7 @@ function resolveStudyTaskDeleteIndex(tasks, identifier) {
     }
 
     if (taskText) {
-        const found = tasks.indexOf(taskText);
+        const found = tasks.findIndex(t => getTaskText(t) === taskText);
         if (found !== -1) return found;
     }
 
@@ -1901,6 +1907,87 @@ export async function replaceStudyPlan(studentId, { studyPlan = {}, studyPlanPro
     }
 }
 
+export async function saveCoachingPlan(studentId, coachingPlan, studyPlanHistory = null) {
+    if (!studentId) throw new Error('studentId is required');
+    const updatePayload = {};
+    if (coachingPlan !== undefined) updatePayload.coachingPlan = coachingPlan;
+    if (studyPlanHistory !== undefined) updatePayload.studyPlanHistory = studyPlanHistory;
+
+    const isCloud = Boolean(store.useFirestore && window.isFirebaseActive && window.db && !store.isGuestMode);
+
+    if (!isCloud) {
+        try {
+            if (Array.isArray(store.globalStudents)) {
+                const s = store.globalStudents.find(item => item.id === studentId);
+                if (s) {
+                    if (coachingPlan !== undefined) s.coachingPlan = coachingPlan;
+                    if (studyPlanHistory !== undefined) s.studyPlanHistory = studyPlanHistory;
+                }
+            }
+            let localList = [];
+            try {
+                localList = JSON.parse(localStorage.getItem(localDataKey(STORAGE_KEY))) || [];
+            } catch (_) {
+                localList = store.globalStudents || [];
+            }
+            const localIdx = localList.findIndex(item => item.id === studentId);
+            if (localIdx !== -1) {
+                if (coachingPlan !== undefined) localList[localIdx].coachingPlan = coachingPlan;
+                if (studyPlanHistory !== undefined) localList[localIdx].studyPlanHistory = studyPlanHistory;
+                localStorage.setItem(localDataKey(STORAGE_KEY), JSON.stringify(localList));
+            }
+            const msg = resolveSyncStatusMessage({ ok: true, mode: 'local' });
+            if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+            return { ok: true, mode: 'local', studentId };
+        } catch (e) {
+            console.error("saveCoachingPlan local write error", e);
+            const msg = resolveSyncStatusMessage({ ok: false, mode: 'local' });
+            if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+            return { ok: false, mode: 'local', error: e, studentId };
+        }
+    }
+
+    if (Array.isArray(store.globalStudents)) {
+        const s = store.globalStudents.find(item => item.id === studentId);
+        if (s) {
+            if (coachingPlan !== undefined) s.coachingPlan = coachingPlan;
+            if (studyPlanHistory !== undefined) s.studyPlanHistory = studyPlanHistory;
+        }
+    }
+
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    const docRef = window.db.collection("students").doc(studentId);
+    const writePromise = docRef.update(updatePayload);
+
+    if (isOffline) {
+        if (writePromise && typeof writePromise.catch === 'function') {
+            writePromise.catch(err => console.error("Offline saveCoachingPlan error:", err));
+        }
+        if (window.showSyncStatus) {
+            const queuedMsg = resolveSyncStatusMessage({ mode: 'firestore', queued: true });
+            window.showSyncStatus(queuedMsg.text, queuedMsg.isError);
+        }
+        return { ok: true, mode: 'firestore', queued: true, studentId };
+    }
+
+    if (window.showSyncStatus) {
+        window.showSyncStatus("⏳ Buluta kaydediliyor...", false);
+    }
+
+    try {
+        await writePromise;
+        const msg = resolveSyncStatusMessage({ ok: true, mode: 'firestore' });
+        if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+        return { ok: true, mode: 'firestore', studentId };
+    } catch (err) {
+        console.error("saveCoachingPlan error", err);
+        if (window.handleFirebaseError) window.handleFirebaseError(err);
+        const msg = resolveSyncStatusMessage({ ok: false, mode: 'firestore' });
+        if (window.showSyncStatus && msg) window.showSyncStatus(msg.text, msg.isError);
+        return { ok: false, mode: 'firestore', error: err, studentId };
+    }
+}
+
 let currentSaveStudentsOperationId = 0;
 
 export async function saveStudentsData(students) {
@@ -2164,7 +2251,9 @@ export function normalizeStudent(s) {
         growthPlan: s.growthPlan || {},
         weeklyGoals: s.weeklyGoals || {},
         weeklyGoalProgress: s.weeklyGoalProgress || {},
-        guidanceRecords: Array.isArray(s.guidanceRecords) ? s.guidanceRecords : (Array.isArray(s.rehberlikKayitlari) ? s.rehberlikKayitlari : (Array.isArray(s.guidanceNotes) ? s.guidanceNotes : []))
+        guidanceRecords: Array.isArray(s.guidanceRecords) ? s.guidanceRecords : (Array.isArray(s.rehberlikKayitlari) ? s.rehberlikKayitlari : (Array.isArray(s.guidanceNotes) ? s.guidanceNotes : [])),
+        coachingPlan: s.coachingPlan || null,
+        studyPlanHistory: Array.isArray(s.studyPlanHistory) ? s.studyPlanHistory : []
     };
 }
 

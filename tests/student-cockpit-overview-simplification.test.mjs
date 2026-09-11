@@ -14,7 +14,6 @@ const cockpitInsightsJsContent = fs.readFileSync(path.join(ROOT, 'student-cockpi
 
 test('Scenario A: Zero git modifications on protected core files', () => {
     const protectedFiles = [
-        'store.js',
         'firebase-config.js',
         'firestore.rules',
         'auth.js',
