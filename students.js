@@ -816,11 +816,9 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                         ${hwPerf.chronological.length >= 2 ? `
                             <canvas id="cockpitHomeworkPerfChart" aria-label="Ödev başarı yüzdesi gelişim grafiği"></canvas>
                         ` : `
-                            <div class="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-200 text-center text-sm text-gray-500 dark:border-gray-700 p-6">
-                                <div>
-                                    <i class="fas fa-chart-line text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
-                                    <p>Ödev gelişimini göstermek için en az 2 tamamlanmış ödev gerekli.</p>
-                                </div>
+                            <div class="py-4 text-center text-sm text-gray-500">
+                                <i class="fas fa-chart-line text-xl text-gray-300 dark:text-gray-600 mb-1.5"></i>
+                                <p>Ödev gelişimini göstermek için en az 2 tamamlanmış ödev gerekli.</p>
                             </div>
                         `}
                     </div>
@@ -848,9 +846,9 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                                     </span>
                                 </div>
                             `).join('') : `
-                                <div class="py-8 text-center text-xs text-gray-400">
-                                    <i class="fas fa-check-circle text-2xl text-emerald-500 mb-2"></i>
-                                    <p>Ödevlerde kaydedilmiş hata konusu bulunmuyor.</p>
+                                <div class="py-4 sm:py-5 text-center">
+                                    <i class="fas fa-check-circle text-xl text-emerald-500 mb-1.5"></i>
+                                    <p class="text-sm font-semibold text-gray-500">Ödevlerde kaydedilmiş hata konusu bulunmuyor.</p>
                                 </div>
                             `}
                         </div>
@@ -875,9 +873,9 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                                     </div>
                                 </div>
                             `).join('') : `
-                                <div class="py-8 text-center text-xs text-gray-400">
-                                    <i class="fas fa-chart-pie text-2xl text-indigo-500 mb-2"></i>
-                                    <p>Hata analizi yapılmış kayıt bulunmuyor.</p>
+                                <div class="py-4 sm:py-5 text-center">
+                                    <i class="fas fa-chart-pie text-xl text-indigo-500 mb-1.5"></i>
+                                    <p class="text-sm font-semibold text-gray-500">Hata analizi yapılmış kayıt bulunmuyor.</p>
                                 </div>
                             `}
                         </div>
@@ -1004,7 +1002,7 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                         </span>
                     </div>
                 </div>
-                <div class="h-56 sm:h-60 mt-2">
+                <div class="h-60 sm:h-64 mt-2">
                     <canvas id="cockpitGenelExamChart" aria-label="Genel deneme net gelişim grafiği"></canvas>
                 </div>
             </div>
@@ -1045,7 +1043,7 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                             </span>
                         </div>
                     </div>
-                    <div class="h-56 sm:h-60 mt-2">
+                    <div class="h-60 sm:h-64 mt-2">
                         <canvas id="cockpitBransExamChart" aria-label="Fen branş deneme net gelişim grafiği"></canvas>
                     </div>
                 </div>
@@ -1158,9 +1156,9 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                                 </div>
                             </div>
                         `).join('') : `
-                            <div class="py-8 text-center text-xs text-gray-400">
-                                <i class="fas fa-check-circle text-2xl text-emerald-500 mb-2"></i>
-                                <p>Denemelerde kaydedilmiş konu hatası bulunmuyor.</p>
+                            <div class="py-4 sm:py-5 text-center">
+                                <i class="fas fa-check-circle text-xl text-emerald-500 mb-1.5"></i>
+                                <p class="text-sm font-semibold text-gray-500">Denemelerde kaydedilmiş konu hatası bulunmuyor.</p>
                             </div>
                         `}
                     </div>
@@ -1190,10 +1188,10 @@ export function renderCockpitPerformanceTab(student, homeworks, perfSubTab, sort
                                 </div>
                             </div>
                         `).join('') : `
-                            <div class="py-8 text-center text-xs text-gray-400">
-                                <i class="fas fa-circle-question text-2xl text-amber-500 mb-2"></i>
-                                <p>Henüz analiz edilmiş hata kodu bulunmuyor.</p>
-                                ${examPerf.unassignedCount > 0 ? `<p class="mt-1 text-amber-600 dark:text-amber-400 font-semibold">${examPerf.unassignedCount} soru için hata analizi bekleniyor.</p>` : ''}
+                            <div class="py-4 sm:py-5 text-center">
+                                <i class="fas fa-circle-question text-xl text-amber-500 mb-1.5"></i>
+                                <p class="text-sm font-semibold text-gray-500">Henüz analiz edilmiş hata kodu bulunmuyor.</p>
+                                ${examPerf.unassignedCount > 0 ? `<p class="mt-1 text-xs text-amber-600 dark:text-amber-400 font-semibold">${examPerf.unassignedCount} soru için hata analizi bekleniyor.</p>` : ''}
                             </div>
                         `}
                     </div>
@@ -1334,12 +1332,10 @@ export async function renderStudentCockpit(id, origin = store.studentPanelOrigin
                         </span>
                     </div>
                 </div>
-                <div class="mt-4 flex min-h-[160px] sm:min-h-[200px] items-center justify-center rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                    <div>
-                        <i class="fas fa-chart-line text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
-                        <p class="font-medium">Trend için en az 2 genel deneme sonucu gerekli.</p>
-                        <p class="text-xs text-gray-400 mt-1">İkinci bir genel deneme girildiğinde ortalama, değişim ve eğilim grafiği otomatik oluşur.</p>
-                    </div>
+                <div class="mt-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <i class="fas fa-chart-line text-xl text-gray-300 dark:text-gray-600 mb-1.5"></i>
+                    <p class="font-medium">Trend için en az 2 genel deneme sonucu gerekli.</p>
+                    <p class="text-xs text-gray-400 mt-1">İkinci bir genel deneme girildiğinde ortalama, değişim ve eğilim grafiği otomatik oluşur.</p>
                 </div>
             </section>
         `;
@@ -1373,7 +1369,7 @@ export async function renderStudentCockpit(id, origin = store.studentPanelOrigin
                         </div>
                     </div>
                 </div>
-                <div class="mt-4 h-64 sm:h-72">
+                <div class="mt-4 h-60 sm:h-64">
                     <canvas id="cockpitTrendChart" aria-label="Son beş genel deneme net eğilimi"></canvas>
                 </div>
             </section>
@@ -1433,14 +1429,11 @@ export async function renderStudentCockpit(id, origin = store.studentPanelOrigin
             <!-- 3 Ana KPI -->
             <section class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 ${primaryKpis.map(kpi => `
-                    <article class="app-panel p-4">
-                        <div class="flex items-center gap-2 text-gray-400">
-                            <i class="fas ${kpi.icon} text-xs"></i>
-                            <p class="text-[11px] font-black uppercase tracking-[.1em]">${kpi.label}</p>
-                        </div>
-                        <p class="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white">${kpi.value}</p>
-                        <p class="mt-1 text-xs text-gray-500 truncate" title="${kpi.detail}">${kpi.detail}</p>
-                    </article>
+                    <div class="app-panel p-3">
+                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">${kpi.label}</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-white mt-1">${kpi.value}</p>
+                        <p class="text-xs text-gray-500 mt-0.5 truncate" title="${kpi.detail}">${kpi.detail}</p>
+                    </div>
                 `).join('')}
             </section>
 

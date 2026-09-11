@@ -59,7 +59,7 @@ test('Static: Comparability-safe helpers reused, no second engine', () => {
 
 test('Static: Mobile-safe + density markers present', () => {
     assert.match(studentsJsContent, /grid-cols-1 lg:grid-cols-2 gap-4 items-start/, 'Lower analysis grid must use items-start');
-    assert.match(studentsJsContent, /h-56 sm:h-60/, 'Chart height must be compact (~240px)');
+    assert.match(studentsJsContent, /h-60 sm:h-64/, 'Chart height must be compact (~256px)');
     assert.match(studentsJsContent, /grid-cols-1 sm:grid-cols-3/, 'KPI grid must be responsive');
     assert.match(studentsJsContent, /min-h-\[44px\]/, 'Touch targets must keep 44px minimum');
 });
