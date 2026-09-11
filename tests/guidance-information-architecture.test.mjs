@@ -14,12 +14,12 @@ test('UX-11 Scenario A: Student detail defaults to overview tab', () => {
     assert.match(guidanceJs, /const studentTab = window\._guidanceStudentTab \|\| ['"]overview['"];/);
 });
 
-test('UX-11 Scenario B: Navigation tabs include Genel Bakış, Performans, Müdahaleler, Çalışma Planı, Rapor', () => {
+test('UX-11 Scenario B: Navigation tabs include Genel Bakış, Performans, Müdahaleler, Çalışma Planı, Veli Raporları', () => {
     assert.match(guidanceJs, /\['overview',\s*'fa-id-card',\s*'Genel Bakış'\]/);
     assert.match(guidanceJs, /\['performance',\s*'fa-chart-line',\s*'Performans'\]/);
     assert.match(guidanceJs, /\['interventions',\s*'fa-clipboard-list',\s*'Müdahaleler'/);
     assert.match(guidanceJs, /\['study',\s*'fa-compass',\s*'Çalışma Planı'\]/);
-    assert.match(guidanceJs, /\['report',\s*'fa-file-pdf',\s*'Rapor'\]/);
+    assert.match(guidanceJs, /\['report',\s*'fa-file-pdf',\s*'Veli Raporları'\]/);
 });
 
 test('UX-11 Scenario C: Performance tab contains Homework Performance analytics', () => {

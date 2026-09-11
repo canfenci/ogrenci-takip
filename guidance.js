@@ -1,7 +1,7 @@
 import { loadStudentsData, saveStudentsData, escapeHtml, store, getStudentOdevler, addStudentArrayRecord, updateStudentArrayRecord, deleteStudentArrayRecord } from './store.js';
 import { updateMobileNavActive } from './auth.js';
 import { buildGuidanceCenterDashboard, getStudentInitials, formatActivityDate } from './guidance-center-insights.js';
-import { buildStudentGuidanceDetail } from './guidance-student-insights.js';
+import { buildStudentGuidanceDetail, buildCoachingSummary, getLatestTeacherOpinion } from './guidance-student-insights.js';
 import {
     getStudentGuidanceRecords,
     isGuidanceRecordDue,
@@ -117,77 +117,69 @@ export function renderGuidancePage(options = {}) {
         ['general', 'Genel Takip']
     ];
 
-    const studentCardsHtml = filteredStudents.length ? filteredStudents.map(item => `
-        <article class="app-panel p-5 space-y-4 hover:border-indigo-300 dark:hover:border-indigo-700 transition">
-            <!-- Student Header -->
+    const studentCardsHtml = filteredStudents.length ? filteredStudents.map(item => {
+        const isWatch = item.priority === 'watch';
+        if (isWatch) {
+            return `
+        <article class="app-panel p-3 flex items-center justify-between gap-3 hover:border-indigo-300 dark:hover:border-indigo-700 transition">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-black text-xs text-slate-700 dark:text-slate-200 shrink-0">
+                    ${escapeHtml(getStudentInitials(item.studentName))}
+                </div>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-sm text-gray-900 dark:text-white truncate">${escapeHtml(item.studentName)}</span>
+                        <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold border ${priorityBadgeStyles[item.priority]} shrink-0">İzle</span>
+                    </div>
+                    <p class="text-[11px] text-gray-500 truncate">${escapeHtml(item.sinif ? `${item.sinif}. Sınıf` : '')}${item.okul ? ` · ${escapeHtml(item.okul)}` : ''}</p>
+                </div>
+            </div>
+            <button onclick="openGuidanceStudent('${item.studentId}')" class="btn-secondary min-h-[44px] px-3 text-[11px] font-bold shrink-0 flex items-center gap-1">
+                <i class="fas fa-arrow-right"></i> Dosyayı Aç
+            </button>
+        </article>`;
+        }
+        return `
+        <article class="app-panel p-4 space-y-3 hover:border-indigo-300 dark:hover:border-indigo-700 transition">
             <div class="flex items-start justify-between gap-3 flex-wrap">
                 <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-black text-sm text-slate-700 dark:text-slate-200 shrink-0">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-black text-sm text-slate-700 dark:text-slate-200 shrink-0">
                         ${escapeHtml(getStudentInitials(item.studentName))}
                     </div>
                     <div>
-                        <h3 class="font-black text-base text-gray-900 dark:text-white leading-tight">
-                            ${escapeHtml(item.studentName)}
-                        </h3>
-                        <p class="text-xs text-gray-500 mt-0.5">
-                            ${escapeHtml(item.sinif ? `${item.sinif}. Sınıf` : 'Sınıf yok')}${item.okul ? ` · ${escapeHtml(item.okul)}` : ''}
-                        </p>
+                        <h3 class="font-black text-sm text-gray-900 dark:text-white leading-tight">${escapeHtml(item.studentName)}</h3>
+                        <p class="text-[11px] text-gray-500 mt-0.5">${escapeHtml(item.sinif ? `${item.sinif}. Sınıf` : '')}${item.okul ? ` · ${escapeHtml(item.okul)}` : ''}</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border ${priorityBadgeStyles[item.priority] || priorityBadgeStyles.watch}">
+                <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black border ${priorityBadgeStyles[item.priority]}">
                     <span class="w-2 h-2 rounded-full ${priorityDotStyles[item.priority] || 'bg-gray-400'}"></span>
-                    ${escapeHtml(item.priorityLabel)} Öncelik
+                    ${escapeHtml(item.priorityLabel)}
                 </div>
             </div>
 
-            <!-- Neden? Alanı (Maksimum 3 Neden) -->
-            <div class="space-y-1.5 pt-1">
-                <p class="text-[11px] font-black uppercase tracking-wider text-gray-400">Neden müdahale gerekiyor?</p>
-                <ul class="space-y-1 text-xs text-gray-700 dark:text-gray-300">
-                    ${item.reasons.map(r => `
-                        <li class="flex items-start gap-2">
-                            <span class="text-indigo-500 font-bold mt-0.5">•</span>
-                            <span class="font-medium">${escapeHtml(r)}</span>
-                        </li>
-                    `).join('')}
-                </ul>
+            <ul class="space-y-1 text-xs text-gray-700 dark:text-gray-300">
+                ${item.reasons.slice(0, 2).map(r => `
+                    <li class="flex items-start gap-2">
+                        <span class="text-indigo-500 font-bold mt-0.5">•</span>
+                        <span class="font-medium">${escapeHtml(r)}</span>
+                    </li>
+                `).join('')}
+            </ul>
+
+            <div class="flex items-center gap-2 pt-1 text-[11px]">
+                <span class="font-bold text-indigo-700 dark:text-indigo-300"><i class="fas fa-lightbulb mr-1"></i>${escapeHtml(item.recommendation.title)}</span>
+                ${item.activePlan ? `<span class="text-emerald-600 dark:text-emerald-400 font-semibold"><i class="fas fa-circle-check mr-1"></i>Plan Aktif</span>` : ''}
             </div>
 
-            <!-- Önerilen İlk Adım -->
-            <div class="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-900/50 space-y-1">
-                <div class="flex items-center gap-1.5 text-xs font-black text-indigo-900 dark:text-indigo-200">
-                    <i class="fas fa-lightbulb text-indigo-600 dark:text-indigo-400"></i>
-                    <span>Önerilen İlk Adım: ${escapeHtml(item.recommendation.title)}</span>
-                </div>
-                <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                    ${escapeHtml(item.recommendation.action)}
-                </p>
-            </div>
-
-            <!-- Aktif Çalışma Planı Bilgisi (Varsa) -->
-            ${item.activePlan ? `
-                <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 pt-0.5">
-                    <i class="fas fa-circle-check"></i>
-                    <span>Aktif Plan: ${escapeHtml(item.activePlan.subject)} (${item.activePlan.durationWeeks} haftalık) · Devam ediyor</span>
-                </div>
-            ` : ''}
-
-            <!-- Aksiyon Butonları -->
-            <div class="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2 flex-wrap">
-                <button onclick="openGuidanceStudent('${item.studentId}')" class="btn-primary min-h-[44px] sm:min-h-[40px] px-3.5 text-xs font-bold flex items-center gap-1.5">
-                    <i class="fas fa-arrow-right"></i> Rehberlik Dosyasını Aç
+            <div class="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <button onclick="openGuidanceStudent('${item.studentId}')" class="btn-primary min-h-[44px] px-3 text-[11px] font-bold flex items-center gap-1.5">
+                    <i class="fas fa-arrow-right"></i> Aç
                 </button>
-                <div class="flex items-center gap-1.5">
-                    <button onclick="showStudyPlanSetup('${item.studentId}')" class="btn-secondary min-h-[44px] sm:min-h-[40px] px-3 text-xs font-semibold" title="Akıllı Çalışma Planı Oluştur">
-                        <i class="fas fa-compass mr-1"></i> Çalışma Planı
-                    </button>
-                    <button onclick="openCockpitHomework('${item.studentId}')" class="btn-secondary min-h-[44px] sm:min-h-[40px] px-3 text-xs font-semibold" title="Ödev Ata">
-                        <i class="fas fa-plus mr-1"></i> Ödev
-                    </button>
-                </div>
+                <button onclick="showStudyPlanSetup('${item.studentId}')" class="btn-secondary min-h-[44px] px-2.5 text-[11px] font-semibold"><i class="fas fa-compass mr-1"></i>Plan</button>
+                <button onclick="openCockpitHomework('${item.studentId}')" class="btn-secondary min-h-[44px] px-2.5 text-[11px] font-semibold"><i class="fas fa-plus mr-1"></i>Ödev</button>
             </div>
-        </article>
-    `).join('') : `
+        </article>`;
+    }).join('') : `
         <div class="sm:col-span-2 app-panel p-12 text-center text-gray-500">
             <i class="fas fa-filter text-2xl text-gray-300 dark:text-gray-600 mb-2"></i>
             <p class="font-bold text-gray-800 dark:text-gray-200">Bu filtrelere uygun öğrenci bulunamadı.</p>
@@ -217,7 +209,7 @@ export function renderGuidancePage(options = {}) {
         </div>
     `;
 
-    const recentActivitiesHtml = recentActivities.length ? recentActivities.map((act, index) => `
+    const recentActivitiesHtml = recentActivities.length ? recentActivities.slice(0, 5).map((act, index) => `
         <div class="relative flex items-start gap-3 ${index < recentActivities.length - 1 ? 'pb-3' : ''}">
             ${index < recentActivities.length - 1 ? '<span class="absolute left-3.5 top-6 bottom-0 w-px bg-gray-200 dark:bg-gray-700"></span>' : ''}
             <span class="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-[11px] text-slate-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
@@ -385,21 +377,21 @@ export function renderGuidancePage(options = {}) {
                 <div>
                     <span class="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">Öğretmen Karar Destek & Takip</span>
                     <h2 class="app-page-title">Rehberlik</h2>
-                    <p class="app-page-subtitle">Öğrenci önceliklendirme, müdahale günlüğü ve günlük takip takvimi</p>
+                    <p class="app-page-subtitle">Koçluk Merkezi — öğrenci önceliklendirme, müdahale günlüğü ve takip</p>
                 </div>
             </header>
 
-            <!-- 4 Kompakt Üst Metrik (Takip Takvimine Doğrudan Kısayol) -->
-            <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <!-- Kompakt Operasyonel Metrikler -->
+            <section class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3">
                 ${metricCards.map(([icon, label, value, detail, targetTab, valueClass]) => `
-                    <article onclick="updateGuidanceFilters({tab:'${targetTab}'})" class="app-panel p-4 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700 transition">
-                        <div class="flex items-center gap-2 text-gray-400">
-                            <i class="fas ${icon} text-xs"></i>
-                            <p class="text-[11px] font-black uppercase tracking-[.08em]">${label}</p>
+                    <button onclick="updateGuidanceFilters({tab:'${targetTab}'})" class="app-panel p-3 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700 transition text-left min-h-[44px]">
+                        <div class="flex items-center gap-1.5 text-gray-400">
+                            <i class="fas ${icon} text-[10px]"></i>
+                            <p class="text-[10px] font-black uppercase tracking-[.08em]">${label}</p>
                         </div>
-                        <p class="mt-3 text-2xl font-black ${valueClass || 'text-slate-900 dark:text-white'}">${value}</p>
-                        <p class="mt-1 text-xs text-gray-500">${detail}</p>
-                    </article>
+                        <p class="mt-1 text-lg font-black ${valueClass || 'text-slate-900 dark:text-white'}">${value}</p>
+                        <p class="mt-0.5 text-[11px] text-gray-500 truncate">${detail}</p>
+                    </button>
                 `).join('')}
             </section>
 
@@ -463,58 +455,51 @@ export function renderGuidancePage(options = {}) {
                     <!-- Sağ Kolon: Aktif Çalışma Planları, Son Öğrenci Hareketleri ve Karar İlkeleri -->
                     <div class="space-y-4">
                         <!-- Aktif Çalışma Planları -->
-                        <article class="app-panel p-4 space-y-3">
-                            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
-                                <div>
-                                    <h4 class="font-black text-base text-gray-900 dark:text-white">Aktif Çalışma Planları</h4>
-                                    <p class="text-xs text-gray-500 mt-0.5">${activeInterventions.length} öğrenci devam ediyor</p>
-                                </div>
-                                <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs">
-                                    <i class="fas fa-compass"></i>
-                                </span>
+                        <article class="app-panel p-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-black text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                                    <i class="fas fa-compass text-emerald-500 text-xs"></i> Aktif Çalışma Planları
+                                    <span class="text-xs font-bold text-gray-400">${activeInterventions.length}</span>
+                                </h4>
                             </div>
                             <div class="space-y-2">
                                 ${activeInterventionsHtml}
                             </div>
                         </article>
 
-                        <!-- Son Öğrenci Hareketleri -->
-                        <article class="app-panel p-4 space-y-3">
-                            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
-                                <div>
-                                    <h4 class="font-black text-base text-gray-900 dark:text-white">Son Öğrenci Hareketleri</h4>
-                                    <p class="text-xs text-gray-500 mt-0.5">${recentActivities.length} yakın etkinlik</p>
-                                </div>
-                                <span class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs">
-                                    <i class="fas fa-clock-rotate-left"></i>
-                                </span>
+                        <!-- Bu Haftanın Odağı -->
+                        ${studentPriorities.length > 0 ? `
+                        <article class="app-panel p-4 space-y-2 bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-200/50 dark:border-indigo-900/40">
+                            <h4 class="font-black text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                                <i class="fas fa-crosshairs text-indigo-500 text-xs"></i> Bu Haftanın Odağı
+                            </h4>
+                            <p class="text-xs font-bold text-indigo-700 dark:text-indigo-300">${escapeHtml(studentPriorities[0].recommendation.title)}</p>
+                            <p class="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2">${escapeHtml(studentPriorities[0].recommendation.action)}</p>
+                        </article>
+                        ` : ''}
+
+                        <!-- Son Hareketler (max 5) -->
+                        <article class="app-panel p-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-black text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                                    <i class="fas fa-clock-rotate-left text-indigo-500 text-xs"></i> Son Hareketler
+                                </h4>
                             </div>
                             <div class="pt-1">
                                 ${recentActivitiesHtml}
                             </div>
                         </article>
 
-                        <!-- Karar Destek İlkeleri -->
-                        <article class="app-panel p-4 bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 space-y-2.5">
-                            <div class="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                                <i class="fas fa-shield-halved"></i>
-                                <span>Önceliklendirme İlkeleri</span>
-                            </div>
-                            <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-2 leading-relaxed">
-                                <li class="flex items-start gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-rose-500 mt-1 shrink-0"></span>
-                                    <div><strong class="text-gray-900 dark:text-white">Yüksek:</strong> Belirgin net düşüşü, kronik zayıf konu veya düşük ödev disiplini.</div>
-                                </li>
-                                <li class="flex items-start gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-amber-500 mt-1 shrink-0"></span>
-                                    <div><strong class="text-gray-900 dark:text-white">Orta:</strong> Tekil konu eksikliği, dikkatsizlik veya süre yönetimi eksiği.</div>
-                                </li>
-                                <li class="flex items-start gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-slate-400 mt-1 shrink-0"></span>
-                                    <div><strong class="text-gray-900 dark:text-white">İzle:</strong> Performansı hedeflerle uyumlu, stabil ilerleyen öğrenciler.</div>
-                                </li>
-                            </ul>
-                        </article>
+                        <!-- Öncelik Yardımı -->
+                        <button onclick="document.getElementById('priorityHelpPopover').classList.toggle('hidden')" class="app-panel p-3 w-full flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition min-h-[44px]">
+                            <i class="fas fa-circle-question text-[11px]"></i> Öncelik Sınıflandırması
+                            <i class="fas fa-chevron-down text-[10px] ml-auto"></i>
+                        </button>
+                        <div id="priorityHelpPopover" class="hidden app-panel p-3 space-y-2 text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed">
+                            <div class="flex items-start gap-2"><span class="w-2 h-2 rounded-full bg-rose-500 mt-1 shrink-0"></span><span><strong class="text-gray-900 dark:text-white">Yüksek:</strong> Net düşüşü, kronik zayıflık veya düşük disiplin.</span></div>
+                            <div class="flex items-start gap-2"><span class="w-2 h-2 rounded-full bg-amber-500 mt-1 shrink-0"></span><span><strong class="text-gray-900 dark:text-white">Orta:</strong> Tekil konu eksikliği veya dikkatsizlik.</span></div>
+                            <div class="flex items-start gap-2"><span class="w-2 h-2 rounded-full bg-slate-400 mt-1 shrink-0"></span><span><strong class="text-gray-900 dark:text-white">İzle:</strong> Performans stabil, hedeflerle uyumlu.</span></div>
+                        </div>
                     </div>
                 </section>
             ` : currentTab === 'agenda' ? `
@@ -1012,9 +997,9 @@ export function renderGuidanceStudentDetail(studentId) {
 
     const topMetrics = [
         ['fa-file-lines', 'Son Net', detail.recentExams.length ? `${detail.recentExams[0].net.toFixed(2)} net` : '—', detail.recentExams[0]?.name || 'Genel deneme kaydı yok'],
-        ['fa-bullseye', 'Hedef Durumu', detail.hedefNet ? `${detail.hedefNet} net` : '—', detail.targetGap !== null ? (detail.targetGap <= 0 ? 'Hedefe ulaşıldı' : `${detail.targetGap.toFixed(2)} net fark`) : 'Hedef belirlenmedi'],
-        ['fa-list-check', 'Ödev Disiplini', detail.discipline ? `%${detail.discipline.completionRate}` : '—', detail.discipline ? `${detail.discipline.completed} / ${detail.discipline.total} tamamlandı (${detail.discipline.overdue} geciken)` : 'Ödev kaydı yok'],
-        ['fa-magnifying-glass', 'Baskın Hata', detail.dominantError ? detail.dominantError.label : '—', detail.dominantError ? `${detail.dominantError.count} hata tespiti` : 'Hata analizi yok']
+        ['fa-bullseye', 'Hedefe Kalan', detail.hedefNet ? (detail.targetGap !== null ? (detail.targetGap <= 0 ? 'Hedefe ulaşıldı' : `${detail.targetGap.toFixed(2)} net`) : '—') : '—', detail.hedefNet ? `${detail.hedefNet} net hedef` : 'Hedef belirlenmedi'],
+        ['fa-list-check', 'Ödev Disiplini', detail.discipline ? `%${detail.discipline.completionRate}` : '—', detail.discipline ? `${detail.discipline.completed}/${detail.discipline.total} tamamlandı` : 'Ödev kaydı yok'],
+        ['fa-compass', 'Plan Durumu', detail.activePlan ? 'Aktif' : '—', detail.activePlan ? escapeHtml(detail.activePlan.subject) : 'Plan yok']
     ];
 
     // Weak topics HTML
@@ -1619,14 +1604,16 @@ export function renderGuidanceStudentDetail(studentId) {
         </section>
     `;
 
+    const coachingSummary = buildCoachingSummary(detail);
+    const teacherOpinion = getLatestTeacherOpinion(detail.guidanceRecords);
     const studentTab = window._guidanceStudentTab || 'overview';
 
     const detailTabs = [
         ['overview', 'fa-id-card', 'Genel Bakış'],
-        ['performance', 'fa-chart-line', 'Performans'],
         ['interventions', 'fa-clipboard-list', 'Müdahaleler', detail.openGuidanceRecordsCount || 0],
         ['study', 'fa-compass', 'Çalışma Planı'],
-        ['report', 'fa-file-pdf', 'Rapor']
+        ['performance', 'fa-chart-line', 'Performans'],
+        ['report', 'fa-file-pdf', 'Veli Raporları']
     ];
 
     const studentTabsHtml = `
@@ -1655,17 +1642,48 @@ export function renderGuidanceStudentDetail(studentId) {
         tabBodyHtml = `
             <!-- ==================== GENEL BAKIŞ ==================== -->
             <div class="space-y-4">
-                <!-- Akademik Durum Özeti Box -->
+                <!-- Quick Coaching Summary -->
                 <section class="app-panel p-4 bg-indigo-50/40 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/50">
                     <div class="flex items-start gap-2.5">
                         <span class="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-xs shrink-0 mt-0.5">
-                            <i class="fas fa-chart-pie"></i>
+                            <i class="fas fa-brain"></i>
                         </span>
-                        <div>
-                            <p class="text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-300">Akademik Durum Özeti</p>
-                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-1 leading-relaxed">
-                                ${escapeHtml(detail.mainProblemSummary)}
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-300">Koçluk Analizi</p>
+                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-1 leading-relaxed" data-testid="coaching-summary">
+                                ${escapeHtml(coachingSummary)}
                             </p>
+                            <p class="text-[10px] text-indigo-500 dark:text-indigo-400 mt-1 italic">Öğrenci verilerinden otomatik oluşturuldu</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Öğretmen Görüşü -->
+                <section class="app-panel p-4 bg-amber-50/40 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/50">
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xs shrink-0 mt-0.5">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">Öğretmen Görüşü</p>
+                            ${teacherOpinion ? `
+                                <p class="text-sm text-gray-800 dark:text-gray-200 mt-1 leading-relaxed" data-testid="teacher-opinion">
+                                    "${escapeHtml(teacherOpinion)}"
+                                </p>
+                                <div class="flex items-center gap-3 mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                                    ${detail.guidanceRecords.length ? `<span>${detail.guidanceRecords.length} kayıt</span>` : ''}
+                                    <button onclick="showGuidanceRecordModal('${studentId}', null, 'general')" class="text-amber-700 dark:text-amber-300 font-bold hover:underline min-h-[44px] flex items-center">
+                                        <i class="fas fa-plus mr-1"></i> Not Ekle
+                                    </button>
+                                </div>
+                            ` : `
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 italic" data-testid="teacher-opinion-empty">
+                                    Henüz öğretmen görüşü eklenmedi.
+                                </p>
+                                <button onclick="showGuidanceRecordModal('${studentId}', null, 'general')" class="mt-2 text-xs font-bold text-amber-700 dark:text-amber-300 hover:underline min-h-[44px] flex items-center gap-1">
+                                    <i class="fas fa-plus"></i> Not Ekle
+                                </button>
+                            `}
                         </div>
                     </div>
                 </section>
@@ -1673,156 +1691,54 @@ export function renderGuidanceStudentDetail(studentId) {
                 <!-- 4 Kompakt Üst Metrik -->
                 <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     ${topMetrics.map(([icon, label, value, detailText]) => `
-                        <article class="app-panel p-4">
+                        <article class="app-panel p-3">
                             <div class="flex items-center gap-2 text-gray-400">
                                 <i class="fas ${icon} text-xs"></i>
                                 <p class="text-[11px] font-black uppercase tracking-[.08em]">${label}</p>
                             </div>
-                            <p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">${value}</p>
-                            <p class="mt-1 text-xs text-gray-500 truncate">${detailText}</p>
+                            <p class="mt-1 text-xl font-black text-slate-900 dark:text-white">${value}</p>
+                            <p class="mt-0.5 text-xs text-gray-500 truncate">${detailText}</p>
                         </article>
                     `).join('')}
                 </section>
 
-                <!-- 3 Sütunlu Hızlı Durum ve Yönlendirme Kartları -->
-                <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- Kart 1: Akademik & Performans Özeti -->
-                    <article class="app-panel p-5 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs">
-                                        <i class="fas fa-chart-line"></i>
-                                    </span>
-                                    <h3 class="font-black text-base text-gray-900 dark:text-white">Akademik Performans</h3>
-                                </div>
-                                ${detail.examTrend ? `
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-black border ${detail.examTrend.trend === 'improving' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : (detail.examTrend.trend === 'declining' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-700 border-gray-200')}">
-                                        ${escapeHtml(detail.examTrend.label)}
-                                    </span>
-                                ` : ''}
-                            </div>
-                            <div class="space-y-2 text-xs">
-                                <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                                    <span class="text-gray-500">Son Deneme:</span>
-                                    <span class="font-bold text-gray-900 dark:text-white">${detail.recentExams.length ? `${escapeHtml(detail.recentExams[0].name)} (${detail.recentExams[0].net.toFixed(2)} Net)` : '—'}</span>
-                                </div>
-                                <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                                    <span class="text-gray-500">Ödev Disiplini:</span>
-                                    <span class="font-bold text-gray-900 dark:text-white">${detail.discipline ? `%${detail.discipline.completionRate} (${detail.discipline.completed}/${detail.discipline.total})` : '—'}</span>
-                                </div>
-                                <div class="flex justify-between py-1">
-                                    <span class="text-gray-500">Baskın Hata:</span>
-                                    <span class="font-bold text-gray-900 dark:text-white">${detail.dominantError ? escapeHtml(detail.dominantError.label) : '—'}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="switchGuidanceStudentTab('${studentId}', 'performance')" class="cf-btn-primary w-full py-2.5 px-3 text-xs font-bold min-h-[44px] flex items-center justify-center gap-1.5 mt-4">
-                            <i class="fas fa-chart-line"></i> Performansı Gör
-                        </button>
-                    </article>
-
-                    <!-- Kart 2: Müdahale & Takip Durumu -->
-                    <article class="app-panel p-5 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs">
-                                        <i class="fas fa-clipboard-list"></i>
-                                    </span>
-                                    <h3 class="font-black text-base text-gray-900 dark:text-white">Rehberlik & Takip</h3>
-                                </div>
-                                ${detail.dueGuidanceRecordsCount > 0 ? `
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
-                                        ${detail.dueGuidanceRecordsCount} Takipte
-                                    </span>
-                                ` : ''}
-                            </div>
-                            <div class="space-y-2 text-xs">
-                                <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                                    <span class="text-gray-500">Açık Kayıtlar:</span>
-                                    <span class="font-bold text-gray-900 dark:text-white">${detail.openGuidanceRecordsCount || 0} adet</span>
-                                </div>
-                                <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                                    <span class="text-gray-500">Takip Durumu:</span>
-                                    <span class="font-bold ${detail.dueGuidanceRecordsCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}">${detail.dueGuidanceRecordsCount > 0 ? 'Geciken / Bekleyen Takip Var' : 'Takipler Güncel'}</span>
-                                </div>
-                                <div class="py-1">
-                                    <span class="text-gray-500 block mb-0.5">Son Müdahale:</span>
-                                    <p class="font-semibold text-gray-800 dark:text-gray-200 truncate">${guidanceRecords.length ? escapeHtml(guidanceRecords[0].action || guidanceRecords[0].issue) : 'Kayıt bulunmuyor'}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="switchGuidanceStudentTab('${studentId}', 'interventions')" class="btn-secondary w-full py-2.5 px-3 text-xs font-bold min-h-[44px] flex items-center justify-center gap-1.5 mt-4">
-                            <i class="fas fa-clipboard-list"></i> Müdahaleleri Gör
-                        </button>
-                    </article>
-
-                    <!-- Kart 3: Çalışma Planı & Gelişim -->
-                    <article class="app-panel p-5 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 mb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs">
-                                        <i class="fas fa-compass"></i>
-                                    </span>
-                                    <h3 class="font-black text-base text-gray-900 dark:text-white">Çalışma Planı</h3>
-                                </div>
-                                ${impact.status === 'measured' ? `
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-black border ${impactBadgeStyles[impact.impactStatus] || impactBadgeStyles.neutral}">
-                                        ${escapeHtml(impact.impactLabel)}
-                                    </span>
-                                ` : ''}
-                            </div>
-                            <div class="space-y-2 text-xs">
-                                <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                                    <span class="text-gray-500">Plan Durumu:</span>
-                                    <span class="font-bold text-gray-900 dark:text-white">${detail.activePlan ? `${escapeHtml(detail.activePlan.subject)} (Aktif)` : (impact.status === 'measured' ? 'Ölçüldü' : 'Plan Yok')}</span>
-                                </div>
-                                <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
-                                    <span class="text-gray-500">Son Net Etkisi:</span>
-                                    <span class="font-bold ${impact.status === 'measured' ? (impact.delta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') : 'text-gray-500'}">${impact.status === 'measured' ? `${impact.delta >= 0 ? `+${impact.delta.toFixed(2)}` : impact.delta.toFixed(2)} Net` : '—'}</span>
-                                </div>
-                                <div class="flex justify-between py-1">
-                                    <span class="text-gray-500">Son Birebir Ders:</span>
-                                    <span class="font-bold text-gray-900 dark:text-white truncate">${detail.recentLessons.length ? escapeHtml(detail.recentLessons[0].konu) : '—'}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="switchGuidanceStudentTab('${studentId}', 'study')" class="btn-secondary w-full py-2.5 px-3 text-xs font-bold min-h-[44px] flex items-center justify-center gap-1.5 mt-4">
-                            <i class="fas fa-compass"></i> Çalışma Planını Aç
-                        </button>
-                    </article>
-                </section>
-
-                <!-- Önerilen İlk Müdahale Eylem Planı (Karar Destek) -->
-                <article class="app-panel p-5 space-y-3 bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-200/60 dark:border-indigo-900/50">
-                    <div class="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/60 pb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs">
-                                <i class="fas fa-lightbulb"></i>
-                            </span>
-                            <div>
-                                <p class="text-[11px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Karar Destek</p>
-                                <h3 class="font-black text-base text-gray-900 dark:text-white">Önerilen Müdahale</h3>
-                            </div>
-                        </div>
-                        <span class="text-xs font-black text-indigo-700 dark:text-indigo-300">
-                            ${escapeHtml(detail.recommendation.title)}
+                <!-- Bu Haftanın Odağı -->
+                <article class="app-panel p-4 space-y-2 bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-200/60 dark:border-indigo-900/50">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs shrink-0">
+                            <i class="fas fa-crosshairs"></i>
                         </span>
+                        <div>
+                            <p class="text-[11px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Bu Haftanın Odağı</p>
+                            <h3 class="font-black text-sm text-gray-900 dark:text-white">${escapeHtml(detail.recommendation.title)}</h3>
+                        </div>
                     </div>
-                    <p class="text-xs font-bold text-gray-800 dark:text-gray-200 leading-relaxed">
+                    <p class="text-xs font-medium text-gray-700 dark:text-gray-300 leading-relaxed">
                         ${escapeHtml(detail.recommendation.action)}
                     </p>
-                    <div class="flex items-center gap-2 pt-2">
-                        <button onclick="showGuidanceRecordModal('${studentId}')" class="btn-primary py-2 px-4 text-xs font-bold min-h-[44px] inline-flex items-center gap-1.5">
-                            <i class="fas fa-clipboard-list"></i> Rehberlik Kaydı Ekle
+                    <div class="flex items-center gap-2 pt-1">
+                        <button onclick="showGuidanceRecordModal('${studentId}', null, 'general')" class="btn-primary py-1.5 px-3 text-[11px] font-bold min-h-[44px] inline-flex items-center gap-1">
+                            <i class="fas fa-plus"></i> Not Ekle
                         </button>
-                        <button onclick="showStudyPlanSetup('${studentId}')" class="btn-secondary py-2 px-4 text-xs font-bold min-h-[44px] inline-flex items-center gap-1.5">
-                            <i class="fas fa-compass"></i> Çalışma Planı Oluştur
+                        <button onclick="showStudyPlanSetup('${studentId}')" class="btn-secondary py-1.5 px-3 text-[11px] font-bold min-h-[44px] inline-flex items-center gap-1">
+                            <i class="fas fa-compass"></i> Plan Oluştur
                         </button>
                     </div>
                 </article>
+
+                <!-- Aktif Plan Özeti (Varsa) -->
+                ${detail.activePlan ? `
+                <article class="app-panel p-3 bg-emerald-50/30 dark:bg-emerald-950/10 border border-emerald-200/50 dark:border-emerald-900/40 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <i class="fas fa-compass text-emerald-500 text-xs shrink-0"></i>
+                        <div class="min-w-0">
+                            <span class="text-xs font-bold text-emerald-700 dark:text-emerald-300">${escapeHtml(detail.activePlan.subject)}</span>
+                            <span class="text-[11px] text-gray-500 ml-2">${detail.activePlan.durationWeeks || '—'} hafta · ${detail.activePlan.stage || '—'}</span>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">Aktif</span>
+                </article>
+                ` : ''}
             </div>
         `;
     } else if (studentTab === 'performance') {
@@ -2223,7 +2139,7 @@ export function renderGuidanceStudentDetail(studentId) {
             <!-- Breadcrumb -->
             <nav class="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2" aria-label="Breadcrumb">
                 <button onclick="renderGuidancePage()" class="hover:text-blue-600 dark:hover:text-blue-400 transition flex items-center gap-1">
-                    <i class="fas fa-compass"></i> Rehberlik
+                    <i class="fas fa-compass"></i> Koçluk Merkezi
                 </button>
                 <span><i class="fas fa-chevron-right text-[10px] text-gray-400"></i></span>
                 <span class="text-gray-900 dark:text-white font-bold">${escapeHtml(detail.studentName)}</span>
@@ -2250,17 +2166,20 @@ export function renderGuidanceStudentDetail(studentId) {
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
-                        <button onclick="showGuidanceRecordModal('${studentId}')" class="btn-primary min-h-[44px] px-4 text-xs font-bold flex items-center gap-1.5">
-                            <i class="fas fa-clipboard-list"></i> Rehberlik Kaydı Ekle
+                        <button onclick="showGuidanceRecordModal('${studentId}', null, 'general')" class="btn-primary min-h-[44px] px-4 text-xs font-bold flex items-center gap-1.5">
+                            <i class="fas fa-plus"></i> Not Ekle
+                        </button>
+                        <button onclick="showGuidanceRecordModal('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold flex items-center gap-1.5">
+                            <i class="fas fa-clipboard-list"></i> Rehberlik Kaydı
                         </button>
                         <button onclick="showStudyPlanSetup('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold flex items-center gap-1.5">
-                            <i class="fas fa-compass"></i> Çalışma Planı Oluştur
+                            <i class="fas fa-compass"></i> Çalışma Planı
                         </button>
                         <button onclick="openCockpitHomework('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold">
-                            <i class="fas fa-plus mr-1"></i> Ödev Ata
+                            <i class="fas fa-plus mr-1"></i> Ödev
                         </button>
                         <button onclick="openGuidanceReportModal('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-bold flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800" title="Öğrenci Rehberlik Gelişim Raporu (PDF)">
-                            <i class="fas fa-file-pdf text-red-500"></i> Rehberlik Raporu
+                            <i class="fas fa-file-pdf text-red-500"></i> Veli Raporu
                         </button>
                         <button onclick="openStudentCockpitDirect('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold" title="Öğrenci Kokpiti">
                             <i class="fas fa-chart-line mr-1"></i> Kokpiti Aç
@@ -2490,13 +2409,13 @@ export function setGuidanceExamSubject(studentId, subjectKey) {
 /**
  * Shows the Create / Edit Guidance Record modal dialog with prefill support.
  */
-export function showGuidanceRecordModal(studentId, recordId = null) {
+export function showGuidanceRecordModal(studentId, recordId = null, initialType = null) {
     const students = loadStudentsData();
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
     let initialData = {
-        type: 'academic',
+        type: initialType && GUIDANCE_RECORD_TYPES[initialType] ? initialType : 'academic',
         issue: '',
         action: '',
         followUpDate: '',

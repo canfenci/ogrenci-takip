@@ -357,3 +357,57 @@ export function buildStudentGuidanceDetail(student, allHomeworks = null, now = n
         suggestedPrefill
     };
 }
+
+/**
+ * Builds a deterministic 1-2 sentence coaching summary from student detail.
+ * Pure function — no mutations.
+ */
+export function buildCoachingSummary(detail) {
+    if (!detail || typeof detail !== 'object') return 'Veri bulunamadı.';
+
+    const parts = [];
+
+    const priorityLabel = detail.priorityLabel || 'Belirsiz';
+    parts.push(`${priorityLabel} öncelikli öğrenci.`);
+
+    const reasons = (detail.reasons || []).slice(0, 2);
+    if (reasons.length > 0) {
+        parts.push(reasons.join(' '));
+    } else if (detail.mainProblemSummary) {
+        parts.push(detail.mainProblemSummary);
+    }
+
+    if (detail.activePlan && (detail.activePlan.hasPlan || detail.activePlan.status === 'active')) {
+        parts.push('Aktif çalışma planı devam ediyor.');
+    }
+
+    const summary = parts.join(' ');
+    return summary.length > 200 ? summary.slice(0, 197) + '...' : summary;
+}
+
+/**
+ * Extracts the latest meaningful teacher opinion from guidance records.
+ * Returns null if no meaningful opinion is found.
+ */
+export function getLatestTeacherOpinion(guidanceRecords) {
+    if (!Array.isArray(guidanceRecords) || guidanceRecords.length === 0) return null;
+
+    const sorted = [...guidanceRecords]
+        .filter(r => r && typeof r === 'object')
+        .sort((a, b) => {
+            const dateA = a.date || a.createdAt || '';
+            const dateB = b.date || b.createdAt || '';
+            return String(dateB).localeCompare(String(dateA));
+        });
+
+    for (const record of sorted) {
+        const note = (record.note || '').trim();
+        const resultNote = (record.resultNote || '').trim();
+        const text = resultNote || note;
+        if (text.length >= 5) {
+            return text.length > 120 ? text.slice(0, 117) + '...' : text;
+        }
+    }
+
+    return null;
+}

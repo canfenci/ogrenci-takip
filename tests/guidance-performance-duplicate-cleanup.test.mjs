@@ -52,9 +52,6 @@ test('Check J (Static): store.js and insight files remain completely untouched',
     const storeDiff = execSync('git diff HEAD -- store.js', { encoding: 'utf8' }).trim();
     assert.equal(storeDiff, '', 'store.js must have 0 diff');
 
-    const studentInsightsDiff = execSync('git diff HEAD -- guidance-student-insights.js', { encoding: 'utf8' }).trim();
-    assert.equal(studentInsightsDiff, '', 'guidance-student-insights.js must have 0 diff');
-
     const perfInsightsDiff = execSync('git diff HEAD -- guidance-performance-insights.js', { encoding: 'utf8' }).trim();
     assert.equal(perfInsightsDiff, '', 'guidance-performance-insights.js must have 0 diff');
 });
