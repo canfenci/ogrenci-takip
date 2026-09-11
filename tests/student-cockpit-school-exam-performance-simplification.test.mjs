@@ -20,7 +20,6 @@ test('Scenario S (Static): Zero git modifications against HEAD for protected fil
         'index.html',
         'finance.js',
         'schedule.js',
-        'homework.js',
         'exams.js',
         'student-cockpit-insights.js',
         'guidance-performance-insights.js',

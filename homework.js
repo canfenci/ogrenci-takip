@@ -272,66 +272,65 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
     ];
 
     const rowsHtml = records.map(({ homework, student, due, weekInfo }) => `
-        <article class="border-b border-gray-100 px-5 py-4 transition hover:bg-slate-50/70 dark:border-gray-700 dark:hover:bg-slate-800/40 last:border-0">
-            <div class="hidden md:grid md:grid-cols-[minmax(170px,.85fr)_minmax(240px,1.35fr)_minmax(150px,.8fr)_minmax(130px,.65fr)_auto] md:items-center md:gap-4">
+        <article class="border-b border-gray-100 px-4 py-3 transition hover:bg-slate-50/70 dark:border-gray-700 dark:hover:bg-slate-800/40 last:border-0">
+            <div class="hidden md:grid md:grid-cols-[minmax(160px,.8fr)_minmax(220px,1.3fr)_minmax(100px,.6fr)_minmax(110px,.6fr)_auto] md:items-center md:gap-3">
                 <div>
                     <p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p>
-                    <p class="mt-1 text-xs text-gray-500">${escapeHtml(student.sinif ? `${student.sinif}. Sınıf` : 'Sınıf yok')}${viewMode === 'student_all_history' && weekInfo ? ` · <span class="font-semibold text-indigo-600 dark:text-indigo-400">${escapeHtml(weekInfo.compactLabel)}</span>` : ''}</p>
+                    <p class="mt-0.5 text-xs text-gray-500">${escapeHtml(student.sinif ? `${student.sinif}. Sınıf` : 'Sınıf yok')}${viewMode === 'student_all_history' && weekInfo ? ` · <span class="font-semibold text-indigo-600 dark:text-indigo-400">${escapeHtml(weekInfo.compactLabel)}</span>` : ''}</p>
                 </div>
                 <div>
                     <p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</p>
-                    <p class="mt-1 text-xs text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p>
+                    <p class="mt-0.5 text-xs text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-400">Teslim</p>
-                    <p class="mt-1 text-sm font-semibold">${escapeHtml(renderDate(homework.bitisTarihi))}</p>
+                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-300" title="Teslim tarihi" aria-label="Teslim tarihi">${escapeHtml(renderDate(homework.bitisTarihi))}</p>
                 </div>
-                <span class="inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}">
-                    <i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>
+                <span class="inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}">
+                    <i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'} text-[10px]"></i>
                     ${escapeHtml(due.label)}
                 </span>
-                <div class="flex justify-end gap-2">
+                <div class="flex justify-end gap-1.5">
                     ${due.key === 'completed' ? `
-                        <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-3 text-sm text-blue-600 dark:text-blue-400 font-bold">
-                            <i class="fas fa-file-pdf mr-1"></i> Rapor / Detay
+                        <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs text-blue-600 dark:text-blue-400 font-bold">
+                            <i class="fas fa-file-pdf mr-0.5"></i> Detay
                         </button>
                     ` : `
-                        <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-3 text-sm">
-                            <i class="fas fa-pen mr-1"></i> Sonuç Gir
+                        <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs">
+                            <i class="fas fa-pen mr-0.5"></i> Sonuç Gir
                         </button>
-                        <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-sm font-bold text-blue-600 dark:text-blue-400">
+                        <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-xs font-bold text-blue-600 dark:text-blue-400">
                             Detay
                         </button>
                     `}
                 </div>
             </div>
             <div class="md:hidden">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2 flex-wrap">
                             <p class="font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(student.adSoyad)}</p>
-                            ${viewMode === 'student_all_history' && weekInfo ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900">${escapeHtml(weekInfo.compactLabel)}</span>` : ''}
+                            ${viewMode === 'student_all_history' && weekInfo ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900">${escapeHtml(weekInfo.compactLabel)}</span>` : ''}
                         </div>
-                        <h3 class="mt-1 font-bold text-base">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</h3>
+                        <p class="mt-0.5 font-bold text-sm text-gray-900 dark:text-white">${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</p>
+                        <p class="mt-0.5 text-xs text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p>
                     </div>
-                    <span class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}">
-                        <i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>
+                    <span class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold ${statusStyles[due.key] || statusStyles.active}">
+                        <i class="fas ${due.key === 'completed' ? 'fa-check' : due.key === 'overdue' ? 'fa-triangle-exclamation' : 'fa-clock'} text-[10px]"></i>
                         ${escapeHtml(due.label)}
                     </span>
                 </div>
-                <p class="mt-2 text-sm text-gray-500">${escapeHtml(homework.konu || 'Konu belirtilmedi')} · ${escapeHtml(homework.yayin || homework.tur || 'Kaynak belirtilmedi')}</p>
-                <div class="mt-3 flex items-center justify-between gap-3">
-                    <p class="text-xs text-gray-500">Teslim: <span class="font-semibold text-gray-700 dark:text-gray-300">${escapeHtml(renderDate(homework.bitisTarihi))}</span></p>
-                    <div class="flex gap-2">
+                <div class="mt-2 flex items-center justify-between gap-2">
+                    <p class="text-xs text-gray-500" title="Teslim tarihi" aria-label="Teslim tarihi">${escapeHtml(renderDate(homework.bitisTarihi))}</p>
+                    <div class="flex gap-1.5">
                         ${due.key === 'completed' ? `
-                            <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-3 text-sm text-blue-600 dark:text-blue-400 font-bold">
-                                <i class="fas fa-file-pdf mr-1"></i> Rapor
+                            <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs text-blue-600 dark:text-blue-400 font-bold">
+                                <i class="fas fa-file-pdf mr-0.5"></i> Detay
                             </button>
                         ` : `
-                            <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-3 text-sm">
+                            <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs">
                                 Sonuç Gir
                             </button>
-                            <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-sm font-bold text-blue-600 dark:text-blue-400">
+                            <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-xs font-bold text-blue-600 dark:text-blue-400">
                                 Detay
                             </button>
                         `}
@@ -356,122 +355,109 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
                         ${activeWeekNum === curWeekNum ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Güncel Hafta</span>` : ''}
                     </div>
                     <h2 class="app-page-title mt-1">${escapeHtml(title)}</h2>
-                    <p class="app-page-subtitle">${escapeHtml(subtitle)}</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="showOdevAtaModal()" class="btn-primary min-h-[44px] px-5">
+                    <button onclick="showOdevAtaModal()" class="btn-primary min-h-[44px] px-4 py-2 text-sm">
                         <i class="fas fa-plus mr-1"></i> Yeni Ödev
                     </button>
                 </div>
             </header>
 
-            <!-- 2-Axis Primary Filter Panel (Hafta + Öğrenci) -->
-            <section class="app-panel p-4 bg-white dark:bg-gray-800 shadow-sm border border-gray-200/80 dark:border-gray-700">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
-                    <!-- Hafta Seçici & Stepper -->
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-gray-200/60 dark:border-gray-800 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-black uppercase tracking-wider text-gray-500">📅 Hafta Seçimi</span>
-                            ${activeWeekNum !== curWeekNum && activeWeekNum !== null ? `
-                                <button onclick="updateHomeworkDashboardFilters({week: ${curWeekNum}})" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
-                                    Bu Haftaya Dön
-                                </button>
-                            ` : ''}
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="updateHomeworkDashboardFilters({week: ${prevWeekNum}})" class="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border rounded-lg font-bold text-sm transition min-h-[40px]" title="Önceki Hafta">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                            <select onchange="updateHomeworkDashboardFilters({week: this.value})" class="student-form-input flex-1 min-h-[40px] font-semibold text-sm">
-                                ${activeStudent ? `<option value="all" ${activeWeekNum === null ? 'selected' : ''}>Tüm Haftalar (Tüm Ödev Geçmişi)</option>` : ''}
-                                ${weekOptions.map(w => `
-                                    <option value="${w.weekNumber}" ${activeWeekNum === w.weekNumber ? 'selected' : ''}>
-                                        ${w.weekNumber}. Hafta · ${w.dateRangeShort}${w.weekNumber === curWeekNum ? ' (Güncel)' : ''}
-                                    </option>
-                                `).join('')}
-                            </select>
-                            <button onclick="updateHomeworkDashboardFilters({week: ${nextWeekNum}})" class="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border rounded-lg font-bold text-sm transition min-h-[40px]" title="Sonraki Hafta">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Öğrenci Seçici -->
-                    <div class="p-3 bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-gray-200/60 dark:border-gray-800 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-black uppercase tracking-wider text-gray-500">👤 Öğrenci Filtresi</span>
-                            ${activeStudent ? `
-                                <button onclick="updateHomeworkDashboardFilters({studentId: ''})" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
-                                    Tüm Öğrencilere Dön
-                                </button>
-                            ` : ''}
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <select onchange="updateHomeworkDashboardFilters({studentId: this.value})" class="student-form-input w-full min-h-[40px] font-semibold text-sm">
-                                <option value="">Tüm Öğrenciler (Seçili Hafta)</option>
-                                ${students.map(s => `
-                                    <option value="${s.id}" ${activeFilters.studentId === s.id ? 'selected' : ''}>
-                                        ${escapeHtml(s.adSoyad)} (${s.sinif ? `${s.sinif}. Sınıf` : 'Sınıf yok'})
-                                    </option>
-                                `).join('')}
-                            </select>
-                        </div>
-                    </div>
+            <!-- Combined Week + Student Control Bar -->
+            <section class="app-panel p-3 flex flex-wrap items-center gap-2">
+                <div class="flex items-center gap-1.5">
+                    <button onclick="updateHomeworkDashboardFilters({week: ${prevWeekNum}})" class="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold transition min-h-[44px]" title="Önceki Hafta" aria-label="Önceki Hafta">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <select onchange="updateHomeworkDashboardFilters({week: this.value})" class="student-form-input min-h-[44px] font-semibold text-xs px-2.5 py-1.5" aria-label="Hafta seçimi">
+                        ${activeStudent ? `<option value="all" ${activeWeekNum === null ? 'selected' : ''}>Tüm Haftalar</option>` : ''}
+                        ${weekOptions.map(w => `
+                            <option value="${w.weekNumber}" ${activeWeekNum === w.weekNumber ? 'selected' : ''}>
+                                ${w.weekNumber}. Hafta · ${w.dateRangeShort}${w.weekNumber === curWeekNum ? ' (Güncel)' : ''}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <button onclick="updateHomeworkDashboardFilters({week: ${nextWeekNum}})" class="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold transition min-h-[44px]" title="Sonraki Hafta" aria-label="Sonraki Hafta">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    ${activeWeekNum !== curWeekNum && activeWeekNum !== null ? `
+                        <button onclick="updateHomeworkDashboardFilters({week: ${curWeekNum}})" class="min-h-[44px] px-2 py-1.5 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline ml-1" aria-label="Bu haftaya dön">
+                            Bu Haftaya Dön
+                        </button>
+                    ` : ''}
+                </div>
+                <div class="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
+                <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                    <select onchange="updateHomeworkDashboardFilters({studentId: this.value})" class="student-form-input min-h-[44px] font-semibold text-xs px-2.5 py-1.5 flex-1 min-w-0" aria-label="Öğrenci filtresi">
+                        <option value="">Tüm Öğrenciler</option>
+                        ${students.map(s => `
+                            <option value="${s.id}" ${activeFilters.studentId === s.id ? 'selected' : ''}>
+                                ${escapeHtml(s.adSoyad)} (${s.sinif ? `${s.sinif}. Sınıf` : ''})
+                            </option>
+                        `).join('')}
+                    </select>
+                    ${activeStudent ? `
+                        <button onclick="updateHomeworkDashboardFilters({studentId: ''})" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0" aria-label="Tüm öğrencilere dön">
+                            Tümü
+                        </button>
+                    ` : ''}
                 </div>
             </section>
 
             <!-- Metrics Cards -->
-            <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+            <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 ${metricCards.map(([icon, label, value, detail]) => `
-                    <article class="app-panel p-4">
-                        <div class="flex items-center gap-2 text-gray-400">
-                            <i class="fas ${icon} text-xs"></i>
-                            <p class="text-[11px] font-black uppercase tracking-[.08em]">${label}</p>
-                        </div>
-                        <p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">${value}</p>
-                        <p class="mt-1 text-xs text-gray-500">${detail}</p>
-                    </article>
+                    <div class="app-panel p-3">
+                        <p class="text-[11px] font-black uppercase tracking-[.08em] text-gray-400">${label}</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-white mt-1">${value}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${detail}</p>
+                    </div>
                 `).join('')}
             </section>
 
-            <!-- Secondary Filters & Search -->
-            <section class="app-panel p-4 mt-3">
-                <div class="flex flex-wrap gap-2">
-                    ${statusFilters.map(([key, label, count]) => `
-                        <button onclick="updateHomeworkDashboardFilters({status:'${key}'})" class="min-h-[38px] rounded-full border px-3 text-sm font-bold transition ${activeFilters.status === key ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 text-gray-600 hover:border-indigo-300 dark:border-gray-700 dark:text-gray-300'}">
-                            ${label}${count !== undefined ? ` <span class="ml-1 opacity-75">${count}</span>` : ''}
-                        </button>
-                    `).join('')}
-                </div>
-                <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_150px]">
-                    <label class="relative">
-                        <span class="sr-only">Ödev veya öğrenci ara</span>
-                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                        <input value="${escapeHtml(activeFilters.query)}" oninput="updateHomeworkDashboardFilters({query:this.value})" class="student-form-input min-h-[40px] pl-10" placeholder="Öğrenci, konu veya kaynak ara">
-                    </label>
-                    <select onchange="updateHomeworkDashboardFilters({grade:this.value})" class="student-form-input min-h-[40px]">
-                        <option value="">Tüm sınıflar</option>
-                        ${['5','6','7','8'].map(grade => `<option value="${grade}" ${activeFilters.grade === grade ? 'selected' : ''}>${grade}. Sınıf</option>`).join('')}
-                    </select>
-                </div>
+            <!-- Status Filters + Search -->
+            <section class="flex flex-wrap items-center gap-2">
+                ${statusFilters.map(([key, label, count]) => `
+                    <button onclick="updateHomeworkDashboardFilters({status:'${key}'})" class="min-h-[44px] rounded-full border px-2.5 py-1 text-xs font-bold transition ${activeFilters.status === key ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-200 text-gray-600 hover:border-indigo-300 dark:border-gray-700 dark:text-gray-300'}">
+                        ${label}${count !== undefined ? ` <span class="ml-0.5 opacity-75">${count}</span>` : ''}
+                    </button>
+                `).join('')}
+                <div class="flex-1 min-w-0 hidden sm:block"></div>
+                <label class="relative hidden sm:block">
+                    <span class="sr-only">Ödev veya öğrenci ara</span>
+                    <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input value="${escapeHtml(activeFilters.query)}" oninput="updateHomeworkDashboardFilters({query:this.value})" class="student-form-input min-h-[44px] pl-8 pr-2.5 py-1 text-xs w-48 lg:w-64" placeholder="Ara...">
+                </label>
+                <select onchange="updateHomeworkDashboardFilters({grade:this.value})" class="student-form-input min-h-[44px] py-1 text-xs" aria-label="Sınıf filtresi">
+                    <option value="">Tüm sınıflar</option>
+                    ${['5','6','7','8'].map(grade => `<option value="${grade}" ${activeFilters.grade === grade ? 'selected' : ''}>${grade}. Sınıf</option>`).join('')}
+                </select>
+            </section>
+            <!-- Mobile Search -->
+            <section class="sm:hidden">
+                <label class="relative">
+                    <span class="sr-only">Ödev veya öğrenci ara</span>
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    <input value="${escapeHtml(activeFilters.query)}" oninput="updateHomeworkDashboardFilters({query:this.value})" class="student-form-input min-h-[44px] pl-10" placeholder="Öğrenci, konu veya kaynak ara">
+                </label>
             </section>
 
             <!-- List Section -->
-            <section class="app-panel mt-4 overflow-hidden">
-                <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-700">
+            <section class="app-panel mt-3 overflow-hidden">
+                <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700">
                     <div>
-                        <h3 class="text-lg font-black">${viewMode === 'student_all_history' ? 'Öğrenci Ödev Listesi' : 'Haftalık Ödev Listesi'}</h3>
-                        <p class="mt-1 text-sm text-gray-500">
+                        <h3 class="text-base font-black">${viewMode === 'student_all_history' ? 'Öğrenci Ödev Listesi' : 'Haftalık Ödev Listesi'}</h3>
+                        <p class="mt-0.5 text-xs text-gray-500">
                             ${activeFilters.status === 'all' ? 'Öncelik ve duruma göre listelenir.' : `${records.length} ödev bulundu.`}
                         </p>
                     </div>
                     <span class="text-xs font-bold text-gray-400">${records.length} kayıt</span>
                 </div>
                 ${rowsHtml || `
-                    <div class="px-5 py-12 text-center">
-                        <div class="text-gray-300 dark:text-gray-600 text-4xl mb-3"><i class="fas fa-folder-open"></i></div>
-                        <p class="font-bold text-gray-800 dark:text-gray-200">Bu filtrelere uygun ödev bulunamadı.</p>
-                        <p class="mt-1 text-sm text-gray-500">Farklı bir hafta veya öğrenci seçebilirsiniz.</p>
+                    <div class="px-4 py-8 text-center">
+                        <div class="text-gray-300 dark:text-gray-600 text-2xl mb-2"><i class="fas fa-folder-open"></i></div>
+                        <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Bu filtrelere uygun ödev bulunamadı.</p>
+                        <p class="mt-0.5 text-xs text-gray-500">Farklı bir hafta veya öğrenci seçebilirsiniz.</p>
                     </div>
                 `}
             </section>
@@ -825,7 +811,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                     ${HATA_NEDENLERI.map(hn => {
                         const isChecked = selectedReasonKeys.includes(hn.key);
                         return `
-                            <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition border select-none min-h-[36px] ${isChecked ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200'}">
+                            <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition border select-none min-h-[44px] ${isChecked ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200'}">
                                 <input type="checkbox" value="${escapeHtml(hn.key)}" class="hidden error-reason-cb" ${isChecked ? 'checked' : ''}>
                                 <span>${escapeHtml(hn.label)}</span>
                             </label>

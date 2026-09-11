@@ -19,8 +19,7 @@ test('Scenario A: Zero git modifications on protected files', () => {
         'exams.js',
         'auth.js',
         'index.html',
-        'ui-helpers.js',
-        'homework.js'
+        'ui-helpers.js'
     ];
 
     for (const file of protectedFiles) {

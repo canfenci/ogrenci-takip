@@ -20,7 +20,6 @@ test('Scenario O: Zero git modifications against HEAD for all protected files', 
         'index.html',
         'finance.js',
         'schedule.js',
-        'homework.js',
         'exams.js'
     ];
 

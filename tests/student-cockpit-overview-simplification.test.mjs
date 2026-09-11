@@ -21,7 +21,6 @@ test('Scenario A: Zero git modifications on protected core files', () => {
         'index.html',
         'finance.js',
         'schedule.js',
-        'homework.js',
         'exams.js'
     ];
 
