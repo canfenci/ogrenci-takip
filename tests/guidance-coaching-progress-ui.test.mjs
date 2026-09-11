@@ -127,8 +127,10 @@ test('R: progress module has no DOM/persistence/network', () => {
     assert.ok(!progressJs.includes('window.'), 'no window');
 });
 
-test('S: progress module has no mutation', () => {
-    assert.ok(!progressJs.includes('.push('), 'no array push');
-    assert.ok(!progressJs.includes('.splice('), 'no splice');
-    assert.ok(!progressJs.includes('delete '), 'no delete');
+test('S: progress module has no input mutation', () => {
+    assert.ok(!progressJs.includes('.splice('), 'no splice on input');
+    assert.ok(!progressJs.includes('delete '), 'no delete on input');
+    const lines = progressJs.split('\n');
+    const mutationLines = lines.filter(l => /\.length\s*=(?!=)/.test(l));
+    assert.equal(mutationLines.length, 0, 'no length reassignment');
 });

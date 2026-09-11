@@ -198,6 +198,7 @@ export const generateAdaptiveStudyPlan = autoPopulateStudyPlan;
 
 import { createEmptyCoachingPlan, normalizeCoachingPlan, createHistorySnapshot, getWeekStart, getWeekEnd } from './coaching-plan-model.js';
 import { saveCoachingPlan } from './store.js';
+import { getPlanProgressSummary } from './coaching-plan-progress.js';
 
 export async function saveCoachingPlanForStudent(studentId, coachingPlanData) {
     if (!studentId) throw new Error('studentId is required');
@@ -233,9 +234,10 @@ export async function archiveCoachingPlanForStudent(studentId) {
     const currentPlan = student.coachingPlan;
     if (!currentPlan || typeof currentPlan !== 'object') return { ok: false, error: 'No active coaching plan' };
 
-    const snapshot = createHistorySnapshot(currentPlan);
+    const progressSummary = getPlanProgressSummary(currentPlan);
+    const snapshot = createHistorySnapshot(currentPlan, progressSummary);
     const history = Array.isArray(student.studyPlanHistory) ? [...student.studyPlanHistory] : [];
-    if (snapshot) history.push(snapshot);
+    if (snapshot && !history.some(h => h && h.id === snapshot.id)) history.push(snapshot);
 
     const archivedPlan = { ...currentPlan, status: 'archived', updatedAt: new Date().toISOString() };
     const res = await saveCoachingPlan(studentId, archivedPlan, history);

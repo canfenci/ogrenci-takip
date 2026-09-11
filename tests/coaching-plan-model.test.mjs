@@ -374,7 +374,8 @@ test('createHistorySnapshot creates snapshot from coaching plan', () => {
     };
     const snapshot = createHistorySnapshot(plan);
     assert.equal(snapshot.id, 'plan_123');
-    assert.equal(snapshot.status, 'active');
+    assert.equal(snapshot.status, 'archived');
+    assert.equal(snapshot.sourceStatus, 'active');
     assert.ok(typeof snapshot.archivedAt === 'string');
     assert.deepEqual(snapshot.weeklyTargets, { totalQuestions: 550, generalExams: null, branchExams: null, readingTarget: null, reviewSessions: null });
 });

@@ -2040,15 +2040,29 @@ export function renderGuidanceStudentDetail(studentId) {
                                             const state = getTaskCompletionState(task);
                                             const stateColors = { completed: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', in_progress: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800', not_started: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' };
                                             const stateLabels = { completed: 'Tamamlandı', in_progress: 'Devam Ediyor', not_started: 'Başlanmadı' };
+                                            const taskId = task.id || '';
+                                            const editable = coachingPlan && taskId && !task._legacy;
                                             return `
-                                                <div class="p-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200/70 dark:border-gray-800 text-xs space-y-1.5">
+                                                <div class="p-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200/70 dark:border-gray-800 text-xs space-y-1.5" ${editable ? `data-task-id="${escapeHtml(taskId)}"` : ''}>
                                                     <div class="flex items-start justify-between gap-1.5">
                                                         <p class="font-bold text-gray-800 dark:text-gray-200 leading-snug ${isDone ? 'line-through opacity-70' : ''}">${escapeHtml(title)}</p>
-                                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-black border shrink-0 ${stateColors[state]}">${stateLabels[state]}</span>
+                                                        ${editable ? `
+                                                            <label class="flex items-center gap-1 shrink-0 cursor-pointer" title="Görevi tamamlandı olarak işaretle">
+                                                                <input type="checkbox" class="cp-task-completed w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" data-task-id="${escapeHtml(taskId)}" ${isDone ? 'checked' : ''}>
+                                                                <span class="text-[10px] font-bold ${isDone ? 'text-emerald-600' : 'text-gray-400'}">${isDone ? 'Tamam' : ''}</span>
+                                                            </label>
+                                                        ` : `
+                                                            <span class="px-1.5 py-0.5 rounded text-[10px] font-black border shrink-0 ${stateColors[state]}">${stateLabels[state]}</span>
+                                                        `}
                                                     </div>
                                                     ${desc ? `<p class="text-[11px] text-gray-500">${escapeHtml(desc)}</p>` : ''}
                                                     <div class="flex flex-wrap gap-1.5 pt-0.5 text-[10px] text-gray-500 font-semibold">
-                                                        ${question ? `<span class="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">${completedCount} / ${question} soru</span>` : ''}
+                                                        ${question && editable ? `
+                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                                                <input type="number" min="0" class="cp-question-count w-12 text-center text-[10px] font-bold border-0 bg-transparent p-0 focus:ring-0" value="${completedCount}" data-task-id="${escapeHtml(taskId)}" data-question-target="${question}">
+                                                                / ${question} soru
+                                                            </span>
+                                                        ` : question ? `<span class="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">${completedCount} / ${question} soru</span>` : ''}
                                                         ${duration ? `<span class="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">${duration} dk</span>` : ''}
                                                         ${resource ? `<span class="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 truncate max-w-[120px]">${escapeHtml(resource)}</span>` : ''}
                                                     </div>
@@ -2086,6 +2100,30 @@ export function renderGuidanceStudentDetail(studentId) {
                     ${activePlanSummaryCardHtml}
                     ${coachingPlanSummaryHtml}
                     ${weeklyDaysContentHtml}
+                    ${coachingPlan ? `
+                        <section class="app-panel p-4 space-y-3" id="cp-checkin-section">
+                            <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                                <h3 class="font-black text-sm text-gray-900 dark:text-white">Haftalık Kontrol</h3>
+                                ${coachingPlan.weeklyCheckIn?.checkedAt ? `<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Son kontrol: ${escapeHtml(coachingPlan.weeklyCheckIn.checkedAt.slice(0, 10))}</span>` : ''}
+                            </div>
+                            <div class="space-y-2.5">
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wide text-gray-500 mb-1 block">Öğretmen Notu</label>
+                                    <textarea id="cp-teacher-note" rows="2" class="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" placeholder="Bu hafta için gözlemler...">${escapeHtml(coachingPlan.weeklyCheckIn?.teacherNote || '')}</textarea>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wide text-gray-500 mb-1 block">Gelecek Hafta Odak</label>
+                                    <textarea id="cp-next-week-focus" rows="2" class="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" placeholder="Gelecek hafta için öncelikler...">${escapeHtml(coachingPlan.weeklyCheckIn?.nextWeekFocus || '')}</textarea>
+                                </div>
+                                <div class="flex items-center gap-2 pt-1">
+                                    <button onclick="saveCoachingPlanCheckin('${studentId}')" class="btn-primary min-h-[44px] px-4 text-xs font-bold inline-flex items-center gap-1.5">
+                                        <i class="fas fa-save"></i> Kaydet
+                                    </button>
+                                    <span id="cp-checkin-feedback" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hidden"></span>
+                                </div>
+                            </div>
+                        </section>
+                    ` : ''}
                 </div>
             `;
         }
@@ -3059,6 +3097,75 @@ window.saveCompleteGuidanceRecordForm = saveCompleteGuidanceRecordForm;
 window.confirmDeleteGuidanceRecord = confirmDeleteGuidanceRecord;
 window.openGuidanceReportModal = openGuidanceReportModal;
 window.downloadGuidanceReportPdf = downloadGuidanceReportPdf;
+
+async function saveCoachingPlanCheckin(studentId) {
+    if (!studentId || typeof window === 'undefined') return;
+    const { loadStudentsData } = await import('./store.js');
+    const { saveCoachingPlan } = await import('./store.js');
+    const { normalizeCoachingPlan } = await import('./coaching-plan-model.js');
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student || !student.coachingPlan) return;
+
+    const plan = normalizeCoachingPlan(student.coachingPlan);
+    if (!plan) return;
+
+    const noteEl = document.getElementById('cp-teacher-note');
+    const focusEl = document.getElementById('cp-next-week-focus');
+    const feedbackEl = document.getElementById('cp-checkin-feedback');
+
+    const teacherNote = noteEl ? noteEl.value.trim() : (plan.weeklyCheckIn?.teacherNote || '');
+    const nextWeekFocus = focusEl ? focusEl.value.trim() : (plan.weeklyCheckIn?.nextWeekFocus || '');
+
+    const updatedTasks = plan.tasks.map(t => {
+        if (!t.id || t._legacy) return t;
+        const card = document.querySelector(`[data-task-id="${t.id}"]`);
+        if (!card) return t;
+        const updated = { ...t };
+        const countInput = card.querySelector('.cp-question-count');
+        if (countInput) {
+            const val = parseInt(countInput.value, 10);
+            updated.completedCount = Number.isFinite(val) && val >= 0 ? val : 0;
+        }
+        const completedCb = card.querySelector('.cp-task-completed');
+        if (completedCb) {
+            updated.completed = Boolean(completedCb.checked);
+        }
+        return updated;
+    });
+
+    const updatedPlan = {
+        ...plan,
+        tasks: updatedTasks,
+        weeklyCheckIn: {
+            teacherNote,
+            nextWeekFocus,
+            checkedAt: new Date().toISOString()
+        },
+        updatedAt: new Date().toISOString()
+    };
+
+    const res = await saveCoachingPlan(studentId, updatedPlan);
+    if (res && res.ok) {
+        if (feedbackEl) {
+            feedbackEl.textContent = '✓ Kaydedildi';
+            feedbackEl.classList.remove('hidden');
+            setTimeout(() => feedbackEl.classList.add('hidden'), 3000);
+        }
+        if (typeof window.renderGuidanceStudentDetail === 'function') {
+            window._guidanceStudentTab = 'study';
+            window.renderGuidanceStudentDetail(studentId);
+        }
+    } else {
+        if (feedbackEl) {
+            feedbackEl.textContent = '✗ Kaydetme hatası';
+            feedbackEl.classList.remove('hidden', 'text-emerald-600');
+            feedbackEl.classList.add('text-red-600');
+            setTimeout(() => { feedbackEl.classList.add('hidden'); feedbackEl.classList.remove('text-red-600'); feedbackEl.classList.add('text-emerald-600'); }, 4000);
+        }
+    }
+}
+window.saveCoachingPlanCheckin = saveCoachingPlanCheckin;
 window.shareGuidanceReportPdf = shareGuidanceReportPdf;
 window.printGuidanceReportPdf = printGuidanceReportPdf;
 window.switchGuidanceStudentTab = switchGuidanceStudentTab;

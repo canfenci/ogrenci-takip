@@ -87,6 +87,7 @@ export function createEmptyCoachingPlan(overrides = {}) {
         branchTargets: [],
         topicTargets: [],
         tasks: [],
+        weeklyCheckIn: { teacherNote: '', nextWeekFocus: '', checkedAt: null },
         createdAt: now,
         updatedAt: now,
         ...overrides
@@ -114,6 +115,7 @@ export function normalizeCoachingPlan(raw) {
         branchTargets: normalizeBranchTargets(raw.branchTargets),
         topicTargets: normalizeTopicTargets(raw.topicTargets),
         tasks: normalizeTasks(raw.tasks),
+        weeklyCheckIn: normalizeWeeklyCheckIn(raw.weeklyCheckIn),
         createdAt: safeString(raw.createdAt) || now,
         updatedAt: safeString(raw.updatedAt) || now
     };
@@ -216,6 +218,17 @@ export function normalizeLegacyStudyPlan(studyPlan) {
         });
     }
     return tasks;
+}
+
+function normalizeWeeklyCheckIn(raw) {
+    if (!raw || typeof raw !== 'object') {
+        return { teacherNote: '', nextWeekFocus: '', checkedAt: null };
+    }
+    return {
+        teacherNote: safeString(raw.teacherNote),
+        nextWeekFocus: safeString(raw.nextWeekFocus),
+        checkedAt: raw.checkedAt != null ? safeString(raw.checkedAt) : null
+    };
 }
 
 /**
@@ -395,22 +408,30 @@ export function isLegacyPreserved(student) {
 
 /**
  * Creates a history snapshot from a coaching plan.
+ * Accepts optional progressSummary to avoid circular dependency with coaching-plan-progress.js.
+ * Canonical history semantics: snapshot.status is always 'archived';
+ * the plan's lifecycle status at archive time is preserved in sourceStatus.
  */
-export function createHistorySnapshot(coachingPlan) {
+export function createHistorySnapshot(coachingPlan, progressSummary = null) {
     if (!coachingPlan || typeof coachingPlan !== 'object') return null;
     const plan = normalizeCoachingPlan(coachingPlan);
     if (!plan) return null;
+    const sourceStatus = PLAN_STATUSES[plan.status] ? plan.status : null;
     return {
         id: plan.id,
+        version: plan.version,
         weekStart: plan.weekStart,
         weekEnd: plan.weekEnd,
-        status: plan.status,
+        status: 'archived',
+        sourceStatus,
         weeklyTargets: { ...plan.weeklyTargets },
         branchTargets: plan.branchTargets.map(b => ({ ...b })),
         topicTargets: plan.topicTargets.map(t => ({ ...t })),
         tasks: plan.tasks.map(t => ({ ...t })),
+        weeklyCheckIn: { ...plan.weeklyCheckIn },
         createdAt: plan.createdAt,
         updatedAt: plan.updatedAt,
-        archivedAt: new Date().toISOString()
+        archivedAt: new Date().toISOString(),
+        progressSummary: progressSummary ? JSON.parse(JSON.stringify(progressSummary)) : null
     };
 }

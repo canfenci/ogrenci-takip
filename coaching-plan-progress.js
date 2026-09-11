@@ -209,3 +209,45 @@ export function getPlanProgressSummary(plan) {
         review: getReviewProgress(plan)
     };
 }
+
+/**
+ * Generates concise coaching summary signals from plan progress.
+ * Returns max 2 assessment sentences + 1 focus sentence.
+ * Deterministic. No external AI.
+ */
+export function getCoachingSignals(plan) {
+    if (!plan || typeof plan !== 'object') return { signals: [], nextWeekFocus: '' };
+    const ps = getPlanProgressSummary(plan);
+    const signals = [];
+    const qProg = ps.questions;
+    const tProg = ps.tasks;
+
+    if (qProg.target != null && qProg.target > 0 && qProg.percent != null && qProg.percent < 60) {
+        signals.push('Soru hedefinin gerisinde.');
+    }
+
+    if (tProg.total > 0 && tProg.percent != null && tProg.percent < 50) {
+        signals.push('Haftalık görevlerin önemli bir bölümü tamamlanmamış.');
+    }
+
+    const branches = ps.branches || [];
+    let mostBehind = null;
+    let lowestPct = Infinity;
+    for (const b of branches) {
+        if (b.target != null && b.target > 0 && b.percent != null && b.percent < lowestPct) {
+            lowestPct = b.percent;
+            mostBehind = b;
+        }
+    }
+    if (mostBehind && lowestPct < 60) {
+        signals.push(`${mostBehind.subject} hedefinin gerisinde (%${lowestPct}).`);
+    }
+
+    if (signals.length === 0 && qProg.target != null && qProg.target > 0 && qProg.percent != null && qProg.percent >= 80 && tProg.total > 0 && tProg.percent != null && tProg.percent >= 70) {
+        signals.push('Soru hedefi tamamlandı; plan düzenli ilerliyor.');
+    }
+
+    const nextWeekFocus = plan.weeklyCheckIn?.nextWeekFocus || '';
+
+    return { signals: signals.slice(0, 2), nextWeekFocus };
+}
