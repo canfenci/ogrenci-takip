@@ -2913,6 +2913,10 @@ export function openGuidanceReportModal(studentId) {
                             <span class="font-medium text-gray-800 dark:text-gray-200">Ödev & Çalışma Disiplini</span>
                         </label>
                         <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
+                            <input type="checkbox" id="sec_coachingSummary" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">Koçluk ve Çalışma Planı Gelişimi</span>
+                        </label>
+                        <label class="flex items-center gap-2 min-h-[44px] cursor-pointer">
                             <input type="checkbox" id="sec_guidanceInterventions" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
                             <span class="font-medium text-gray-800 dark:text-gray-200">Rehberlik Müdahaleleri</span>
                         </label>
@@ -2970,6 +2974,7 @@ function getGuidanceReportOptionsFromModal() {
         weakTopics: document.getElementById('sec_weakTopics')?.checked ?? true,
         errorReasons: document.getElementById('sec_errorReasons')?.checked ?? true,
         homeworkSummary: document.getElementById('sec_homeworkSummary')?.checked ?? true,
+        coachingSummary: document.getElementById('sec_coachingSummary')?.checked ?? true,
         guidanceInterventions: document.getElementById('sec_guidanceInterventions')?.checked ?? true,
         openFollowUps: document.getElementById('sec_openFollowUps')?.checked ?? true,
         nextActions: document.getElementById('sec_nextActions')?.checked ?? true,

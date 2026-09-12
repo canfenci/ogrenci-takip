@@ -36,6 +36,7 @@ import {
 
 import { getLocalIsoDate, formatFollowUpDisplayDate } from './guidance-followup-insights.js';
 import { formatWeekDateRange } from './guidance-weekly-insights.js';
+import { buildMonthlyCoachingSummary } from './coaching-plan-monthly-summary.js';
 
 const TURKISH_MONTH_NAMES_SHORT = [
     'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
@@ -121,6 +122,146 @@ export function calculateReportPeriodRange(periodOption = '4weeks', now = new Da
         startDate: startIso,
         endDate: endIso,
         label: periodLabel
+    };
+}
+
+/**
+ * Sanitizes and normalizes monthly coaching summary into a parent-safe data contract.
+ * Pure, deterministic, zero side-effects.
+ * Excludes all internal notes, priority scores, teacher internal fields, and raw diagnostic labels.
+ */
+export function buildParentSafeCoachingSummary(rawSummary) {
+    if (!rawSummary || typeof rawSummary !== 'object') {
+        return {
+            hasData: false,
+            weekCount: 0,
+            monthLabel: '',
+            metrics: {
+                questions: { actual: 0, target: null, percent: null },
+                tasks: { completed: 0, total: 0, percent: null },
+                plannedExams: { completed: 0, planned: null, percent: null }
+            },
+            branchRows: [],
+            topicRows: [],
+            examContext: { examCount: 0, averageNet: null, netDelta: null },
+            homeworkContext: { total: 0, completed: 0, completionRate: null },
+            strengths: [],
+            attentionAreas: []
+        };
+    }
+
+    const weekCount = Number.isFinite(Number(rawSummary.period?.weekCount))
+        ? Number(rawSummary.period.weekCount)
+        : (Number.isFinite(Number(rawSummary.weekCount)) ? Number(rawSummary.weekCount) : 0);
+
+    const monthLabel = String(rawSummary.period?.monthLabel || rawSummary.monthLabel || '');
+
+    const planMetrics = rawSummary.planMetrics || {};
+    const qActual = Number.isFinite(Number(planMetrics.questionActual)) ? Number(planMetrics.questionActual) : 0;
+    const qTarget = (planMetrics.questionTarget != null && Number.isFinite(Number(planMetrics.questionTarget)) && Number(planMetrics.questionTarget) > 0)
+        ? Number(planMetrics.questionTarget)
+        : null;
+    let qPercent = null;
+    if (qTarget != null && qTarget > 0) {
+        qPercent = Math.round(((qActual / qTarget) * 100 + Number.EPSILON) * 100) / 100;
+    } else if (planMetrics.questionPercent != null && Number.isFinite(Number(planMetrics.questionPercent))) {
+        qPercent = Number(planMetrics.questionPercent);
+    }
+
+    const tCompleted = Number.isFinite(Number(planMetrics.taskCompleted)) ? Number(planMetrics.taskCompleted) : 0;
+    const tTotal = (planMetrics.taskTotal != null && Number.isFinite(Number(planMetrics.taskTotal)) && Number(planMetrics.taskTotal) > 0)
+        ? Number(planMetrics.taskTotal)
+        : 0;
+    let tPercent = null;
+    if (tTotal > 0) {
+        tPercent = Math.round(((tCompleted / tTotal) * 100 + Number.EPSILON) * 100) / 100;
+    } else if (planMetrics.taskPercent != null && Number.isFinite(Number(planMetrics.taskPercent))) {
+        tPercent = Number(planMetrics.taskPercent);
+    }
+
+    const eCompleted = Number.isFinite(Number(planMetrics.examCompleted)) ? Number(planMetrics.examCompleted) : 0;
+    const eTarget = (planMetrics.examTarget != null && Number.isFinite(Number(planMetrics.examTarget)) && Number(planMetrics.examTarget) > 0)
+        ? Number(planMetrics.examTarget)
+        : null;
+    let ePercent = null;
+    if (eTarget != null && eTarget > 0) {
+        ePercent = Math.round(((eCompleted / eTarget) * 100 + Number.EPSILON) * 100) / 100;
+    } else if (planMetrics.examPercent != null && Number.isFinite(Number(planMetrics.examPercent))) {
+        ePercent = Number(planMetrics.examPercent);
+    }
+
+    const branchRows = (Array.isArray(rawSummary.branchSummary) ? rawSummary.branchSummary : [])
+        .slice()
+        .sort((a, b) => (Number(b.actual ?? b.completed ?? 0)) - (Number(a.actual ?? a.completed ?? 0)))
+        .slice(0, 5)
+        .map(b => {
+            const actual = Number.isFinite(Number(b.actual)) ? Number(b.actual) : (Number.isFinite(Number(b.completed)) ? Number(b.completed) : 0);
+            const target = (b.target != null && Number.isFinite(Number(b.target)) && Number(b.target) > 0) ? Number(b.target) : null;
+            let percent = (b.percent != null && Number.isFinite(Number(b.percent))) ? Number(b.percent) : null;
+            if (percent == null && target != null && target > 0) {
+                percent = Math.round(((actual / target) * 100 + Number.EPSILON) * 100) / 100;
+            }
+            return {
+                subject: String(b.subject || ''),
+                completed: actual,
+                actual,
+                target,
+                percent
+            };
+        });
+
+    const topicRows = (Array.isArray(rawSummary.topicSummary) ? rawSummary.topicSummary : [])
+        .slice()
+        .sort((a, b) => (Number(b.actual ?? b.completedCount ?? 0)) - (Number(a.actual ?? a.completedCount ?? 0)))
+        .slice(0, 3)
+        .map(t => {
+            const count = Number.isFinite(Number(t.actual)) ? Number(t.actual) : (Number.isFinite(Number(t.completedCount)) ? Number(t.completedCount) : 0);
+            return {
+                topic: String(t.topic || ''),
+                branch: String(t.branch || t.subject || ''),
+                subject: String(t.subject || t.branch || ''),
+                completedCount: count,
+                actual: count
+            };
+        });
+
+    const examContext = {
+        examCount: Number.isFinite(Number(rawSummary.examContext?.examCount)) ? Number(rawSummary.examContext.examCount) : 0,
+        averageNet: (rawSummary.examContext?.averageNet != null && Number.isFinite(Number(rawSummary.examContext.averageNet))) ? Number(rawSummary.examContext.averageNet) : null,
+        netDelta: (rawSummary.examContext?.netDelta != null && Number.isFinite(Number(rawSummary.examContext.netDelta))) ? Number(rawSummary.examContext.netDelta) : null
+    };
+
+    const homeworkContext = {
+        total: Number.isFinite(Number(rawSummary.homeworkContext?.total)) ? Number(rawSummary.homeworkContext.total) : 0,
+        completed: Number.isFinite(Number(rawSummary.homeworkContext?.completed)) ? Number(rawSummary.homeworkContext.completed) : 0,
+        completionRate: (rawSummary.homeworkContext?.completionRate != null && Number.isFinite(Number(rawSummary.homeworkContext.completionRate))) ? Number(rawSummary.homeworkContext.completionRate) : null
+    };
+
+    const strengths = Array.isArray(rawSummary.strengths)
+        ? rawSummary.strengths.filter(s => typeof s === 'string' && s.trim()).slice(0, 2)
+        : [];
+
+    const attentionAreas = Array.isArray(rawSummary.attentionAreas)
+        ? rawSummary.attentionAreas.filter(a => typeof a === 'string' && a.trim()).slice(0, 2)
+        : [];
+
+    const hasData = (weekCount > 0) || (qActual > 0) || (tCompleted > 0) || (branchRows.length > 0);
+
+    return {
+        hasData,
+        weekCount,
+        monthLabel,
+        metrics: {
+            questions: { actual: qActual, target: qTarget, percent: qPercent },
+            tasks: { completed: tCompleted, total: tTotal, percent: tPercent },
+            plannedExams: { completed: eCompleted, planned: eTarget, percent: ePercent }
+        },
+        branchRows,
+        topicRows,
+        examContext,
+        homeworkContext,
+        strengths,
+        attentionAreas
     };
 }
 
@@ -352,6 +493,38 @@ export function buildGuidanceReportData(student, options = {}) {
     // 11. Teacher Evaluation Note (Passed from options, purely report-local)
     const teacherNote = typeof options.teacherNote === 'string' ? options.teacherNote.trim() : '';
 
+    // 12. Monthly Coaching Summary (Parent-safe, finalized archived only)
+    let targetYear = (options.year != null && Number.isFinite(Number(options.year))) ? Number(options.year) : null;
+    let targetMonth = (options.month != null && Number.isFinite(Number(options.month))) ? Number(options.month) : null;
+    if (!targetYear || !targetMonth) {
+        const dateForMonth = period.endDate || todayStr;
+        const parts = String(dateForMonth).slice(0, 10).split('-');
+        if (parts.length >= 2) {
+            targetYear = targetYear || parseInt(parts[0], 10);
+            targetMonth = targetMonth || parseInt(parts[1], 10);
+        }
+    }
+
+    const rawCoachingSummary = buildMonthlyCoachingSummary(student, targetYear, targetMonth, {
+        includeActiveWeek: false,
+        homeworks: allHomeworks,
+        now
+    });
+    const coachingSummary = buildParentSafeCoachingSummary(rawCoachingSummary);
+
+    const defaultSections = {
+        academicSummary: true,
+        examTrend: true,
+        weakTopics: true,
+        errorReasons: true,
+        homeworkSummary: true,
+        coachingSummary: true,
+        guidanceInterventions: true,
+        openFollowUps: true,
+        nextActions: true,
+        teacherNote: true
+    };
+
     return {
         student: studentProfile,
         period,
@@ -368,22 +541,13 @@ export function buildGuidanceReportData(student, options = {}) {
         weakTopics,
         errorReasons,
         homeworkSummary,
+        coachingSummary,
         guidanceRecords: guidanceRecordsList,
         outcomes,
         openFollowUps,
         nextActions: nextActions.slice(0, 4),
         nextFollowUpDate,
         teacherNote,
-        sections: options.sections || {
-            academicSummary: true,
-            examTrend: true,
-            weakTopics: true,
-            errorReasons: true,
-            homeworkSummary: true,
-            guidanceInterventions: true,
-            openFollowUps: true,
-            nextActions: true,
-            teacherNote: true
-        }
+        sections: options.sections ? { ...defaultSections, ...options.sections } : defaultSections
     };
 }

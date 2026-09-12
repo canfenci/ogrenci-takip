@@ -354,6 +354,167 @@ export function generateGuidancePdf(reportData, customJsPDF = null) {
         curY += 30;
     }
 
+    // ==================== SECTION: KOÇLUK VE ÇALIŞMA PLANI GELİŞİMİ ====================
+    if (sections.coachingSummary !== false && reportData.coachingSummary?.hasData) {
+        const cs = reportData.coachingSummary;
+        const hasBranchOrTopic = (cs.branchRows && cs.branchRows.length > 0) || (cs.topicRows && cs.topicRows.length > 0);
+        const branchTopicRows = Math.max(cs.branchRows?.length || 0, cs.topicRows?.length || 0);
+        const mainBoxHeight = hasBranchOrTopic ? (32 + (branchTopicRows * 5) + 3) : 24;
+
+        checkPageBreak(mainBoxHeight + 5);
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(margin, curY, contentWidth, mainBoxHeight, 2.5, 2.5, 'FD');
+
+        const coachingTitle = cs.monthLabel
+            ? `KOÇLUK VE ÇALIŞMA PLANI GELİŞİMİ (${safeText(cs.monthLabel)})`
+            : 'KOÇLUK VE ÇALIŞMA PLANI GELİŞİMİ';
+
+        doc.setFontSize(8);
+        doc.setFont(fontName, 'bold');
+        doc.setTextColor(79, 70, 229);
+        doc.text(coachingTitle, margin + 6, curY + 6.5);
+
+        // Core KPIs
+        const col1 = margin + 6;
+        const col2 = margin + (contentWidth / 3) + 2;
+        const col3 = margin + (2 * contentWidth / 3) + 2;
+
+        doc.setFontSize(7);
+        doc.setFont(fontName, 'bold');
+        doc.setTextColor(100, 116, 139);
+        doc.text('PLANLANAN SORU HEDEFİ', col1, curY + 12.5);
+        doc.text('GÖREV TAMAMLAMA', col2, curY + 12.5);
+        doc.text('PLANLANAN DENEME', col3, curY + 12.5);
+
+        doc.setFontSize(8.5);
+        doc.setFont(fontName, 'bold');
+        doc.setTextColor(15, 23, 42);
+
+        const qText = (cs.metrics?.questions?.target != null && cs.metrics.questions.target > 0)
+            ? `${cs.metrics.questions.actual} / ${cs.metrics.questions.target} soru (%${cs.metrics.questions.percent ?? 0})`
+            : `${cs.metrics?.questions?.actual ?? 0} Soru`;
+        doc.text(qText, col1, curY + 18.5);
+
+        const tText = (cs.metrics?.tasks?.total != null && cs.metrics.tasks.total > 0)
+            ? `${cs.metrics.tasks.completed} / ${cs.metrics.tasks.total} görev (%${cs.metrics.tasks.percent ?? 0})`
+            : `${cs.metrics?.tasks?.completed ?? 0} Görev`;
+        doc.text(tText, col2, curY + 18.5);
+
+        const eText = (cs.metrics?.plannedExams?.planned != null && cs.metrics.plannedExams.planned > 0)
+            ? `${cs.metrics.plannedExams.completed} / ${cs.metrics.plannedExams.planned} deneme (%${cs.metrics.plannedExams.percent ?? 0})`
+            : `${cs.metrics?.plannedExams?.completed ?? 0} Deneme`;
+        doc.text(eText, col3, curY + 18.5);
+
+        if (hasBranchOrTopic) {
+            doc.setDrawColor(241, 245, 249);
+            doc.line(margin + 6, curY + 22.5, pageWidth - margin - 6, curY + 22.5);
+
+            const subColWidth = (contentWidth - 16) / 2;
+            const subX1 = margin + 6;
+            const subX2 = margin + 8 + subColWidth;
+
+            doc.setFontSize(7.5);
+            doc.setFont(fontName, 'bold');
+            doc.setTextColor(71, 85, 105);
+            doc.text('BRANŞ GELİŞİMİ', subX1, curY + 27.5);
+            doc.text('ODAKLANILAN KONULAR', subX2, curY + 27.5);
+
+            let bY = curY + 32.5;
+            if (cs.branchRows && cs.branchRows.length > 0) {
+                cs.branchRows.slice(0, 5).forEach(b => {
+                    doc.setFontSize(7);
+                    doc.setFont(fontName, 'normal');
+                    doc.setTextColor(51, 65, 85);
+                    const bLabel = `${safeText(b.subject)}: ${b.completed} soru${b.target ? ` / ${b.target} (%${b.percent})` : ''}`;
+                    const trunc = doc.splitTextToSize(bLabel, subColWidth - 4);
+                    doc.text(trunc[0] || '', subX1, bY);
+                    bY += 5;
+                });
+            } else {
+                doc.setFontSize(7);
+                doc.setFont(fontName, 'normal');
+                doc.setTextColor(148, 163, 184);
+                doc.text('Branş hedef kaydı bulunmuyor.', subX1, bY);
+                bY += 5;
+            }
+
+            let tY = curY + 32.5;
+            if (cs.topicRows && cs.topicRows.length > 0) {
+                cs.topicRows.slice(0, 3).forEach(t => {
+                    doc.setFontSize(7);
+                    doc.setFont(fontName, 'normal');
+                    doc.setTextColor(51, 65, 85);
+                    const tLabel = `${safeText(t.topic)} (${safeText(t.branch || t.subject)}): ${t.completedCount} soru`;
+                    const trunc = doc.splitTextToSize(tLabel, subColWidth - 4);
+                    doc.text(trunc[0] || '', subX2, tY);
+                    tY += 5;
+                });
+            } else {
+                doc.setFontSize(7);
+                doc.setFont(fontName, 'normal');
+                doc.setTextColor(148, 163, 184);
+                doc.text('Konu hedef kaydı bulunmuyor.', subX2, tY);
+                tY += 5;
+            }
+        }
+
+        curY += mainBoxHeight + 4;
+
+        // Optional Strengths block
+        if (cs.strengths && cs.strengths.length > 0) {
+            checkPageBreak(12 + (cs.strengths.length * 6));
+            const strHeight = 10 + (cs.strengths.length * 5.5);
+            doc.setFillColor(240, 253, 244);
+            doc.setDrawColor(187, 247, 208);
+            doc.roundedRect(margin, curY, contentWidth, strHeight, 2, 2, 'FD');
+
+            doc.setFontSize(7.5);
+            doc.setFont(fontName, 'bold');
+            doc.setTextColor(22, 101, 52);
+            doc.text('GÜÇLÜ YÖNLER', margin + 6, curY + 6);
+
+            let sY = curY + 11;
+            cs.strengths.slice(0, 2).forEach(s => {
+                doc.setFontSize(7);
+                doc.setFont(fontName, 'normal');
+                doc.setTextColor(20, 83, 45);
+                const splitS = doc.splitTextToSize(`• ${safeText(s)}`, contentWidth - 12);
+                doc.text(splitS[0] || '', margin + 6, sY);
+                sY += 5.5;
+            });
+
+            curY += strHeight + 3;
+        }
+
+        // Optional Attention Areas block
+        if (cs.attentionAreas && cs.attentionAreas.length > 0) {
+            checkPageBreak(12 + (cs.attentionAreas.length * 6));
+            const attHeight = 10 + (cs.attentionAreas.length * 5.5);
+            doc.setFillColor(254, 249, 195);
+            doc.setDrawColor(253, 224, 71);
+            doc.roundedRect(margin, curY, contentWidth, attHeight, 2, 2, 'FD');
+
+            doc.setFontSize(7.5);
+            doc.setFont(fontName, 'bold');
+            doc.setTextColor(133, 77, 14);
+            doc.text('TAKİP EDİLECEK GELİŞİM ALANLARI', margin + 6, curY + 6);
+
+            let aY = curY + 11;
+            cs.attentionAreas.slice(0, 2).forEach(a => {
+                doc.setFontSize(7);
+                doc.setFont(fontName, 'normal');
+                doc.setTextColor(113, 63, 18);
+                const splitA = doc.splitTextToSize(`• ${safeText(a)}`, contentWidth - 12);
+                doc.text(splitA[0] || '', margin + 6, aY);
+                aY += 5.5;
+            });
+
+            curY += attHeight + 3;
+        }
+    }
+
     // ==================== SECTION: REHBERLİK MÜDAHALELERİ & SONUÇLARI ====================
     if (sections.guidanceInterventions !== false) {
         checkPageBreak(40);
