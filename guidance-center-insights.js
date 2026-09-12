@@ -4,6 +4,9 @@
 
 import { normalizeHomeworkErrorAnalysis, normalizeHataNedeniLabel, normalizeHataNedeniKey } from './homework-error-topics.js';
 import { getStudentOdevler } from './store.js';
+import { buildPriorityScore } from './guidance-priority-score.js';
+
+export { buildPriorityScore };
 
 function safeNumber(value) {
     const num = Number(value);
@@ -295,77 +298,33 @@ export function buildGuidancePriority(student, allHomeworks = null, now = new Da
         hasPlan: true
     } : (student.studyPlan && Object.keys(student.studyPlan).length ? { subject: 'Genel', hasPlan: true } : null);
 
-    const reasons = [];
-    let priorityScore = 0; // 0-100 score for sorting
-
-    // Evaluate signals
-    if (examTrend?.trend === 'declining') {
-        priorityScore += 40;
-        reasons.push(examTrend.detail);
-    }
-
-    const chronicTopic = repeatedTopics.find(t => t.isChronic);
-    const repeatTopic = repeatedTopics.find(t => t.isRepeated);
-
-    if (chronicTopic) {
-        priorityScore += 35;
-        reasons.push(`${chronicTopic.topic} ${chronicTopic.assignmentCount > 1 ? `${chronicTopic.assignmentCount} çalışmada tekrar etti` : `${chronicTopic.errorCount} hata ile kronik zayıflık`}`);
-    } else if (repeatTopic) {
-        priorityScore += 20;
-        reasons.push(`${repeatTopic.topic} konusunda tekrar eden eksik (${repeatTopic.errorCount} hata)`);
-    }
-
-    if (dominantError && dominantError.count >= 4) {
-        priorityScore += 25;
-        reasons.push(`En sık hata türü: ${dominantError.label} (${dominantError.count} kez)`);
-    }
-
-    if (discipline?.isProblematic) {
-        priorityScore += 20;
-        reasons.push(`Ödev tamamlama oranı %${discipline.completionRate} (${discipline.overdue} geciken ödev)`);
-    }
-
-    if (targetGap !== null && targetGap >= 4.0) {
-        priorityScore += 10;
-        reasons.push(`Hedef nete ${targetGap.toFixed(2)} net fark var`);
-    }
-
-    // Check if student has due/overdue guidance follow-up
     const rawGuidanceRecords = Array.isArray(student.guidanceRecords) ? student.guidanceRecords : (Array.isArray(student.rehberlikKayitlari) ? student.rehberlikKayitlari : []);
     const todayStr = (now instanceof Date && !isNaN(now.getTime())) ? now.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
     const hasOverdueGuidance = rawGuidanceRecords.some(r => r && (r.status === 'open' || !r.status || r.durum === 'acik') && r.followUpDate && r.followUpDate <= todayStr);
 
-    if (hasOverdueGuidance) {
-        priorityScore += 10;
-        reasons.push('Takip tarihi gelmiş rehberlik müdahalesi bulunuyor');
-    }
+    const scoreResult = buildPriorityScore({
+        student,
+        homeworks,
+        now,
+        repeatedTopics,
+        dominantError,
+        examTrend,
+        discipline,
+        targetGap
+    });
 
-    // Determine priority level
-    let priority = 'watch';
-    let priorityLabel = 'İzle';
+    let priority = scoreResult.priority;
+    let priorityLabel = scoreResult.priorityLabel;
 
-    const hasCriticalDecline = examTrend?.trend === 'declining';
-    const hasCriticalDiscipline = discipline?.completionRate < 50 || discipline?.overdue >= 3;
-    const hasChronicTopic = !!chronicTopic;
-    const hasCriticalBilgiEksikligi = dominantError?.key === 'bilgi_eksikligi' && dominantError.count >= 6;
-
-    if (priorityScore >= 55 || hasCriticalDecline || hasCriticalDiscipline || hasChronicTopic || hasCriticalBilgiEksikligi) {
-        priority = 'high';
-        priorityLabel = 'Yüksek';
-    } else if (priorityScore >= 20 || repeatTopic || discipline?.isProblematic || (dominantError && dominantError.count >= 3) || (targetGap !== null && targetGap >= 3.0)) {
+    // Legacy fallback for guidance center callers: if student has 2-exam decline, flag as medium for intervention
+    if (priority === 'watch' && examTrend?.trend === 'declining') {
         priority = 'medium';
         priorityLabel = 'Orta';
-    } else {
-        priority = 'watch';
-        priorityLabel = 'İzle';
-        if (!reasons.length) {
-            reasons.push('Genel performans stabil, kritik sinyal yok');
-        }
     }
 
     const recommendation = getRecommendedIntervention({
         dominantError,
-        repeatedTopic: chronicTopic || repeatTopic,
+        repeatedTopic: repeatedTopics.find(t => t.isChronic) || repeatedTopics.find(t => t.isRepeated),
         examTrend,
         discipline,
         targetGap
@@ -379,8 +338,11 @@ export function buildGuidancePriority(student, allHomeworks = null, now = new Da
         veliTel: student.veliTel || '',
         priority,
         priorityLabel,
-        priorityScore,
-        reasons: reasons.slice(0, 3), // Max 3 concise reasons
+        priorityScore: scoreResult.priorityScore,
+        reasons: scoreResult.reasons,
+        confidence: scoreResult.confidence,
+        dataCoverage: scoreResult.dataCoverage,
+        signals: scoreResult.signals,
         recommendation,
         repeatedTopics,
         dominantError,
