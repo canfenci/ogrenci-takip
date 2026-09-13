@@ -31,6 +31,12 @@ import {
     buildSchoolExamPerformanceInsights,
     LGS_SUBJECTS
 } from './guidance-performance-insights.js';
+import { buildMonthlyCoachingSummary } from './coaching-plan-monthly-summary.js';
+import {
+    renderCoachingMonthlyDashboardHtml,
+    getAvailableCoachingMonths,
+    getDefaultCoachingMonth
+} from './guidance-coaching-dashboard.js';
 
 export function renderGuidancePage(options = {}) {
     store.currentPage = 'guidance';
@@ -982,6 +988,18 @@ export function renderGuidanceStudentDetail(studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return renderGuidancePage();
 
+    window._currentGuidanceStudentId = studentId;
+
+    // Student Switch Safety for Coaching Month
+    if (!window._guidanceCoachingSelectedMonth || window._guidanceCoachingSelectedMonth.studentId !== studentId) {
+        const defaultYm = getDefaultCoachingMonth(student);
+        window._guidanceCoachingSelectedMonth = {
+            studentId,
+            year: defaultYm.year,
+            month: defaultYm.month
+        };
+    }
+
     const detail = buildStudentGuidanceDetail(student);
 
     const priorityBadgeStyles = {
@@ -1650,7 +1668,17 @@ export function renderGuidanceStudentDetail(studentId) {
                             <i class="fas fa-brain"></i>
                         </span>
                         <div class="min-w-0 flex-1">
-                            <p class="text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-300">Koçluk Analizi</p>
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-300">Koçluk Analizi</p>
+                                <button type="button"
+                                        onclick="openGuidanceMonthlyCoachingDashboard('${studentId}')"
+                                        class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 transition inline-flex items-center gap-1 min-h-[44px] py-1 px-1 focus:outline-none focus:underline"
+                                        data-testid="overview-monthly-coaching-link"
+                                        aria-label="Aylık Koçluk Özeti sayfasına git">
+                                    <span>Aylık Koçluk Özeti</span>
+                                    <i class="fas fa-arrow-right text-[10px]"></i>
+                                </button>
+                            </div>
                             <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-1 leading-relaxed" data-testid="coaching-summary">
                                 ${escapeHtml(coachingSummary)}
                             </p>
@@ -1815,9 +1843,58 @@ export function renderGuidanceStudentDetail(studentId) {
             </div>
         `;
     } else if (studentTab === 'study') {
-        const coachingPlan = student.coachingPlan && typeof student.coachingPlan === 'object' && (student.coachingPlan.status === 'active' || student.coachingPlan.status === 'draft')
-            ? student.coachingPlan : null;
-        window.__cpCurrentPlan = coachingPlan;
+        const studySubTab = window._guidanceStudySubTab === 'monthly' ? 'monthly' : 'weekly';
+
+        const studySubTabsHtml = `
+            <div class="flex items-center justify-between gap-3 mb-4 bg-gray-100 dark:bg-gray-800/70 p-1 rounded-xl w-fit" role="tablist" aria-label="Çalışma Planı Görünüm Seçimi">
+                <button type="button"
+                        role="tab"
+                        aria-selected="${studySubTab === 'weekly' ? 'true' : 'false'}"
+                        onclick="switchGuidanceStudySubTab('${studentId}', 'weekly')"
+                        class="px-4 py-2 text-xs font-bold rounded-lg transition min-h-[44px] flex items-center gap-2 ${studySubTab === 'weekly' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-black' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}"
+                        data-testid="study-subtab-weekly">
+                    <i class="fas fa-calendar-week text-[11px]"></i>
+                    <span>Haftalık Plan</span>
+                </button>
+                <button type="button"
+                        role="tab"
+                        aria-selected="${studySubTab === 'monthly' ? 'true' : 'false'}"
+                        onclick="switchGuidanceStudySubTab('${studentId}', 'monthly')"
+                        class="px-4 py-2 text-xs font-bold rounded-lg transition min-h-[44px] flex items-center gap-2 ${studySubTab === 'monthly' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm font-black' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}"
+                        data-testid="study-subtab-monthly">
+                    <i class="fas fa-chart-pie text-[11px]"></i>
+                    <span>Aylık Koçluk Özeti</span>
+                </button>
+            </div>
+        `;
+
+        if (studySubTab === 'monthly') {
+            const selectedMonthState = window._guidanceCoachingSelectedMonth || { studentId, ...getDefaultCoachingMonth(student) };
+            const summary = buildMonthlyCoachingSummary(
+                student,
+                selectedMonthState.year,
+                selectedMonthState.month,
+                {
+                    includeActiveWeek: true
+                }
+            );
+
+            const monthlyDashboardHtml = renderCoachingMonthlyDashboardHtml(summary, student, {
+                studentId,
+                now: new Date()
+            });
+
+            tabBodyHtml = `
+                <!-- ==================== ÇALIŞMA PLANI - AYLIK KOÇLUK ÖZETİ ==================== -->
+                <div class="space-y-4">
+                    ${studySubTabsHtml}
+                    ${monthlyDashboardHtml}
+                </div>
+            `;
+        } else {
+            const coachingPlan = student.coachingPlan && typeof student.coachingPlan === 'object' && (student.coachingPlan.status === 'active' || student.coachingPlan.status === 'draft')
+                ? student.coachingPlan : null;
+            window.__cpCurrentPlan = coachingPlan;
         const planProfile = student.studyPlanProfile || null;
         const rawStudyPlan = student.studyPlan || {};
         const CANONICAL_DAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
@@ -2131,6 +2208,7 @@ export function renderGuidanceStudentDetail(studentId) {
         tabBodyHtml = `
             <!-- ==================== ÇALIŞMA PLANI ==================== -->
             <div class="space-y-4">
+                ${studySubTabsHtml}
                 <!-- Aktif Plan Özeti ve Haftalık Program -->
                 ${studyPlanMainContentHtml}
 
@@ -2176,6 +2254,7 @@ export function renderGuidanceStudentDetail(studentId) {
                 </section>
             </div>
         `;
+        }
     } else if (studentTab === 'report') {
         tabBodyHtml = `
             <!-- ==================== RAPOR ==================== -->
@@ -2314,6 +2393,22 @@ export function renderGuidanceStudentDetail(studentId) {
             setTimeout(() => {
                 renderGuidancePerformanceCharts(studentId, perfTab, hwFilteredSeries, examFilteredSeries, examInsights, selectedExamSubject);
             }, 0);
+        }
+    }
+
+    if (studentTab === 'study' && window._guidanceStudySubTab === 'monthly') {
+        const selector = typeof document !== 'undefined' ? document.querySelector('[data-testid="coaching-month-selector"]') : null;
+        if (selector) {
+            selector.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn || btn.disabled) return;
+                const action = btn.dataset.action;
+                const y = parseInt(btn.dataset.year, 10);
+                const m = parseInt(btn.dataset.month, 10);
+                if (action === 'prev-coaching-month' || action === 'next-coaching-month') {
+                    switchGuidanceCoachingMonth(studentId, y, m);
+                }
+            });
         }
     }
 }
@@ -2509,6 +2604,97 @@ export function setGuidanceExamRange(studentId, range) {
 export function setGuidanceExamSubject(studentId, subjectKey) {
     window._guidanceStudentTab = 'performance';
     window._guidanceExamSelectedSubject = subjectKey;
+    renderGuidanceStudentDetail(studentId);
+}
+
+export function switchGuidanceStudySubTab(studentIdOrSubTab, maybeSubTab) {
+    let studentId;
+    let subTab;
+    if (maybeSubTab !== undefined) {
+        studentId = studentIdOrSubTab;
+        subTab = maybeSubTab;
+    } else {
+        studentId = window._currentGuidanceStudentId || window._guidanceCoachingSelectedMonth?.studentId;
+        subTab = studentIdOrSubTab;
+    }
+
+    if (subTab !== 'weekly' && subTab !== 'monthly') {
+        return; // safely ignore invalid subTab
+    }
+
+    window._guidanceStudySubTab = subTab;
+    if (studentId) {
+        renderGuidanceStudentDetail(studentId);
+    }
+}
+
+export function switchGuidanceCoachingMonth(arg1, arg2, arg3) {
+    let studentId;
+    let year;
+    let month;
+
+    if (typeof arg1 === 'string' && arg2 !== undefined && arg3 !== undefined) {
+        studentId = arg1;
+        year = Number(arg2);
+        month = Number(arg3);
+    } else {
+        studentId = window._currentGuidanceStudentId || window._guidanceCoachingSelectedMonth?.studentId;
+        year = Number(arg1);
+        month = Number(arg2);
+    }
+
+    if (!studentId) return;
+
+    // Validate numeric year and month
+    if (!Number.isInteger(year) || !Number.isInteger(month)) return;
+    if (month < 1 || month > 12) return;
+    if (year < 2000 || year > 2100) return;
+
+    // Future guard: reject any month in the future relative to current time
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    if (year > currentYear || (year === currentYear && month > currentMonth)) {
+        return; // Future month rejected safely
+    }
+
+    // Earliest month bound guard: check against student available months
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (student) {
+        const available = getAvailableCoachingMonths(student);
+        if (available.length > 0) {
+            const earliest = available[0];
+            if (year < earliest.year || (year === earliest.year && month < earliest.month)) {
+                return; // Prior to earliest available month rejected safely
+            }
+        }
+    }
+
+    window._guidanceCoachingSelectedMonth = {
+        studentId,
+        year,
+        month
+    };
+
+    renderGuidanceStudentDetail(studentId);
+}
+
+export function openGuidanceMonthlyCoachingDashboard(studentId) {
+    window._guidanceStudentTab = 'study';
+    window._guidanceStudySubTab = 'monthly';
+
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (student) {
+        const defaultYm = getDefaultCoachingMonth(student);
+        window._guidanceCoachingSelectedMonth = {
+            studentId,
+            year: defaultYm.year,
+            month: defaultYm.month
+        };
+    }
+
     renderGuidanceStudentDetail(studentId);
 }
 
@@ -3178,3 +3364,6 @@ window.switchGuidancePerformanceTab = switchGuidancePerformanceTab;
 window.setGuidanceHomeworkRange = setGuidanceHomeworkRange;
 window.setGuidanceExamRange = setGuidanceExamRange;
 window.setGuidanceExamSubject = setGuidanceExamSubject;
+window.switchGuidanceStudySubTab = switchGuidanceStudySubTab;
+window.switchGuidanceCoachingMonth = switchGuidanceCoachingMonth;
+window.openGuidanceMonthlyCoachingDashboard = openGuidanceMonthlyCoachingDashboard;

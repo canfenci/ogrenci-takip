@@ -146,6 +146,43 @@ test('02C1-04: Future Month Guard (current month -> next disabled; past month ->
     assert.doesNotMatch(pastHtml, /cursor-not-allowed/);
 });
 
+test('02C1-04b: Earliest Month Bound (canGoPrev and availableMonths policy)', () => {
+    const refNow = new Date('2026-09-15T12:00:00Z');
+    const availableMonths = [
+        { year: 2026, month: 7 },
+        { year: 2026, month: 8 }
+    ];
+
+    // Case 1: At earliest available month (July 2026) -> Previous button MUST be disabled
+    const earliestHtml = renderMonthSelectorHtml(
+        { year: 2026, month: 7, monthLabel: 'Temmuz 2026' },
+        { now: refNow, availableMonths }
+    );
+    assert.match(earliestHtml, /data-action="prev-coaching-month"[^>]*disabled/);
+    assert.match(earliestHtml, /data-action="prev-coaching-month"[^>]*aria-disabled="true"/);
+
+    // Case 2: Above earliest month (August 2026) -> Previous button MUST be enabled
+    const laterHtml = renderMonthSelectorHtml(
+        { year: 2026, month: 8, monthLabel: 'Ağustos 2026' },
+        { now: refNow, availableMonths }
+    );
+    assert.doesNotMatch(laterHtml, /data-action="prev-coaching-month"[^>]*disabled/);
+
+    // Case 3: Empty available months -> Previous button MUST be disabled
+    const emptyHtml = renderMonthSelectorHtml(
+        { year: 2026, month: 8, monthLabel: 'Ağustos 2026' },
+        { now: refNow, availableMonths: [] }
+    );
+    assert.match(emptyHtml, /data-action="prev-coaching-month"[^>]*disabled/);
+
+    // Case 4: Explicit canGoPrev: false -> Previous button MUST be disabled
+    const explicitDisabledHtml = renderMonthSelectorHtml(
+        { year: 2026, month: 8, monthLabel: 'Ağustos 2026' },
+        { now: refNow, canGoPrev: false }
+    );
+    assert.match(explicitDisabledHtml, /data-action="prev-coaching-month"[^>]*disabled/);
+});
+
 test('02C1-05: Month Boundaries (Jan previous -> Dec prev year, Dec next -> Jan next year)', () => {
     // January 2027 previous -> December 2026
     const janHtml = renderMonthSelectorHtml(

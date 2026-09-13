@@ -260,17 +260,34 @@ export function renderMonthSelectorHtml(period = {}, options = {}) {
     const isCurrentOrFuture = (y > currentYm.year) || (y === currentYm.year && m >= currentYm.month);
     const canGoNext = options.canGoNext !== undefined ? !!options.canGoNext : !isCurrentOrFuture;
 
-    const finalizedWeeks = safeNum(period.finalizedWeekCount ?? period.weekCount, 0);
-    const hasPreview = !!period.previewWeekIncluded;
+    let canGoPrev = true;
+    if (options.canGoPrev !== undefined) {
+        canGoPrev = !!options.canGoPrev;
+    } else if (Array.isArray(options.availableMonths)) {
+        if (options.availableMonths.length === 0) {
+            canGoPrev = false;
+        } else {
+            const earliest = options.availableMonths[0];
+            const isEarliestOrBefore = (y < earliest.year) || (y === earliest.year && m <= earliest.month);
+            canGoPrev = !isEarliestOrBefore;
+        }
+    }
+
+    const prevBtnClass = canGoPrev
+        ? 'px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition min-h-[44px] min-w-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500'
+        : 'px-3 py-2 text-sm font-medium rounded-lg text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/60 transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-not-allowed opacity-50';
 
     const nextBtnClass = canGoNext
         ? 'px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition min-h-[44px] min-w-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500'
         : 'px-3 py-2 text-sm font-medium rounded-lg text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/60 transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-not-allowed opacity-50';
 
+    const finalizedWeeks = safeNum(period.finalizedWeekCount ?? period.weekCount, 0);
+    const hasPreview = !!period.previewWeekIncluded;
+
     return `
 <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-gray-800 p-3.5 rounded-xl border border-gray-200/80 dark:border-gray-700 shadow-sm" data-testid="coaching-month-selector">
     <div class="flex items-center space-x-2">
-        <button type="button" class="px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition min-h-[44px] min-w-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500" data-action="prev-coaching-month" data-year="${prevY}" data-month="${prevM}" aria-label="Önceki Ay">
+        <button type="button" class="${prevBtnClass}" data-action="prev-coaching-month" data-year="${prevY}" data-month="${prevM}" aria-label="Önceki Ay"${!canGoPrev ? ' disabled aria-disabled="true"' : ''}>
             <i class="fas fa-chevron-left text-xs"></i>
         </button>
         <span class="text-base font-semibold text-gray-900 dark:text-white px-2 tracking-tight select-none" data-testid="selected-month-label">${escapeHtml(label)}</span>
@@ -890,6 +907,13 @@ export function renderCoachingMonthlyDashboardHtml(monthlySummary, student = {},
     const attentionAreas = monthlySummary.attentionAreas || [];
     const recentFocuses = monthlySummary.recentFocuses || [];
 
+    const availableMonths = options.availableMonths || (student ? getAvailableCoachingMonths(student) : []);
+    const selectorOptions = {
+        ...options,
+        availableMonths,
+        studentId: options.studentId || student?.id || ''
+    };
+
     // Determine whether this month has any data at all
     const hasAnyData = (safeNum(period.weekCount) > 0) ||
         (weeklyTrend.length > 0) ||
@@ -901,7 +925,7 @@ export function renderCoachingMonthlyDashboardHtml(monthlySummary, student = {},
     if (!hasAnyData) {
         return `
 <div class="space-y-4" data-testid="guidance-coaching-dashboard">
-    ${renderMonthSelectorHtml(period, options)}
+    ${renderMonthSelectorHtml(period, selectorOptions)}
     ${renderCoachingEmptyStateHtml(period)}
 </div>`.trim();
     }
@@ -909,7 +933,7 @@ export function renderCoachingMonthlyDashboardHtml(monthlySummary, student = {},
     return `
 <div class="space-y-4" data-testid="guidance-coaching-dashboard">
     <!-- 1. Ay Seçici -->
-    ${renderMonthSelectorHtml(period, options)}
+    ${renderMonthSelectorHtml(period, selectorOptions)}
 
     <!-- 2. Temel Plan KPI Kartları (Finalized Metrics Only) -->
     ${renderCoachingKpiCardsHtml(planMetrics, period)}
