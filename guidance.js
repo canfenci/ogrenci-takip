@@ -1783,9 +1783,9 @@ export function renderGuidanceStudentDetail(studentId) {
             <!-- ==================== MÜDAHALELER ==================== -->
             <div class="space-y-4">
                 <section class="grid gap-4 lg:grid-cols-3">
-                    <!-- Sol 2 Kolon: Rehberlik Günlüğü ve Müdahale Kayıtları -->
-                    <div class="lg:col-span-2 space-y-4">
-                        <article class="app-panel p-5 space-y-3.5">
+                    <!-- Sol 2 Kolon: Rehberlik Günlüğü ve Müdahale Kayıtları (Masaüstünde sol 2 kolon, mobilde önerilen müdahaleden sonra) -->
+                    <div class="lg:col-span-2 space-y-4 order-2 lg:order-1">
+                        <article class="app-panel p-4 sm:p-5 space-y-3.5">
                             <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                                 <div>
                                     <div class="flex items-center gap-2">
@@ -1808,9 +1808,9 @@ export function renderGuidanceStudentDetail(studentId) {
                         </article>
                     </div>
 
-                    <!-- Sağ 1 Kolon: Önerilen Müdahale + Zaman Çizelgesi -->
-                    <div class="space-y-4">
-                        <article class="app-panel p-5 space-y-3 bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-200/60 dark:border-indigo-900/50">
+                    <!-- Sağ 1 Kolon: Önerilen Müdahale + Zaman Çizelgesi (Mobilde ilk sırada) -->
+                    <div class="space-y-4 order-1 lg:order-2">
+                        <article class="app-panel p-4 sm:p-5 space-y-3 bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-200/60 dark:border-indigo-900/50">
                             <div class="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/60 pb-3">
                                 <div class="flex items-center gap-2">
                                     <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs">
@@ -1827,9 +1827,18 @@ export function renderGuidanceStudentDetail(studentId) {
                                     ${escapeHtml(detail.recommendation.action)}
                                 </p>
                             </div>
+                            <div class="pt-2 border-t border-indigo-100/80 dark:border-indigo-900/40">
+                                <button type="button"
+                                        onclick="showGuidanceRecordModal('${studentId}')"
+                                        class="btn-primary w-full py-2 px-3 text-xs font-bold min-h-[44px] flex items-center justify-center gap-2"
+                                        data-testid="save-recommended-intervention-btn">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    <span>Önerilen Müdahaleyi Kaydet</span>
+                                </button>
+                            </div>
                         </article>
 
-                        <article class="app-panel p-5 space-y-3">
+                        <article class="app-panel p-4 sm:p-5 space-y-3">
                             <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                                 <h3 class="font-black text-base text-gray-900 dark:text-white">Öğrenci Zaman Çizelgesi</h3>
                                 <span class="text-xs font-bold text-gray-400">${detail.timeline.length} hareket</span>
@@ -2356,25 +2365,48 @@ export function renderGuidanceStudentDetail(studentId) {
                             <p class="app-page-subtitle mt-0.5">${escapeHtml(detail.sinif ? `${detail.sinif}. Sınıf` : 'Sınıf yok')}${detail.okul ? ` · ${escapeHtml(detail.okul)}` : ''}${detail.hedefLise ? ` · Hedef: ${escapeHtml(detail.hedefLise)}` : ''}</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <button onclick="showGuidanceRecordModal('${studentId}', null, 'general')" class="btn-primary min-h-[44px] px-4 text-xs font-bold flex items-center gap-1.5">
-                            <i class="fas fa-plus"></i> Not Ekle
-                        </button>
-                        <button onclick="showGuidanceRecordModal('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold flex items-center gap-1.5">
-                            <i class="fas fa-clipboard-list"></i> Rehberlik Kaydı
-                        </button>
-                        <button onclick="showStudyPlanSetup('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold flex items-center gap-1.5">
-                            <i class="fas fa-compass"></i> Çalışma Planı
-                        </button>
-                        <button onclick="openCockpitHomework('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold">
-                            <i class="fas fa-plus mr-1"></i> Ödev
-                        </button>
-                        <button onclick="openGuidanceReportModal('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-bold flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800" title="Öğrenci Rehberlik Gelişim Raporu (PDF)">
-                            <i class="fas fa-file-pdf text-red-500"></i> Veli Raporu
-                        </button>
-                        <button onclick="openStudentCockpitDirect('${studentId}')" class="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold" title="Öğrenci Kokpiti">
-                            <i class="fas fa-chart-line mr-1"></i> Kokpiti Aç
-                        </button>
+                    <!-- Action Toolbar: Primary + Secondary Hierarchy (Max 2 rows on 390px mobile, inline on desktop) -->
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0" data-testid="student-detail-header-actions">
+                        <!-- Primary Actions Row -->
+                        <div class="flex items-center gap-2">
+                            <button onclick="showGuidanceRecordModal('${studentId}')"
+                                    class="btn-primary flex-1 sm:flex-initial min-h-[44px] px-3.5 sm:px-4 text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap"
+                                    data-testid="header-guidance-record-btn">
+                                <i class="fas fa-plus"></i>
+                                <span>Rehberlik Kaydı</span>
+                            </button>
+                            <button onclick="openGuidanceReportModal('${studentId}')"
+                                    class="btn-secondary flex-1 sm:flex-initial min-h-[44px] px-3 sm:px-3.5 text-xs font-bold flex items-center justify-center gap-1.5 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 whitespace-nowrap"
+                                    title="Öğrenci Rehberlik Gelişim Raporu (PDF)"
+                                    data-testid="header-parent-report-btn">
+                                <i class="fas fa-file-pdf text-red-500"></i>
+                                <span>Veli Raporu</span>
+                            </button>
+                        </div>
+                        <!-- Secondary Shortcuts Row -->
+                        <div class="flex items-center gap-1.5 sm:gap-2">
+                            <button onclick="showStudyPlanSetup('${studentId}')"
+                                    class="btn-secondary flex-1 sm:flex-initial min-h-[44px] px-2.5 sm:px-3 text-xs font-semibold flex items-center justify-center gap-1 whitespace-nowrap"
+                                    title="Çalışma Planı Oluştur / Düzenle"
+                                    data-testid="header-study-plan-btn">
+                                <i class="fas fa-compass text-slate-500"></i>
+                                <span class="hidden xs:inline">Çalışma </span><span>Planı</span>
+                            </button>
+                            <button onclick="openCockpitHomework('${studentId}')"
+                                    class="btn-secondary flex-1 sm:flex-initial min-h-[44px] px-2.5 sm:px-3 text-xs font-semibold flex items-center justify-center gap-1 whitespace-nowrap"
+                                    title="Ödev Yönetimi"
+                                    data-testid="header-homework-btn">
+                                <i class="fas fa-plus text-slate-500"></i>
+                                <span>Ödev</span>
+                            </button>
+                            <button onclick="openStudentCockpitDirect('${studentId}')"
+                                    class="btn-secondary flex-1 sm:flex-initial min-h-[44px] px-2.5 sm:px-3 text-xs font-semibold flex items-center justify-center gap-1 whitespace-nowrap"
+                                    title="Öğrenci Kokpiti"
+                                    data-testid="header-cockpit-btn">
+                                <i class="fas fa-chart-line text-blue-500"></i>
+                                <span>Kokpit</span><span class="hidden sm:inline">i Aç</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>
