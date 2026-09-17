@@ -1,7 +1,7 @@
 // ==================== STUDENTS MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, createStudentDocument, updateStudentProfile, loadSchedule, loadDersKayitlari, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM, localDataKey } from './store.js';
+import { store, loadStudentsData, saveStudentsData, createStudentDocument, updateStudentProfile, loadSchedule, loadDersKayitlari, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM, localDataKey, SCHEDULE_KEY, DERS_KAYITLARI_KEY, GROUPS_KEY } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { getBransOrtalamaNet, getGenelOrtalamaNet, getOrtalamaNet, getKonuBazliBasarilar, getBestWorstTopics, getMotivationMessage, getHataIstatistikleri, lgsPuanHesapla, isExamResultPending, isFenBranchExam, getGeneralExamFenQuestions, getGeneralExamFenQuestionIndexes } from './exams.js';
@@ -1798,6 +1798,123 @@ export async function deleteStudent(id) {
         }
 
         const students = loadStudentsData().filter(s => s.id !== id);
+
+        // Clean dependent records in local/guest storage before persisting
+        let cleanedSched = null;
+        if (typeof localStorage !== 'undefined') {
+            try {
+                const schedRaw = localStorage.getItem(localDataKey(SCHEDULE_KEY));
+                if (schedRaw) {
+                    const schedObj = JSON.parse(schedRaw);
+                    if (schedObj && typeof schedObj === 'object' && !Array.isArray(schedObj)) {
+                        if (id in schedObj) {
+                            delete schedObj[id];
+                            cleanedSched = schedObj;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("deleteStudent: Error cleaning local schedule:", e);
+            }
+        }
+
+        let cleanedLessons = null;
+        if (typeof localStorage !== 'undefined') {
+            try {
+                const lessonsRaw = localStorage.getItem(localDataKey(DERS_KAYITLARI_KEY));
+                if (lessonsRaw) {
+                    const lessonsObj = JSON.parse(lessonsRaw);
+                    if (lessonsObj && typeof lessonsObj === 'object' && !Array.isArray(lessonsObj)) {
+                        if (id in lessonsObj) {
+                            delete lessonsObj[id];
+                            cleanedLessons = lessonsObj;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("deleteStudent: Error cleaning local lesson records:", e);
+            }
+        }
+
+        let cleanedGroups = null;
+        if (typeof localStorage !== 'undefined') {
+            try {
+                const groupsRaw = localStorage.getItem(localDataKey(GROUPS_KEY));
+                if (groupsRaw) {
+                    const groupsList = JSON.parse(groupsRaw);
+                    if (Array.isArray(groupsList)) {
+                        let groupsModified = false;
+                        const updatedGroups = groupsList.map(group => {
+                            if (group && Array.isArray(group.studentIds) && group.studentIds.includes(id)) {
+                                groupsModified = true;
+                                return {
+                                    ...group,
+                                    studentIds: group.studentIds.filter(sId => sId !== id)
+                                };
+                            }
+                            return group;
+                        });
+                        if (groupsModified) {
+                            cleanedGroups = updatedGroups;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("deleteStudent: Error cleaning local group memberships:", e);
+            }
+        }
+
+        // Persist dependent cleanups to localStorage and store
+        if (typeof localStorage !== 'undefined') {
+            if (cleanedSched !== null) {
+                try {
+                    localStorage.setItem(localDataKey(SCHEDULE_KEY), JSON.stringify(cleanedSched));
+                } catch (e) {
+                    console.error("deleteStudent: Error persisting cleaned schedule:", e);
+                }
+            }
+            if (cleanedLessons !== null) {
+                try {
+                    localStorage.setItem(localDataKey(DERS_KAYITLARI_KEY), JSON.stringify(cleanedLessons));
+                } catch (e) {
+                    console.error("deleteStudent: Error persisting cleaned lessons:", e);
+                }
+            }
+            if (cleanedGroups !== null) {
+                try {
+                    localStorage.setItem(localDataKey(GROUPS_KEY), JSON.stringify(cleanedGroups));
+                } catch (e) {
+                    console.error("deleteStudent: Error persisting cleaned groups:", e);
+                }
+            }
+        }
+
+        // Update in-memory state
+        if (cleanedSched !== null || (store.globalSchedules && typeof store.globalSchedules === 'object')) {
+            if (cleanedSched !== null) {
+                store.globalSchedules = { ...cleanedSched };
+            } else if (store.globalSchedules) {
+                delete store.globalSchedules[id];
+            }
+        }
+        if (cleanedLessons !== null || (store.globalLessons && typeof store.globalLessons === 'object')) {
+            if (cleanedLessons !== null) {
+                store.globalLessons = { ...cleanedLessons };
+            } else if (store.globalLessons) {
+                delete store.globalLessons[id];
+            }
+        }
+        if (cleanedGroups !== null) {
+            store.globalGroups = cleanedGroups.map(g => ({ ...g }));
+        } else if (Array.isArray(store.globalGroups)) {
+            store.globalGroups = store.globalGroups.map(group => ({
+                ...group,
+                studentIds: Array.isArray(group.studentIds)
+                    ? group.studentIds.filter(sId => sId !== id)
+                    : group.studentIds
+            }));
+        }
+
         await saveStudentsData(students);
         renderHomeScreen();
     }

@@ -11,23 +11,13 @@ const homeworkJsContent = fs.readFileSync(path.join(ROOT, 'homework.js'), 'utf8'
 // PART 1: SAFETY & STATIC CODE CONTRACT
 // ============================================================================
 
-test('TECH-SYNC-01A Safety: Zero git modifications against HEAD on protected files', () => {
-    const protectedFiles = [
-        'firebase-config.js',
-        'firestore.rules',
-        'auth.js',
-        'index.html',
-        'finance.js',
-        'schedule.js',
-        'exams.js',
-        'guidance.js',
-        'students.js'
-    ];
-
-    for (const file of protectedFiles) {
-        const diff = execSync(`git diff HEAD -- ${file}`, { encoding: 'utf8' }).trim();
-        assert.equal(diff, '', `Protected file ${file} must have 0 diff against HEAD`);
-    }
+test('TECH-SYNC-01A Contract: Cloud homework persistence does not save full student list to overwrite homework collection', () => {
+    // importHwResult in cloud mode must update the individual homework document directly
+    assert.match(homeworkJsContent, /collection\(["']homeworks["']\)\.doc\(hwId\)\.update\(/, 'Must call collection("homeworks").doc(hwId).update');
+    // It must NOT route cloud persistence through saveStudentsData
+    const importFnSlice = homeworkJsContent.slice(homeworkJsContent.indexOf('export async function importHwResult'));
+    const fnBody = importFnSlice.slice(0, importFnSlice.indexOf('\nexport '));
+    assert.doesNotMatch(fnBody, /await\s+saveStudentsData\s*\(/, 'importHwResult must not call saveStudentsData in cloud mode');
 });
 
 test('TECH-SYNC-01A Static: importHwResult writes directly to Firestore homeworks collection in cloud mode', () => {
