@@ -225,13 +225,15 @@ export async function saveCoachingPlanForStudent(studentId, coachingPlanData) {
     return res;
 }
 
-export async function archiveCoachingPlanForStudent(studentId) {
+export async function archiveCoachingPlanForStudent(studentId, options = {}) {
     if (!studentId) throw new Error('studentId is required');
     const students = loadStudentsData();
     const student = students.find(s => s.id === studentId);
     if (!student) return { ok: false, error: 'Student not found' };
 
-    const currentPlan = student.coachingPlan;
+    const currentPlan = (options && options.coachingPlanOverride && typeof options.coachingPlanOverride === 'object')
+        ? options.coachingPlanOverride
+        : student.coachingPlan;
     if (!currentPlan || typeof currentPlan !== 'object') return { ok: false, error: 'No active coaching plan' };
 
     const progressSummary = getPlanProgressSummary(currentPlan);
@@ -838,4 +840,5 @@ if (typeof window !== 'undefined') {
     window.addGrowthLog = addGrowthLog;
     window.deleteGrowthLog = deleteGrowthLog;
     window.setErrorFilter = setErrorFilter;
+    window.archiveCoachingPlanForStudent = archiveCoachingPlanForStudent;
 }

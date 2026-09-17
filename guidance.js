@@ -2192,9 +2192,12 @@ export function renderGuidanceStudentDetail(studentId) {
                                     <label class="text-[10px] font-black uppercase tracking-wide text-gray-500 mb-1 block">Gelecek Hafta Odak</label>
                                     <textarea id="cp-next-week-focus" rows="2" class="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" placeholder="Gelecek hafta için öncelikler...">${escapeHtml(coachingPlan.weeklyCheckIn?.nextWeekFocus || '')}</textarea>
                                 </div>
-                                <div class="flex items-center gap-2 pt-1">
-                                    <button onclick="saveCoachingPlanCheckin('${studentId}')" class="btn-primary min-h-[44px] px-4 text-xs font-bold inline-flex items-center gap-1.5">
+                                <div class="flex items-center gap-2 pt-1 flex-wrap">
+                                    <button onclick="saveCoachingPlanCheckin('${studentId}')" class="btn-primary min-h-[44px] px-4 text-xs font-bold inline-flex items-center gap-1.5" data-testid="cp-save-checkin-btn">
                                         <i class="fas fa-save"></i> Kaydet
+                                    </button>
+                                    <button onclick="openArchiveCoachingPlanModal('${studentId}')" class="px-4 py-2 text-xs font-bold rounded-lg border border-amber-300 dark:border-amber-700/80 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-200 transition min-h-[44px] inline-flex items-center gap-1.5" data-testid="cp-archive-plan-btn">
+                                        <i class="fas fa-archive text-[11px]"></i> Haftayı Tamamla ve Arşivle
                                     </button>
                                     <span id="cp-checkin-feedback" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hidden"></span>
                                 </div>
@@ -3289,27 +3292,36 @@ window.confirmDeleteGuidanceRecord = confirmDeleteGuidanceRecord;
 window.openGuidanceReportModal = openGuidanceReportModal;
 window.downloadGuidanceReportPdf = downloadGuidanceReportPdf;
 
-async function saveCoachingPlanCheckin(studentId) {
-    if (!studentId || typeof window === 'undefined') return;
-    const { loadStudentsData } = await import('./store.js');
-    const { saveCoachingPlan } = await import('./store.js');
-    const { normalizeCoachingPlan } = await import('./coaching-plan-model.js');
-    const students = loadStudentsData();
-    const student = students.find(s => s.id === studentId);
-    if (!student || !student.coachingPlan) return;
-
-    const plan = normalizeCoachingPlan(student.coachingPlan);
-    if (!plan) return;
+export function collectCoachingPlanCheckinStateFromDom(plan) {
+    if (!plan || typeof plan !== 'object') return null;
 
     const noteEl = document.getElementById('cp-teacher-note');
     const focusEl = document.getElementById('cp-next-week-focus');
-    const feedbackEl = document.getElementById('cp-checkin-feedback');
 
     const teacherNote = noteEl ? noteEl.value.trim() : (plan.weeklyCheckIn?.teacherNote || '');
     const nextWeekFocus = focusEl ? focusEl.value.trim() : (plan.weeklyCheckIn?.nextWeekFocus || '');
 
-    const updatedTasks = plan.tasks.map(t => {
-        if (!t.id || t._legacy) return t;
+    const existingCheckedAt = plan.weeklyCheckIn?.checkedAt || null;
+    const hasExistingContent = Boolean(plan.weeklyCheckIn?.teacherNote?.trim() || plan.weeklyCheckIn?.nextWeekFocus?.trim());
+    const hasCurrentContent = Boolean(teacherNote || nextWeekFocus);
+    const contentChanged = Boolean(
+        (teacherNote && teacherNote !== (plan.weeklyCheckIn?.teacherNote || '').trim()) ||
+        (nextWeekFocus && nextWeekFocus !== (plan.weeklyCheckIn?.nextWeekFocus || '').trim())
+    );
+
+    let checkedAt = null;
+    if (contentChanged) {
+        checkedAt = new Date().toISOString();
+    } else if (hasExistingContent || existingCheckedAt) {
+        checkedAt = existingCheckedAt;
+    } else if (hasCurrentContent) {
+        checkedAt = new Date().toISOString();
+    } else {
+        checkedAt = null;
+    }
+
+    const updatedTasks = (Array.isArray(plan.tasks) ? plan.tasks : []).map(t => {
+        if (!t || !t.id || t._legacy) return t;
         const card = document.querySelector(`[data-task-id="${t.id}"]`);
         if (!card) return t;
         const updated = { ...t };
@@ -3325,15 +3337,38 @@ async function saveCoachingPlanCheckin(studentId) {
         return updated;
     });
 
-    const updatedPlan = {
+    return {
         ...plan,
         tasks: updatedTasks,
         weeklyCheckIn: {
             teacherNote,
             nextWeekFocus,
-            checkedAt: new Date().toISOString()
+            checkedAt
         },
         updatedAt: new Date().toISOString()
+    };
+}
+
+async function saveCoachingPlanCheckin(studentId) {
+    if (!studentId || typeof window === 'undefined') return;
+    const { loadStudentsData } = await import('./store.js');
+    const { saveCoachingPlan } = await import('./store.js');
+    const { normalizeCoachingPlan } = await import('./coaching-plan-model.js');
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student || !student.coachingPlan) return;
+
+    const basePlan = normalizeCoachingPlan(student.coachingPlan);
+    if (!basePlan) return;
+
+    const feedbackEl = document.getElementById('cp-checkin-feedback');
+    const updatedPlan = collectCoachingPlanCheckinStateFromDom(basePlan);
+    if (!updatedPlan) return;
+
+    // Explicit check-in always marks checkedAt as now
+    updatedPlan.weeklyCheckIn = {
+        ...updatedPlan.weeklyCheckIn,
+        checkedAt: new Date().toISOString()
     };
 
     const res = await saveCoachingPlan(studentId, updatedPlan);
@@ -3356,7 +3391,177 @@ async function saveCoachingPlanCheckin(studentId) {
         }
     }
 }
+
+export function openArchiveCoachingPlanModal(studentId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student || !student.coachingPlan) return;
+
+    const modalId = 'archiveCoachingPlanModal';
+    document.getElementById(modalId)?.remove();
+
+    const preparedPlan = collectCoachingPlanCheckinStateFromDom(student.coachingPlan);
+    const progress = getPlanProgressSummary(preparedPlan);
+
+    const qProg = progress.questions || {};
+    const tProg = progress.tasks || {};
+    const incompleteTasksCount = Math.max(0, (tProg.total || 0) - (tProg.completed || 0));
+    const hasCheckInNote = Boolean(preparedPlan.weeklyCheckIn?.teacherNote?.trim() || preparedPlan.weeklyCheckIn?.nextWeekFocus?.trim());
+    const isDraft = preparedPlan.status === 'draft';
+
+    const warnings = [];
+    if (incompleteTasksCount > 0) {
+        warnings.push(`${incompleteTasksCount} adet görev henüz tamamlanmadı.`);
+    }
+    if (!hasCheckInNote) {
+        warnings.push('Haftalık kontrol için öğretmen değerlendirme notu girilmedi.');
+    }
+    if ((qProg.actual || 0) === 0 && (qProg.target || 0) > 0) {
+        warnings.push('Soru hedefi için henüz çözülen soru girilmedi.');
+    }
+    if (isDraft) {
+        warnings.push('Bu plan taslak durumundaydı ve taslak olarak arşive aktarılacaktır.');
+    }
+
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'app-modal-backdrop';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+        <div class="app-modal max-w-lg w-full" onclick="event.stopPropagation()" role="dialog" aria-modal="true" data-testid="archive-confirm-modal">
+            <div class="app-modal-header">
+                <div>
+                    <h2 class="app-page-title text-lg flex items-center gap-2">
+                        <i class="fas fa-archive text-amber-600 dark:text-amber-400"></i> Haftalık Planı Tamamla ve Arşivle
+                    </h2>
+                    <p class="app-page-subtitle">${escapeHtml(student.adSoyad)} (${escapeHtml(student.sinif ? `${student.sinif}. Sınıf` : 'Öğrenci')})</p>
+                </div>
+                <button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Kapat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="app-modal-body space-y-4">
+                <!-- Hafta ve İlerleme Özeti (Current DOM values) -->
+                <div class="p-3.5 bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-gray-200/80 dark:border-gray-800 space-y-2">
+                    <div class="flex items-center justify-between text-xs pb-2 border-b border-gray-200/60 dark:border-gray-800">
+                        <span class="text-gray-500 font-semibold">Hafta Aralığı:</span>
+                        <span class="font-bold text-gray-900 dark:text-white" data-testid="archive-modal-week">${escapeHtml(preparedPlan.weekStart || '')} – ${escapeHtml(preparedPlan.weekEnd || '')}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                        <div class="p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+                            <span class="text-[10px] uppercase font-bold text-gray-400 block">Soru Gerçekleşme</span>
+                            <span class="font-black text-sm text-gray-900 dark:text-white" data-testid="archive-modal-questions">${qProg.actual || 0} / ${qProg.target != null ? qProg.target : '—'}</span>
+                            ${qProg.percent != null ? `<span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 ml-1">(%${qProg.percent})</span>` : ''}
+                        </div>
+                        <div class="p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+                            <span class="text-[10px] uppercase font-bold text-gray-400 block">Görev Durumu</span>
+                            <span class="font-black text-sm text-gray-900 dark:text-white" data-testid="archive-modal-tasks">${tProg.completed || 0} / ${tProg.total || 0}</span>
+                            ${tProg.percent != null ? `<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 ml-1">(%${tProg.percent})</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Uyarılar (Varsa) -->
+                ${warnings.length > 0 ? `
+                    <div class="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl space-y-1 text-xs text-amber-800 dark:text-amber-300">
+                        <div class="flex items-center gap-1.5 font-bold">
+                            <i class="fas fa-triangle-exclamation text-amber-600"></i>
+                            <span>Hatırlatmalar</span>
+                        </div>
+                        <ul class="list-disc list-inside space-y-0.5 text-[11px] font-medium pl-1 text-amber-900 dark:text-amber-200">
+                            ${warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <!-- Bilgilendirme -->
+                <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                    Bu haftanın gerçekleşen soru sayıları ve görevleri kaydedilerek <strong>Aylık Koçluk Özeti</strong>'ne aktarılacaktır. Aktif çalışma planı alanı yeni haftalık program hazırlamanız için sıfırlanacaktır.
+                </p>
+
+                <!-- Hata Alanı -->
+                <div id="archiveModalError" class="hidden p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-lg text-xs font-bold text-rose-700 dark:text-rose-300"></div>
+
+                <!-- Modal Butonları -->
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800 flex-wrap">
+                    <button type="button" onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary min-h-[44px] px-4 text-xs font-semibold" data-testid="archive-cancel-btn">
+                        Vazgeç
+                    </button>
+                    <button type="button" id="confirmArchiveBtn" onclick="confirmArchiveCoachingPlan('${studentId}')" class="btn-primary min-h-[44px] px-5 text-xs font-bold flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white" data-testid="archive-confirm-btn">
+                        <i class="fas fa-archive"></i> Evet, Arşivle
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+let _isArchivingInFlight = false;
+
+export async function confirmArchiveCoachingPlan(studentId) {
+    if (_isArchivingInFlight) return;
+    const confirmBtn = document.getElementById('confirmArchiveBtn');
+    const errorEl = document.getElementById('archiveModalError');
+
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student || !student.coachingPlan) return;
+
+    // Harvest latest DOM state
+    const preparedPlan = collectCoachingPlanCheckinStateFromDom(student.coachingPlan);
+    if (!preparedPlan) return;
+
+    _isArchivingInFlight = true;
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Arşivleniyor...';
+    }
+
+    try {
+        const { archiveCoachingPlanForStudent } = await import('./growth.js');
+        const res = await archiveCoachingPlanForStudent(studentId, {
+            coachingPlanOverride: preparedPlan
+        });
+
+        if (res && res.ok) {
+            document.getElementById('archiveCoachingPlanModal')?.remove();
+            if (typeof window.renderGuidanceStudentDetail === 'function') {
+                window._guidanceStudentTab = 'study';
+                window.renderGuidanceStudentDetail(studentId);
+            }
+        } else {
+            if (errorEl) {
+                errorEl.textContent = res?.error?.message || 'Plan arşivlenirken bir hata oluştu. Lütfen tekrar deneyin.';
+                errorEl.classList.remove('hidden');
+            }
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-archive"></i> Evet, Arşivle';
+            }
+        }
+    } catch (err) {
+        console.error('confirmArchiveCoachingPlan error:', err);
+        if (errorEl) {
+            errorEl.textContent = 'Beklenmeyen bir hata oluştu: ' + (err?.message || err);
+            errorEl.classList.remove('hidden');
+        }
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-archive"></i> Evet, Arşivle';
+        }
+    } finally {
+        _isArchivingInFlight = false;
+    }
+}
+
 window.saveCoachingPlanCheckin = saveCoachingPlanCheckin;
+window.collectCoachingPlanCheckinStateFromDom = collectCoachingPlanCheckinStateFromDom;
+window.openArchiveCoachingPlanModal = openArchiveCoachingPlanModal;
+window.confirmArchiveCoachingPlan = confirmArchiveCoachingPlan;
 window.shareGuidanceReportPdf = shareGuidanceReportPdf;
 window.printGuidanceReportPdf = printGuidanceReportPdf;
 window.switchGuidanceStudentTab = switchGuidanceStudentTab;
