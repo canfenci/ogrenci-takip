@@ -180,7 +180,53 @@ export function submitParentHwResult(studentId, hwId, studentName, konu, tur, ya
     }
 }
 
-export function importHwResult(studentId, hwId, dogru, yanlis) {
+export async function importHwResult(studentId, hwId, dogru, yanlis) {
+    const isCloud = Boolean(store.useFirestore && (isFirebaseActive || window.isFirebaseActive) && (db || window.db) && !store.isGuestMode);
+
+    if (isCloud) {
+        const firestoreDb = db || window.db;
+        try {
+            showSyncStatus("Ödev sonucu buluta kaydediliyor...", false);
+            await firestoreDb.collection("homeworks").doc(hwId).update({
+                durum: "tamamlandi",
+                dogru: dogru,
+                yanlis: yanlis
+            });
+
+            // Update in-memory globalHomeworks if present
+            if (Array.isArray(store.globalHomeworks)) {
+                const globalHw = store.globalHomeworks.find(h => h.id === hwId);
+                if (globalHw) {
+                    globalHw.durum = "tamamlandi";
+                    globalHw.dogru = dogru;
+                    globalHw.yanlis = yanlis;
+                }
+            }
+
+            // Update in-memory student.odevler if present in globalStudents/loadStudentsData
+            const students = loadStudentsData();
+            const student = students.find(s => s.id === studentId);
+            if (student && Array.isArray(student.odevler)) {
+                const hw = student.odevler.find(h => h.id === hwId);
+                if (hw) {
+                    hw.durum = "tamamlandi";
+                    hw.dogru = dogru;
+                    hw.yanlis = yanlis;
+                }
+            }
+
+            const studentName = student ? student.adSoyad : "Öğrenci";
+            showSyncStatus("✅ Buluta kaydedildi", false);
+            alert(`✅ ${studentName} isimli öğrencinin ödev sonucu başarıyla kaydedildi!\nDoğru: ${dogru}, Yanlış: ${yanlis}`);
+            window.location.href = window.location.origin + window.location.pathname + "?page=odevler";
+        } catch (err) {
+            console.error("importHwResult cloud save error:", err);
+            showSyncStatus("⚠️ Buluta kaydedilemedi", true);
+            alert("Ödev sonucu kaydedilirken bir hata oluştu: " + (err.message || err));
+        }
+        return;
+    }
+
     const students = loadStudentsData();
     const sIdx = students.findIndex(s => s.id === studentId);
     if (sIdx === -1) {
