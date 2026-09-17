@@ -3131,6 +3131,9 @@ export function openGuidanceReportModal(studentId) {
                     <button type="button" onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary min-h-[44px] px-4 text-xs font-semibold">
                         Vazgeç
                     </button>
+                    <button type="button" onclick="previewGuidanceReportPdf('${studentId}')" class="btn-secondary min-h-[44px] px-4 text-xs font-bold flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+                        <i class="fas fa-eye"></i> Önizle
+                    </button>
                     ${typeof navigator !== 'undefined' && navigator.share ? `
                         <button type="button" onclick="shareGuidanceReportPdf('${studentId}')" class="btn-secondary min-h-[44px] px-4 text-xs font-bold flex items-center gap-1.5">
                             <i class="fas fa-share-nodes"></i> Paylaş
@@ -3151,7 +3154,7 @@ export function openGuidanceReportModal(studentId) {
     document.body.appendChild(modal);
 }
 
-function getGuidanceReportOptionsFromModal() {
+export function getGuidanceReportOptionsFromModal() {
     const periodSelect = document.getElementById('reportPeriodSelect');
     const period = periodSelect ? periodSelect.value : '4weeks';
     const teacherNoteInput = document.getElementById('reportTeacherNote');
@@ -3277,6 +3280,242 @@ export async function printGuidanceReportPdf(studentId) {
     }
 }
 
+// Ephemeral in-memory preview state & blob URL tracker (never persisted)
+let _activeGuidanceReportPreview = null;
+let _activeReportBlobUrl = null;
+
+export function getActiveGuidanceReportPreview() {
+    return _activeGuidanceReportPreview;
+}
+
+export function closeGuidanceReportPreviewModal(reopenConfig = false) {
+    const modal = document.getElementById('guidanceReportPreviewModal');
+    if (modal) modal.remove();
+
+    if (_activeReportBlobUrl) {
+        try {
+            URL.revokeObjectURL(_activeReportBlobUrl);
+        } catch (e) {
+            console.warn("Blob URL revoke warning:", e);
+        }
+        _activeReportBlobUrl = null;
+    }
+
+    const savedStudentId = _activeGuidanceReportPreview?.studentId;
+    _activeGuidanceReportPreview = null;
+
+    if (reopenConfig) {
+        const configModal = document.getElementById('guidanceReportModal');
+        if (configModal) {
+            configModal.style.display = '';
+        } else if (savedStudentId) {
+            openGuidanceReportModal(savedStudentId);
+        }
+    } else {
+        const configModal = document.getElementById('guidanceReportModal');
+        if (configModal) {
+            configModal.remove();
+        }
+    }
+}
+
+export async function previewGuidanceReportPdf(studentId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    try {
+        const { buildGuidanceReportData, normalizeGuidanceReportFilename, generateGuidancePdf } = await getGuidanceReportModules();
+        const modalOptions = getGuidanceReportOptionsFromModal();
+        const reportData = buildGuidanceReportData(student, modalOptions);
+        if (!reportData) return;
+
+        const filename = normalizeGuidanceReportFilename({
+            studentName: reportData.student.name,
+            date: reportData.period.endDate
+        });
+
+        const doc = generateGuidancePdf(reportData);
+        const pdfBlob = doc.output('blob');
+
+        // Revoke any prior preview blob URL before allocating a new one
+        if (_activeReportBlobUrl) {
+            try {
+                URL.revokeObjectURL(_activeReportBlobUrl);
+            } catch (e) {
+                console.warn("Prior blob URL revoke warning:", e);
+            }
+            _activeReportBlobUrl = null;
+        }
+
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        _activeReportBlobUrl = blobUrl;
+
+        _activeGuidanceReportPreview = {
+            studentId,
+            options: modalOptions,
+            reportData,
+            doc,
+            blob: pdfBlob,
+            blobUrl,
+            filename
+        };
+
+        // Hide config modal without removing so teacher settings remain preserved
+        const configModal = document.getElementById('guidanceReportModal');
+        if (configModal) {
+            configModal.style.display = 'none';
+        }
+
+        // Remove any existing preview modal DOM
+        document.getElementById('guidanceReportPreviewModal')?.remove();
+
+        const previewModal = document.createElement('div');
+        previewModal.id = 'guidanceReportPreviewModal';
+        previewModal.className = 'app-modal-backdrop';
+        previewModal.onclick = (e) => {
+            if (e.target === previewModal) {
+                closeGuidanceReportPreviewModal(false);
+            }
+        };
+
+        const canShare = typeof navigator !== 'undefined' && !!navigator.share;
+
+        previewModal.innerHTML = `
+            <div class="app-modal max-w-4xl w-full flex flex-col h-[92vh] max-h-[920px]" onclick="event.stopPropagation()">
+                <div class="app-modal-header flex-shrink-0 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                <i class="fas fa-eye mr-1"></i> Önizleme
+                            </span>
+                            <h2 class="text-sm sm:text-base font-bold text-gray-900 dark:text-white truncate">
+                                ${escapeHtml(reportData.student.name)}
+                            </h2>
+                        </div>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                            ${escapeHtml(reportData.student.periodLabel)} • ${escapeHtml(reportData.student.sinif)}
+                        </p>
+                    </div>
+                    <button type="button" onclick="closeGuidanceReportPreviewModal(false)" class="app-modal-close flex-shrink-0" aria-label="Kapat">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="flex-1 min-h-0 bg-gray-100 dark:bg-gray-950 p-2 sm:p-3 relative overflow-hidden">
+                    <iframe id="guidanceReportPreviewIframe"
+                            src="${blobUrl}"
+                            title="Veli Raporu Önizleme"
+                            class="w-full h-full rounded-lg border border-gray-300 dark:border-gray-800 bg-white shadow-sm"
+                            style="-webkit-overflow-scrolling: touch;">
+                    </iframe>
+                </div>
+
+                <div class="app-modal-footer flex-shrink-0 flex items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-800 flex-wrap">
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="closeGuidanceReportPreviewModal(true)" class="btn-secondary min-h-[42px] px-3.5 text-xs font-semibold flex items-center gap-1.5" title="Ayarları Düzenle">
+                            <i class="fas fa-arrow-left"></i> <span class="hidden sm:inline">Geri /</span> Düzenle
+                        </button>
+                        <button type="button" onclick="openPreviewInNewTab()" class="btn-secondary min-h-[42px] px-3 text-xs font-semibold flex items-center gap-1.5" title="Yeni Sekmede Aç">
+                            <i class="fas fa-arrow-up-right-from-square"></i> <span class="hidden md:inline">Yeni Sekmede Aç</span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        ${canShare ? `
+                            <button type="button" onclick="shareActiveGuidanceReportPreview()" class="btn-secondary min-h-[42px] px-3.5 text-xs font-bold flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
+                                <i class="fas fa-share-nodes"></i> Paylaş
+                            </button>
+                        ` : ''}
+                        <button type="button" onclick="printActiveGuidanceReportPreview()" class="btn-secondary min-h-[42px] px-3.5 text-xs font-bold flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
+                            <i class="fas fa-print"></i> Yazdır
+                        </button>
+                        <button type="button" onclick="downloadActiveGuidanceReportPreview()" class="btn-primary min-h-[42px] px-4 text-xs font-bold flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white">
+                            <i class="fas fa-file-pdf"></i> PDF İndir
+                        </button>
+                        <button type="button" onclick="closeGuidanceReportPreviewModal(false)" class="btn-secondary min-h-[42px] px-3 text-xs font-semibold">
+                            Kapat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // ESC key handler listener for clean preview exit
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+                document.removeEventListener('keydown', handleEsc);
+                closeGuidanceReportPreviewModal(false);
+            }
+        };
+        document.addEventListener('keydown', handleEsc, { once: true });
+
+        document.body.appendChild(previewModal);
+    } catch (err) {
+        console.error("Önizleme oluşturma hatası:", err);
+        // Clear invalid preview state and clean up if partial URL created
+        if (_activeReportBlobUrl) {
+            try { URL.revokeObjectURL(_activeReportBlobUrl); } catch (e) {}
+            _activeReportBlobUrl = null;
+        }
+        _activeGuidanceReportPreview = null;
+        if (typeof alert === 'function') {
+            alert("Rapor önizlemesi oluşturulamadı. Lütfen tekrar deneyin: " + (err.message || err));
+        }
+    }
+}
+
+export function openPreviewInNewTab() {
+    if (!_activeGuidanceReportPreview || !_activeReportBlobUrl) return;
+    // Open existing blob URL without revoking synchronously
+    window.open(_activeReportBlobUrl, '_blank');
+}
+
+export function downloadActiveGuidanceReportPreview() {
+    if (!_activeGuidanceReportPreview) return;
+    const { doc, filename } = _activeGuidanceReportPreview;
+    if (doc && typeof doc.save === 'function') {
+        doc.save(filename);
+    }
+}
+
+export function printActiveGuidanceReportPreview() {
+    if (!_activeGuidanceReportPreview || !_activeReportBlobUrl) return;
+    // Reuse existing blob URL in new tab/window for browser print
+    window.open(_activeReportBlobUrl, '_blank');
+}
+
+export async function shareActiveGuidanceReportPreview() {
+    if (!_activeGuidanceReportPreview) return;
+    const { blob, filename, reportData, studentId } = _activeGuidanceReportPreview;
+
+    try {
+        const pdfFile = new File([blob], filename, { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            await navigator.share({
+                title: `CanFenci - ${reportData.student.name} Rehberlik Raporu`,
+                text: `${reportData.student.name} öğrencimizin rehberlik gelişim ve takip raporu.`,
+                files: [pdfFile]
+            });
+            return;
+        } else if (navigator.share) {
+            await navigator.share({
+                title: `CanFenci - ${reportData.student.name} Rehberlik Raporu`,
+                text: `${reportData.student.name} öğrencimizin rehberlik gelişim raporu (${reportData.student.periodLabel}).`
+            });
+            return;
+        } else {
+            downloadActiveGuidanceReportPreview();
+        }
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.warn("Önizleme paylaşım hatası, dosya indiriliyor:", err);
+            downloadActiveGuidanceReportPreview();
+        }
+    }
+}
+
 window.renderGuidancePage = renderGuidancePage;
 window.renderGuidanceStudentDetail = renderGuidanceStudentDetail;
 window.updateGuidanceFilters = updateGuidanceFilters;
@@ -3291,6 +3530,12 @@ window.saveCompleteGuidanceRecordForm = saveCompleteGuidanceRecordForm;
 window.confirmDeleteGuidanceRecord = confirmDeleteGuidanceRecord;
 window.openGuidanceReportModal = openGuidanceReportModal;
 window.downloadGuidanceReportPdf = downloadGuidanceReportPdf;
+window.previewGuidanceReportPdf = previewGuidanceReportPdf;
+window.closeGuidanceReportPreviewModal = closeGuidanceReportPreviewModal;
+window.openPreviewInNewTab = openPreviewInNewTab;
+window.downloadActiveGuidanceReportPreview = downloadActiveGuidanceReportPreview;
+window.printActiveGuidanceReportPreview = printActiveGuidanceReportPreview;
+window.shareActiveGuidanceReportPreview = shareActiveGuidanceReportPreview;
 
 export function collectCoachingPlanCheckinStateFromDom(plan) {
     if (!plan || typeof plan !== 'object') return null;
