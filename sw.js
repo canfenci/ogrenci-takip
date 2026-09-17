@@ -1,4 +1,4 @@
-const CACHE_NAME = "canfenci-cache-v86";
+const CACHE_NAME = "canfenci-cache-v87"; // previous baseline: canfenci-cache-v86
 const STATIC_ASSET_EXTENSIONS = ['.js', '.mjs', '.css', '.png', '.jpg', '.jpeg', '.svg', '.webp', '.woff2', '.woff', '.json', '.ico'];
 
 function isSameOriginStaticAsset(requestUrl) {
@@ -54,6 +54,13 @@ const ASSETS_TO_CACHE = [
   "./guidance-weekly-insights.js",
   "./guidance-report-insights.js",
   "./guidance-report-pdf.js",
+  "./guidance-performance-insights.js",
+  "./guidance-priority-score.js",
+  "./guidance-coaching-dashboard.js",
+  "./coaching-plan-progress.js",
+  "./coaching-plan-history.js",
+  "./coaching-plan-monthly-summary.js",
+  "./coaching-plan-model.js",
   "./growth.js",
   "./groups.js"
 ];
