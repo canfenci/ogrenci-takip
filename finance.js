@@ -85,7 +85,7 @@ export function renderFinanceReport() {
     } else {
         rowsHtml = studentFinanceRows.map(row => {
             const whMsg = `Merhaba Sayın Velimiz,\n\n*${row.adSoyad}* isimli öğrencimizin ders ödeme takip detayı aşağıdaki gibidir:\n\n` +
-                          `- Birim Ders Ücreti: ${row.ucret} TL\n` +
+                          `- Güncel Ders Ücreti: ${row.ucret} TL\n` +
                           `- Ücretlendirilen Ders: ${row.paidDersCount + row.pendingDersCount} saat\n` +
                           `- Ödenen Ders: ${row.paidDersCount} saat\n` +
                           `- Ödeme Bekleyen Ders: ${row.pendingDersCount} saat\n` +
@@ -169,7 +169,7 @@ export function renderFinanceReport() {
                         <thead class="bg-gray-800 dark:bg-gray-900 text-white">
                             <tr>
                                 <th class="border border-gray-700 dark:border-gray-800 py-2.5 px-3 sm:py-3 sm:px-3.5 text-left text-xs sm:text-sm font-bold">Öğrenci</th>
-                                <th class="border border-gray-700 dark:border-gray-800 py-2.5 px-3 sm:py-3 sm:px-3.5 text-left text-xs sm:text-sm font-bold whitespace-nowrap">Ders Ücreti</th>
+                                <th class="border border-gray-700 dark:border-gray-800 py-2.5 px-3 sm:py-3 sm:px-3.5 text-left text-xs sm:text-sm font-bold whitespace-nowrap">Güncel Ders Ücreti</th>
                                 <th class="border border-gray-700 dark:border-gray-800 py-2.5 px-3 sm:py-3 sm:px-3.5 text-left text-xs sm:text-sm font-bold whitespace-nowrap">Ders</th>
                                 <th class="border border-gray-700 dark:border-gray-800 py-2.5 px-3 sm:py-3 sm:px-3.5 text-left text-xs sm:text-sm font-bold whitespace-nowrap">Tahsil</th>
                                 <th class="border border-gray-700 dark:border-gray-800 py-2.5 px-3 sm:py-3 sm:px-3.5 text-left text-xs sm:text-sm font-bold whitespace-nowrap">Bekleyen</th>
@@ -716,7 +716,21 @@ export function addDersKayit(studentId) {
     
     let kayitlar = loadDersKayitlari(studentId);
     const yeniNo = kayitlar.length + 1;
-    kayitlar.push({ id: `lesson_${studentId}_${Date.now()}`, dersNo: yeniNo, tarih, ders, konu, icerik, kaynak, odendi: katilimDurumu === 'yapildi' ? odendi : false, katilimDurumu });
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    const studentFee = parseFloat(student?.dersUcreti) || parseFloat(student?.aylikUcret) || parseFloat(student?.ucret) || 0;
+    kayitlar.push({
+        id: `lesson_${studentId}_${Date.now()}`,
+        dersNo: yeniNo,
+        tarih,
+        ders,
+        konu,
+        icerik,
+        kaynak,
+        odendi: katilimDurumu === 'yapildi' ? odendi : false,
+        katilimDurumu,
+        ucret: studentFee
+    });
     saveDersKayitlari(studentId, kayitlar);
     renderDersDetay(studentId);
 }

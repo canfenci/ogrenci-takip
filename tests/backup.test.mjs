@@ -70,3 +70,25 @@ test('cloud restore stamps ownership and replacement deletes only current user d
     assert.match(studentsSource, /restoreAccountEmail/);
     assert.match(studentsSource, /restoreSensitiveData/);
 });
+
+test('FINANCE-FEE-01: lesson ucret snapshot survives backup export and restore roundtrip', () => {
+    const rawData = {
+        students: [{ id: 's1', adSoyad: 'Test Öğrenci' }],
+        lessons: {
+            s1: [
+                { id: 'l1', dersNo: 1, tarih: '2026-03-01', ders: 'Fen', konu: 'Hücre', odendi: true, katilimDurumu: 'yapildi', ucret: 800 },
+                { id: 'l2', dersNo: 2, tarih: '2026-03-08', ders: 'Fen', konu: 'Kalıtım', odendi: false, katilimDurumu: 'yapildi', ucret: 1000 }
+            ]
+        }
+    };
+    const backup = buildFullBackup(rawData);
+    assert.equal(backup.format, BACKUP_FORMAT);
+    assert.equal(validateFullBackup(backup).ok, true);
+    assert.equal(backup.data.lessons.s1[0].ucret, 800);
+    assert.equal(backup.data.lessons.s1[1].ucret, 1000);
+
+    const emptyTarget = { students: [], lessons: {} };
+    const restored = combineRestoreData(emptyTarget, backup.data, 'replace');
+    assert.equal(restored.lessons.s1[0].ucret, 800);
+    assert.equal(restored.lessons.s1[1].ucret, 1000);
+});

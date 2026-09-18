@@ -32,21 +32,41 @@ export function updateLessonPaymentState(lesson, isPaid) {
     };
 }
 
+export function getEffectiveLessonFee(lesson, fallbackFee = 0) {
+    const rawVal = lesson?.ucret;
+    if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+        const num = Number(rawVal);
+        if (Number.isFinite(num) && num >= 0) {
+            return num;
+        }
+    }
+    const fallbackNum = Number(fallbackFee);
+    if (Number.isFinite(fallbackNum) && fallbackNum >= 0) {
+        return fallbackNum;
+    }
+    return 0;
+}
+
 export function calculateLessonFinance(lessons = [], lessonFee = 0) {
-    const fee = Number(lessonFee) || 0;
+    const fallback = Number(lessonFee) || 0;
     const billable = lessons.filter(isBillableLesson);
     const paid = billable.filter(lesson => lesson.odendi === true);
     const pending = billable.filter(lesson => lesson.odendi !== true);
     const statusCounts = Object.fromEntries(Object.keys(ATTENDANCE_LABELS).map(status => [status, 0]));
     lessons.forEach(lesson => { statusCounts[normalizeLessonStatus(lesson)] += 1; });
+
+    const paidAmount = paid.reduce((sum, lesson) => sum + getEffectiveLessonFee(lesson, fallback), 0);
+    const pendingAmount = pending.reduce((sum, lesson) => sum + getEffectiveLessonFee(lesson, fallback), 0);
+    const totalAmount = billable.reduce((sum, lesson) => sum + getEffectiveLessonFee(lesson, fallback), 0);
+
     return {
         totalCount: lessons.length,
         billableCount: billable.length,
         paidCount: paid.length,
         pendingCount: pending.length,
-        paidAmount: paid.length * fee,
-        pendingAmount: pending.length * fee,
-        totalAmount: billable.length * fee,
+        paidAmount,
+        pendingAmount,
+        totalAmount,
         statusCounts
     };
 }

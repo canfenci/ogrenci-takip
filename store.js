@@ -2209,10 +2209,22 @@ export function saveDersKayitlari(studentId, lessons) {
 
 export function getDersOzet(studentId, dersUcreti) {
     const kayitlar = loadDersKayitlari(studentId);
+    const fallback = parseFloat(dersUcreti) || 0;
+    const safeFallback = Number.isFinite(fallback) && fallback >= 0 ? fallback : 0;
     const toplamDers = kayitlar.length;
     const ucretlendirilenDersler = kayitlar.filter(k => !k.katilimDurumu || k.katilimDurumu === 'yapildi');
-    const odenenDersSayisi = ucretlendirilenDersler.filter(k => k.odendi === true).length;
-    const toplamOdeme = odenenDersSayisi * (parseFloat(dersUcreti) || 0);
+    const odenenDersler = ucretlendirilenDersler.filter(k => k.odendi === true);
+    const odenenDersSayisi = odenenDersler.length;
+    const toplamOdeme = odenenDersler.reduce((sum, k) => {
+        const rawVal = k?.ucret;
+        if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+            const num = Number(rawVal);
+            if (Number.isFinite(num) && num >= 0) {
+                return sum + num;
+            }
+        }
+        return sum + safeFallback;
+    }, 0);
     return { toplamDers, ucretlendirilenDersSayisi: ucretlendirilenDersler.length, odenenDersSayisi, toplamOdeme };
 }
 

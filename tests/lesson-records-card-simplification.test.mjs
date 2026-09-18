@@ -66,6 +66,14 @@ globalThis.window.auth = { currentUser: null };
 globalThis.window.confirm = () => true;
 globalThis.window.alert = () => {};
 
+const mockStorage = new Map();
+globalThis.localStorage = {
+    getItem: (key) => mockStorage.get(key) || null,
+    setItem: (key, val) => mockStorage.set(key, String(val)),
+    removeItem: (key) => mockStorage.delete(key),
+    clear: () => mockStorage.clear()
+};
+
 class MockClassList {
     constructor() { this._classes = new Set(); }
     add(...cls) { cls.forEach(c => c && this._classes.add(c)); }
@@ -343,4 +351,72 @@ test('Scenario N: Zero lesson with fee (dersUcreti = 1000, 0 lessons)', () => {
     assert.ok(output.includes('Henüz ders kaydı yok'), 'Must show Henüz ders kaydı yok');
     assert.doesNotMatch(output, /Tahsil\s*0\s*TL/, 'Must NOT show Tahsil 0 TL');
     assert.doesNotMatch(output, /0\/0/, 'Must NOT show 0/0');
+});
+
+test('Scenario O: Snapshot-aware getDersOzet preserves historical fee on rate changes', () => {
+    setupMockData(
+        [{ id: 's-snapshot', adSoyad: 'Snapshot Student', dersUcreti: 1200, sinif: '8' }],
+        {
+            's-snapshot': [
+                { id: 'sn1', katilimDurumu: 'yapildi', odendi: true, ucret: 800 },
+                { id: 'sn2', katilimDurumu: 'yapildi', odendi: true, ucret: 1000 },
+                { id: 'sn3', katilimDurumu: 'yapildi', odendi: false, ucret: 1000 }
+            ]
+        }
+    );
+    // Student fee is currently 1200, but 2 paid lessons are 800 and 1000
+    const ozet = storeModule.getDersOzet('s-snapshot', 1200);
+    assert.equal(ozet.toplamDers, 3);
+    assert.equal(ozet.odenenDersSayisi, 2);
+    // 800 + 1000 = 1800 (NOT 2 * 1200 = 2400)
+    assert.equal(ozet.toplamOdeme, 1800);
+
+    renderDersKayitlari();
+    const output = document.getElementById('dynamic-content').innerHTML;
+    assert.ok(output.includes('Tahsil 1800 TL'), 'UI label must reflect snapshot sum (1800 TL)');
+});
+
+test('Scenario P: addDersKayit captures current student fee snapshot and canonical loader preserves it', () => {
+    setupMockData(
+        [{ id: 's-create', adSoyad: 'Yeni Öğrenci', dersUcreti: 950, sinif: '8' }],
+        { 's-create': [] }
+    );
+
+    // Mock form inputs for adding a lesson
+    const inputs = {
+        kayitTarih: { value: '15/03/2026' },
+        kayitDers: { value: 'Fen Bilimleri' },
+        kayitKonu: { value: 'Mevsimler ve İklim' },
+        kayitIcerik: { value: 'Ders notu' },
+        kayitKaynak: { value: 'MEB Kitabı' },
+        kayitOdendi: { value: 'true' },
+        kayitKatilim: { value: 'yapildi' }
+    };
+    for (const [id, el] of Object.entries(inputs)) {
+        const mockEl = new MockElement('input');
+        mockEl.id = id;
+        mockEl.value = el.value;
+        mockElements.set(id, mockEl);
+    }
+
+    // Call production addDersKayit
+    financeModule.addDersKayit('s-create');
+
+    // Load via canonical store loader
+    const loadedLessons = storeModule.loadDersKayitlari('s-create');
+    assert.equal(loadedLessons.length, 1, 'Exactly one lesson must be created');
+    assert.equal(loadedLessons[0].ucret, 950, 'Lesson must capture snapshot ucret 950 from student profile');
+    assert.equal(loadedLessons[0].odendi, true);
+    assert.equal(loadedLessons[0].katilimDurumu, 'yapildi');
+
+    // Change student fee in profile to 1500
+    store.globalStudents[0].dersUcreti = 1500;
+
+    // Verify loaded lesson snapshot remains 950
+    const reloadedLessons = storeModule.loadDersKayitlari('s-create');
+    assert.equal(reloadedLessons[0].ucret, 950, 'Historical lesson fee snapshot must remain 950 after profile fee edit');
+
+    // Summary calculation for student reflects 950, not 1500
+    const ozet = storeModule.getDersOzet('s-create', 1500);
+    assert.equal(ozet.toplamOdeme, 950, 'getDersOzet must use snapshot fee 950');
 });

@@ -52,7 +52,7 @@ test('Scenario C: Static architecture elements of table & KPI simplification in 
 
     // Table headers: modern compact titles
     assert.match(financeJsContent, /<th[^>]*>Öğrenci<\/th>/, 'Table header must have Öğrenci');
-    assert.match(financeJsContent, /<th[^>]*>Ders Ücreti<\/th>/, 'Table header must have Ders Ücreti');
+    assert.match(financeJsContent, /<th[^>]*>Güncel Ders Ücreti<\/th>/, 'Table header must have Güncel Ders Ücreti');
     assert.match(financeJsContent, /<th[^>]*>Ders<\/th>/, 'Table header must have Ders (not Toplam Ders)');
     assert.match(financeJsContent, /<th[^>]*>Tahsil<\/th>/, 'Table header must have Tahsil (not Ödenen (Tutar))');
     assert.match(financeJsContent, /<th[^>]*>Bekleyen<\/th>/, 'Table header must have Bekleyen (not Bekleyen (Tutar))');
@@ -224,7 +224,7 @@ test('Scenario D: 20-Student Stress Fixture — 20 rows, accurate KPI sums, comp
 
     // 2. Verify table headers
     assert.ok(output.includes('>Öğrenci<'), 'Must show Öğrenci header');
-    assert.ok(output.includes('>Ders Ücreti<'), 'Must show Ders Ücreti header');
+    assert.ok(output.includes('>Güncel Ders Ücreti<'), 'Must show Güncel Ders Ücreti header');
     assert.ok(output.includes('>Ders<'), 'Must show Ders header');
     assert.ok(output.includes('>Tahsil<'), 'Must show Tahsil header');
     assert.ok(output.includes('>Bekleyen<'), 'Must show Bekleyen header');
@@ -409,4 +409,37 @@ test('Scenario K: Color Semantics in Table Cells', () => {
     assert.match(output, /text-amber-600.*?>1\s*\(1000\s*TL\)<\/td>/, 'Pending amount must use amber text');
     // Toplam must be indigo
     assert.match(output, /text-indigo-600.*?>2000\s*TL<\/td>/, 'Total amount must use indigo text');
+});
+
+test('Scenario L: Table rendering with historical snapshot fee preserves snapshot rate calculations', () => {
+    const students = [
+        { id: 's-hist', adSoyad: 'Tarihsel Öğrenci', dersUcreti: 1200, veliTel: '05551234567' }
+    ];
+    // Lessons created at 800 TL and 1000 TL; current fee is 1200 TL
+    const lessons = {
+        's-hist': [
+            { id: 'l1', tarih: '2026-03-01', katilimDurumu: 'yapildi', odendi: true, ucret: 800 },
+            { id: 'l2', tarih: '2026-03-08', katilimDurumu: 'yapildi', odendi: false, ucret: 1000 }
+        ]
+    };
+
+    setupMockFinanceData(students, lessons);
+    renderFinanceReport();
+
+    const output = document.getElementById('dynamic-content').innerHTML;
+
+    // Tahsil: 1 (800 TL)
+    assert.match(output, /text-emerald-600.*?>1\s*\(800\s*TL\)<\/td>/, 'Paid amount must reflect snapshot fee 800 TL');
+    // Bekleyen: 1 (1000 TL)
+    assert.match(output, /text-amber-600.*?>1\s*\(1000\s*TL\)<\/td>/, 'Pending amount must reflect snapshot fee 1000 TL');
+    // Toplam: 1800 TL (NOT 2400 TL)
+    assert.match(output, /text-indigo-600.*?>1800\s*TL<\/td>/, 'Total amount must be 1800 TL');
+    // Table header must be Güncel Ders Ücreti
+    assert.ok(output.includes('>Güncel Ders Ücreti<'), 'Table header must be Güncel Ders Ücreti');
+    // Current fee cell must show 1200 TL
+    assert.ok(output.includes('>1200 TL<'), 'Table cell must show student current fee 1200 TL');
+    // WhatsApp message must contain 1000 TL pending amount and Güncel Ders Ücreti
+    assert.ok(output.includes(encodeURIComponent('1000 TL')), 'WhatsApp reminder must encode exact snapshot pending amount 1000 TL');
+    assert.ok(output.includes(encodeURIComponent('Güncel Ders Ücreti: 1200 TL')), 'WhatsApp reminder must explicitly label current fee as Güncel Ders Ücreti');
+    assert.ok(!output.includes(encodeURIComponent('Birim Ders Ücreti:')), 'WhatsApp reminder must not label current fee as Birim Ders Ücreti');
 });
