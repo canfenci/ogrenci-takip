@@ -348,6 +348,12 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
                             Detay
                         </button>
                     `}
+                    <button onclick="editHomework('${student.id}', '${homework.id}')" class="min-h-[44px] min-w-[44px] px-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded transition" title="Düzenle" aria-label="Ödevi düzenle">
+                        <i class="fas fa-pen-to-square"></i>
+                    </button>
+                    <button onclick="deleteHomeworkFromDashboard('${student.id}', '${homework.id}')" class="min-h-[44px] min-w-[44px] px-2 text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition" title="Sil" aria-label="Ödevi sil">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
             </div>
             <div class="md:hidden">
@@ -380,6 +386,12 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
                                 Detay
                             </button>
                         `}
+                        <button onclick="editHomework('${student.id}', '${homework.id}')" class="min-h-[44px] min-w-[44px] px-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded transition" title="Düzenle" aria-label="Ödevi düzenle">
+                            <i class="fas fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteHomeworkFromDashboard('${student.id}', '${homework.id}')" class="min-h-[44px] min-w-[44px] px-2 text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition" title="Sil" aria-label="Ödevi sil">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -656,22 +668,27 @@ export function renderStudentOdevDetay(studentId, performanceFilter = 'all') {
     }, 0);
 }
 
-export function deleteOdev(studentId, hwId) {
-    if (confirm("Bu ödevi silmek istediğinize emin misiniz?")) {
-        if (store.useFirestore && isFirebaseActive) {
-            db.collection("homeworks").doc(hwId).delete()
-                .then(() => {
-                    renderStudentOdevDetay(studentId);
-                })
-                .catch(err => console.error(err));
-        } else {
-            const students = loadStudentsData();
-            const sIdx = students.findIndex(s => s.id === studentId);
-            if (sIdx !== -1) {
-                students[sIdx].odevler = (students[sIdx].odevler || []).filter(o => o.id !== hwId);
-                saveStudentsData(students);
-                renderStudentOdevDetay(studentId);
-            }
+export function deleteOdev(studentId, hwId, onAfterDelete) {
+    if (!confirm("Bu ödevi silmek istediğinize emin misiniz?")) return;
+    const refresh = onAfterDelete || (() => renderStudentOdevDetay(studentId));
+    if (store.useFirestore && isFirebaseActive) {
+        db.collection("homeworks").doc(hwId).delete()
+            .then(() => {
+                showSyncStatus("Ödev silindi", false);
+                refresh();
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Silme başarısız: " + err.message);
+            });
+    } else {
+        const students = loadStudentsData();
+        const sIdx = students.findIndex(s => s.id === studentId);
+        if (sIdx !== -1) {
+            students[sIdx].odevler = (students[sIdx].odevler || []).filter(o => o.id !== hwId);
+            saveStudentsData(students);
+            showSyncStatus("Ödev silindi", false);
+            refresh();
         }
     }
 }
@@ -1756,6 +1773,144 @@ export function submitBatchOdev() {
     }
 }
 
+export function editHomework(studentId, hwId) {
+    const students = loadStudentsData();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    const odev = getStudentOdevler(student).find(o => o.id === hwId);
+    if (!odev) return;
+
+    window._editingHomework = { studentId, hwId };
+
+    const today = new Date().toISOString().slice(0, 10);
+    const ders = odev.ders || '';
+    const konu = odev.konu || '';
+    const yayin = odev.yayin || '';
+    const tur = odev.tur || 'Konu Tekrari';
+    const baslama = odev.baslamaTarihi || today;
+    const bitis = odev.bitisTarihi || today;
+    const calismaDetayi = odev.calismaDetayi || '';
+
+    const modalHtml = `
+        <div id="odevEditModal" class="app-modal-backdrop" onclick="if(event.target===this) closeOdevEditModal()">
+            <div class="app-modal max-w-lg" onclick="event.stopPropagation()">
+                <div class="app-modal-header">
+                    <div>
+                        <h2 class="app-page-title text-xl">Odevi Duzenle</h2>
+                        <p class="app-page-subtitle">${escapeHtml(student.adSoyad)} - ${escapeHtml(konu)}</p>
+                    </div>
+                    <button onclick="closeOdevEditModal()" class="app-modal-close" aria-label="Pencereyi kapat"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="app-modal-body space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Baslama Tarihi</label>
+                            <input type="date" id="odevEditBaslamaTarihi" value="${baslama}" class="student-form-input min-h-[44px]">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Bitis Tarihi</label>
+                            <input type="date" id="odevEditBitisTarihi" value="${bitis}" class="student-form-input min-h-[44px]">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Ders</label>
+                        <select id="odevEditDersSelect" class="student-form-input min-h-[44px]">
+                            <option value="">Ders secin</option>
+                            ${(store.teacherBranches || []).map(subject => `<option value="${escapeHtml(subject)}" ${subject === ders ? 'selected' : ''}>${escapeHtml(subject)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Odev Konusu</label>
+                        <input type="text" id="odevEditKonu" value="${escapeHtml(konu)}" maxlength="120" class="student-form-input min-h-[44px]">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Odevin Turu</label>
+                            <select id="odevEditTurSelect" class="student-form-input min-h-[44px]">
+                                ${['Konu Denemesi', 'Konu Testi', 'Ornek Sinavlar', 'Konu Tekrari', 'Diger'].map(t => `<option value="${t}" ${t === tur ? 'selected' : ''}>${t}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Kaynak Kitap / Yayin</label>
+                            <input type="text" id="odevEditYayin" value="${escapeHtml(yayin)}" maxlength="120" class="student-form-input min-h-[44px]">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Calisma Detayı</label>
+                        <input type="text" id="odevEditCalismaDetayi" value="${escapeHtml(calismaDetayi)}" maxlength="120" class="student-form-input min-h-[44px]">
+                    </div>
+                    <button onclick="saveHomeworkEdit()" class="btn-primary w-full py-3 min-h-[44px]">
+                        <i class="fas fa-check mr-1"></i> Degisiklikleri Kaydet
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    const existing = document.getElementById('odevEditModal');
+    if (existing) existing.remove();
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'odevEditModal';
+    modalDiv.innerHTML = modalHtml;
+    document.body.appendChild(modalDiv);
+}
+
+export function closeOdevEditModal() {
+    document.getElementById('odevEditModal')?.remove();
+    window._editingHomework = null;
+}
+
+export function saveHomeworkEdit() {
+    const editCtx = window._editingHomework;
+    if (!editCtx) return;
+
+    const { studentId, hwId } = editCtx;
+    const baslama = document.getElementById('odevEditBaslamaTarihi').value;
+    const bitis = document.getElementById('odevEditBitisTarihi').value;
+    const ders = document.getElementById('odevEditDersSelect').value;
+    const konu = document.getElementById('odevEditKonu').value.trim();
+    const tur = document.getElementById('odevEditTurSelect').value;
+    const yayin = document.getElementById('odevEditYayin').value.trim();
+    const calismaDetayi = document.getElementById('odevEditCalismaDetayi').value.trim();
+
+    if (!konu || !yayin) {
+        alert("Lutfen konu ve kaynak bilgilerini doldurun.");
+        return;
+    }
+
+    const updates = { baslamaTarihi: baslama, bitisTarihi: bitis, ders, konu, tur, yayin, calismaDetayi };
+
+    if (store.useFirestore && isFirebaseActive) {
+        db.collection("homeworks").doc(hwId).update(updates)
+            .then(() => {
+                showSyncStatus("Odev guncellendi", false);
+                closeOdevEditModal();
+                renderOdevTakibi();
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Guncelleme basarisiz: " + err.message);
+            });
+    } else {
+        const students = loadStudentsData();
+        const sIdx = students.findIndex(s => s.id === studentId);
+        if (sIdx !== -1) {
+            const odevler = students[sIdx].odevler || [];
+            const oIdx = odevler.findIndex(o => o.id === hwId);
+            if (oIdx !== -1) {
+                Object.assign(odevler[oIdx], updates);
+                saveStudentsData(students);
+                showSyncStatus("Odev guncellendi", false);
+                closeOdevEditModal();
+                renderOdevTakibi();
+            }
+        }
+    }
+}
+
+export function deleteHomeworkFromDashboard(studentId, hwId) {
+    deleteOdev(studentId, hwId, () => renderOdevTakibi());
+}
+
 // Global window mappings for compatibility
 window.hideNavigationElements = hideNavigationElements;
 window.renderParentHwPasscodeScreen = renderParentHwPasscodeScreen;
@@ -1791,6 +1946,10 @@ window.addOdevToGeciciList = addOdevToGeciciList;
 window.renderGeciciOdevListUI = renderGeciciOdevListUI;
 window.removeOdevFromGeciciList = removeOdevFromGeciciList;
 window.submitBatchOdev = submitBatchOdev;
+window.editHomework = editHomework;
+window.closeOdevEditModal = closeOdevEditModal;
+window.saveHomeworkEdit = saveHomeworkEdit;
+window.deleteHomeworkFromDashboard = deleteHomeworkFromDashboard;
 window._geciciOdevListesi = [];
 window._currentOdevStudentId = null;
 window._odevDersContext = null;
