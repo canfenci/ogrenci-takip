@@ -1947,6 +1947,10 @@ export function editStudent(id) {
                     <input id="editSchool" class="student-form-input min-h-[44px]" value="${escapeHtml(s.okul)}" placeholder="Okul" required>
                 </div>
                 <div>
+                    <label class="block text-xs font-semibold mb-1">Okul No</label>
+                    <input type="text" inputmode="numeric" id="editOkulNo" class="student-form-input min-h-[44px]" value="${escapeHtml(s.okulNo || '')}" placeholder="Okul Numarası (isteğe bağlı)">
+                </div>
+                <div>
                     <label class="block text-xs font-semibold mb-1">Sınıf</label>
                     <select id="editSinif" class="student-form-input min-h-[44px]" required>
                         <option value="" disabled>Sınıf Seçin (zorunlu)</option>
@@ -1986,6 +1990,7 @@ export function editStudent(id) {
 export async function saveStudentEdit(id) {
     const name = document.getElementById('editName')?.value.trim();
     const school = document.getElementById('editSchool')?.value.trim();
+    const okulNo = document.getElementById('editOkulNo')?.value.trim() || '';
     const sinif = document.getElementById('editSinif')?.value;
     let target = document.getElementById('editTargetSchool')?.value;
     if (target === "Diger") {
@@ -2000,6 +2005,7 @@ export async function saveStudentEdit(id) {
     const patch = {
         adSoyad: validation.values.name,
         okul: validation.values.school,
+        okulNo: okulNo,
         sinif: validation.values.grade,
         hedefLise: validation.values.target,
         hedefNet: validation.values.net,
@@ -2029,6 +2035,10 @@ export function showAddStudentModal() {
                     <div>
                         <label class="block text-xs font-semibold mb-1">Okul</label>
                         <input type="text" id="newSchool" placeholder="Okul" class="student-form-input min-h-[44px]" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Okul No</label>
+                        <input type="text" inputmode="numeric" id="newOkulNo" placeholder="Okul Numarası (isteğe bağlı)" class="student-form-input min-h-[44px]">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold mb-1">Sınıf</label>
@@ -2080,6 +2090,7 @@ export function closeAddStudentModal() {
 export async function addStudentFromModal() {
     const name = document.getElementById('newName')?.value.trim();
     const school = document.getElementById('newSchool')?.value.trim();
+    const okulNo = document.getElementById('newOkulNo')?.value.trim() || '';
     const sinif = document.getElementById('newSinif')?.value;
     let target = document.getElementById('newTargetSchool')?.value;
     if (target === "Diger") {
@@ -2096,6 +2107,7 @@ export async function addStudentFromModal() {
         adSoyad: validation.values.name,
         sinif: validation.values.grade,
         okul: validation.values.school,
+        okulNo: okulNo,
         hedefLise: validation.values.target,
         hedefNet: validation.values.net,
         dersUcreti: validation.values.fee,
