@@ -403,7 +403,10 @@ export function updateMobileNavActive(activeId) {
         let normalized = activeId;
         if (normalized === 'mobile-nav-schedule' || normalized === 'sidebar-nav-schedule') normalized = 'mobile-nav-lessons';
         if (normalized === 'mobile-nav-groups' || normalized === 'sidebar-nav-groups') normalized = 'mobile-nav-home';
-        if (normalized === 'topbar-nav-general' || normalized === 'sidebar-nav-general' || normalized === 'general' || normalized === 'settings') {
+        if (normalized === 'sidebar-nav-finance' || normalized === 'mobile-nav-finance' || normalized === 'finance') {
+            mobileId = null;
+            sidebarId = 'sidebar-nav-finance';
+        } else if (normalized === 'topbar-nav-general' || normalized === 'sidebar-nav-general' || normalized === 'general' || normalized === 'settings') {
             mobileId = 'topbar-nav-general';
             sidebarId = 'sidebar-nav-general';
         } else if (normalized.startsWith('mobile-nav-')) {

@@ -15,11 +15,42 @@ export function renderDerslerTabBarHtml(activeTab = 'lessons') {
             <button type="button" onclick="renderDerslerPage('lessons')" class="py-2.5 px-4 text-sm font-black border-b-2 flex items-center gap-2 transition min-h-[44px] whitespace-nowrap ${activeTab === 'lessons' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}">
                 <i class="fas fa-book-open"></i> Ders Kayıtları
             </button>
-            <button type="button" onclick="renderDerslerPage('finance')" class="py-2.5 px-4 text-sm font-black border-b-2 flex items-center gap-2 transition min-h-[44px] whitespace-nowrap ${activeTab === 'finance' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}">
-                <i class="fas fa-wallet"></i> Finans & Ödemeler
+        </div>
+    `;
+}
+
+export function renderMobileFinanceQuickLinkHtml() {
+    return `
+        <div class="md:hidden mb-4" id="mobile-finance-quicklink-container">
+            <button type="button" id="mobile-finance-quicklink" onclick="renderFinanceReport()" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-blue-50/70 hover:bg-blue-100/70 dark:bg-blue-950/30 dark:hover:bg-blue-900/40 border border-blue-100 dark:border-blue-900/50 text-blue-700 dark:text-blue-300 transition shadow-2xs min-h-[44px]">
+                <span class="flex items-center gap-2.5 text-xs font-bold">
+                    <i class="fas fa-wallet text-sm text-blue-600 dark:text-blue-400"></i>
+                    <span>Finans / Ödemeler</span>
+                </span>
+                <span class="flex items-center gap-1 text-[11px] font-semibold text-blue-500 dark:text-blue-400">
+                    <span>Görüntüle</span>
+                    <i class="fas fa-chevron-right text-[10px]"></i>
+                </span>
             </button>
         </div>
     `;
+}
+
+export function injectMobileFinanceQuickLinkIfMissing() {
+    if (typeof document === 'undefined') return;
+    const dynamicContent = document.getElementById('dynamic-content');
+    if (!dynamicContent) return;
+    if (dynamicContent.querySelector('#mobile-finance-quicklink')) return;
+
+    const tabBar = dynamicContent.querySelector('.border-b');
+    if (tabBar && tabBar.parentElement) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = renderMobileFinanceQuickLinkHtml().trim();
+        const quickLinkEl = wrapper.firstElementChild;
+        if (quickLinkEl) {
+            tabBar.insertAdjacentElement('afterend', quickLinkEl);
+        }
+    }
 }
 
 export function renderDerslerPage(tab = 'schedule') {
@@ -28,7 +59,17 @@ export function renderDerslerPage(tab = 'schedule') {
     updateMobileNavActive('mobile-nav-lessons');
     if (tab === 'schedule') {
         if (typeof window.renderSchedulePage === 'function') {
+            if (!window._scheduleQuickLinkHooked) {
+                const orig = window.renderSchedulePage;
+                window.renderSchedulePage = function(...args) {
+                    const res = orig.apply(this, args);
+                    injectMobileFinanceQuickLinkIfMissing();
+                    return res;
+                };
+                window._scheduleQuickLinkHooked = true;
+            }
             window.renderSchedulePage();
+            injectMobileFinanceQuickLinkIfMissing();
         }
     } else if (tab === 'finance') {
         renderFinanceReport();
@@ -39,7 +80,7 @@ export function renderDerslerPage(tab = 'schedule') {
 
 export function renderFinanceReport() {
     store.currentPage = "finance";
-    updateMobileNavActive('mobile-nav-lessons');
+    updateMobileNavActive('sidebar-nav-finance');
     const students = loadStudentsData();
     
     let totalRevenueCollected = 0;
@@ -130,11 +171,10 @@ export function renderFinanceReport() {
         <div class="app-page">
             <header class="app-page-header">
                 <div>
-                    <h2 class="app-page-title">Dersler</h2>
-                    <p class="app-page-subtitle">Haftalık ders çizelgesi, ders geçmişi ve finansal takip.</p>
+                    <h2 class="app-page-title">Finans / Ödemeler</h2>
+                    <p class="app-page-subtitle">Öğrenci ders ücretleri, tahsilat durumu ve ödeme takibi.</p>
                 </div>
             </header>
-            ${renderDerslerTabBarHtml('finance')}
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-6 border border-gray-100/20 dark:border-gray-700/50">
                 <div class="flex justify-between items-center mb-5 flex-wrap gap-3">
                     <div>
@@ -198,6 +238,7 @@ export function renderDersKayitlari() {
             <div class="app-page">
                 <header class="app-page-header"><div><h2 class="app-page-title">Dersler</h2><p class="app-page-subtitle">Haftalık ders çizelgesi, ders geçmişi ve finansal takip.</p></div></header>
                 ${renderDerslerTabBarHtml('lessons')}
+                ${renderMobileFinanceQuickLinkHtml()}
                 <div class="app-panel cf-empty-state">
                     <div class="cf-empty-icon"><i class="fas fa-book-open"></i></div>
                     <h3 class="cf-empty-title">Henüz Öğrenci Kaydı Bulunmuyor</h3>
@@ -274,7 +315,7 @@ export function renderDersKayitlari() {
     cardsHtml += '</div>';
     
     document.getElementById("dynamic-content").innerHTML = `
-        <div class="app-page"><header class="app-page-header"><div><h2 class="app-page-title">Dersler</h2><p class="app-page-subtitle">Haftalık ders çizelgesi, ders geçmişi ve finansal takip.</p></div></header>${renderDerslerTabBarHtml('lessons')}${cardsHtml}</div>
+        <div class="app-page"><header class="app-page-header"><div><h2 class="app-page-title">Dersler</h2><p class="app-page-subtitle">Haftalık ders çizelgesi, ders geçmişi ve finansal takip.</p></div></header>${renderDerslerTabBarHtml('lessons')}${renderMobileFinanceQuickLinkHtml()}${cardsHtml}</div>
     `;
 }
 
@@ -872,3 +913,5 @@ window.toggleLessonRowDetail = toggleLessonRowDetail;
 window.setLessonPeriodFilter = setLessonPeriodFilter;
 window.setLessonSortOrder = setLessonSortOrder;
 window.onLessonSearchInput = onLessonSearchInput;
+window.renderMobileFinanceQuickLinkHtml = renderMobileFinanceQuickLinkHtml;
+window.injectMobileFinanceQuickLinkIfMissing = injectMobileFinanceQuickLinkIfMissing;

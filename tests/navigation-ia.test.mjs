@@ -6,14 +6,14 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const readProjectFile = (relativePath) => fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 
-test('UX-IA-02.1 Scenario A: Desktop sidebar preserves the 5 main workspace domains in workspace group', () => {
+test('UX-IA-02 Scenario A: Desktop sidebar preserves the main workspace domains including Finance in workspace group', () => {
     const indexHtml = readProjectFile('index.html');
     const groupMatch = indexHtml.match(/<div[^>]*id="sidebar-workspace-group"[^>]*>([\s\S]*?)<\/div>/);
     assert.ok(groupMatch, 'sidebar-workspace-group must exist');
 
     const content = groupMatch[1];
     const buttonMatches = [...content.matchAll(/<button[^>]*id="(sidebar-nav-[^"]+)"[^>]*>/g)];
-    assert.equal(buttonMatches.length, 5, 'Workspace group must have exactly 5 nav buttons');
+    assert.equal(buttonMatches.length, 6, 'Workspace group must have exactly 6 nav buttons');
 
     const buttonIds = buttonMatches.map(m => m[1]);
     assert.deepEqual(buttonIds, [
@@ -21,7 +21,8 @@ test('UX-IA-02.1 Scenario A: Desktop sidebar preserves the 5 main workspace doma
         'sidebar-nav-home',
         'sidebar-nav-lessons',
         'sidebar-nav-homework',
-        'sidebar-nav-guidance'
+        'sidebar-nav-guidance',
+        'sidebar-nav-finance'
     ], 'Desktop workspace buttons must be in exact canonical order');
 });
 
@@ -35,13 +36,13 @@ test('UX-IA-02.1 Scenario B: Desktop sidebar has visible Ayarlar management link
     assert.match(content, />\s*<i[^>]*class="[^"]*fa-cog[^"]*"[^>]*><\/i>\s*<span>Ayarlar<\/span>/, 'sidebar-nav-general must have cog icon and visible Ayarlar text');
 });
 
-test('UX-IA-02.1 Scenario C: Ayarlar is excluded from the 5 workspace items count', () => {
+test('UX-IA-02 Scenario C: Ayarlar is excluded from the workspace items count', () => {
     const indexHtml = readProjectFile('index.html');
     const groupMatch = indexHtml.match(/<div[^>]*id="sidebar-workspace-group"[^>]*>([\s\S]*?)<\/div>/);
     assert.ok(groupMatch, 'sidebar-workspace-group must exist');
 
     const workspaceButtons = [...groupMatch[1].matchAll(/<button[^>]*id="([^"]+)"/g)].map(m => m[1]);
-    assert.equal(workspaceButtons.length, 5, 'Workspace group must contain exactly 5 buttons');
+    assert.equal(workspaceButtons.length, 6, 'Workspace group must contain exactly 6 buttons');
     assert.ok(!workspaceButtons.includes('sidebar-nav-general'), 'sidebar-nav-general must NOT be in workspace group');
 });
 
@@ -112,11 +113,14 @@ test('UX-IA-02.1 Scenario J: Backup and restore accessible in Ayarlar', () => {
     assert.match(studentsJs, /Veri Yedekleme ve Geri Yükleme/, 'Backup section heading must exist');
 });
 
-test('UX-IA-02.1 Scenario K: Finans & Ödemeler visible under Dersler tabs', () => {
+test('UX-IA-02 Scenario K: Dersler tab bar is focused on core schedule and lesson records without finance nesting', () => {
     const financeJs = readProjectFile('finance.js');
     assert.match(financeJs, /export function renderDerslerTabBarHtml/, 'finance.js must export renderDerslerTabBarHtml');
-    assert.match(financeJs, /renderDerslerPage\('finance'\)/, 'Tab bar must link to finance tab');
-    assert.match(financeJs, /Finans & Ödemeler/, 'Tab bar must include Finans & Ödemeler text');
+    assert.match(financeJs, /renderDerslerPage\('schedule'\)/, 'Tab bar must link to schedule tab');
+    assert.match(financeJs, /renderDerslerPage\('lessons'\)/, 'Tab bar must link to lessons tab');
+    const tabBarMatch = financeJs.match(/export function renderDerslerTabBarHtml[\s\S]*?\n\}/);
+    assert.ok(tabBarMatch, 'renderDerslerTabBarHtml must exist');
+    assert.doesNotMatch(tabBarMatch[0], /Finans & Ödemeler/, 'Dersler tab bar must not contain Finans tab');
 });
 
 test('UX-IA-02.1 Scenario L: Finans is not re-embedded in Ayarlar', () => {
@@ -155,12 +159,12 @@ test('UX-IA-02.1 Scenario O: Groups accessible under Students via tab bar', () =
     assert.match(groupsJs, /updateMobileNavActive\(["']mobile-nav-home["']\)/, 'groups page must activate Students nav item');
 });
 
-test('UX-IA-02.1 Scenario P: Active navigation state activates Dersler for all 3 sub-views and Ayarlar for settings', () => {
+test('UX-IA-02 Scenario P: Active navigation state activates Dersler for lesson views and Finance independently', () => {
     const financeJs = readProjectFile('finance.js');
     const scheduleJs = readProjectFile('schedule.js');
     const authJs = readProjectFile('auth.js');
 
-    assert.match(financeJs, /renderFinanceReport[\s\S]*?updateMobileNavActive\(['"]mobile-nav-lessons['"]\)/, 'renderFinanceReport must activate mobile-nav-lessons');
+    assert.match(financeJs, /renderFinanceReport[\s\S]*?updateMobileNavActive\(['"]sidebar-nav-finance['"]\)/, 'renderFinanceReport must activate sidebar-nav-finance');
     assert.match(financeJs, /renderDersKayitlari[\s\S]*?updateMobileNavActive\(['"]mobile-nav-lessons['"]\)/, 'renderDersKayitlari must activate mobile-nav-lessons');
     assert.match(scheduleJs, /renderSchedulePage[\s\S]*?updateMobileNavActive\(['"]mobile-nav-lessons['"]\)/, 'renderSchedulePage must activate mobile-nav-lessons');
     assert.match(authJs, /topbar-nav-general[\s\S]*?sidebar-nav-general/, 'auth.js must handle topbar-nav-general and sidebar-nav-general active mapping');
