@@ -347,7 +347,8 @@ test('Scenario L: Empty week scenario (0 lessons) displays quiet empty indicator
     renderSchedulePage();
 
     const output = document.getElementById('dynamic-content').innerHTML;
-    assert.ok(output.includes('Bu hafta planlanmış ders yok.'), 'Should show calm empty week message');
+    assert.ok(output.includes('Henüz ders programı oluşturulmadı'), 'Should show empty schedule title');
+    assert.ok(output.includes('Ders Ekle'), 'Should show Ders Ekle action button');
     assert.match(output, />0<\/[^>]*>\s*Ders/, 'Must show 0 Ders in summary');
     assert.match(output, /7 Boş Gün/, 'Must show 7 Boş Gün');
 });

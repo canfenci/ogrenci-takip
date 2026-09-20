@@ -317,8 +317,15 @@ export function renderSchedulePage() {
                 </div>
 
                 ${totalWeeklyLessons === 0 ? `
-                    <div class="text-xs text-gray-500 dark:text-gray-400 bg-gray-50/80 dark:bg-gray-850/80 border border-gray-200 dark:border-gray-700/80 rounded-xl p-3 mb-3 text-center">
-                        Bu hafta planlanmış ders yok.
+                    <div class="flex flex-col items-center justify-center py-12 px-4">
+                        <div class="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4 text-2xl">
+                            <i class="fas fa-calendar-plus"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 dark:text-gray-100 text-sm mb-1">Henüz ders programı oluşturulmadı</h4>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 text-center max-w-xs mb-4">Haftalık ders planını oluşturmak için ilk dersini ekleyebilirsin.</p>
+                        <button onclick="showAddScheduleModal('${selectedStudentId === 'all' ? (students[0]?.id || '') : selectedStudentId}')" class="btn-primary px-5 py-2.5 text-xs font-bold flex items-center justify-center gap-2 min-h-[44px] rounded-xl shadow-sm">
+                            <i class="fas fa-plus-circle"></i> <span>Ders Ekle</span>
+                        </button>
                     </div>
                 ` : ''}
 
