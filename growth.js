@@ -3,6 +3,7 @@
 import {
     store,
     loadStudentsData,
+    getStudentOdevler,
     escapeHtml,
     updateGrowthWeeklyTarget,
     markGrowthErrorSolved,
@@ -270,7 +271,7 @@ export function showCoachingPlanEditor(studentId, existingPlan) {
     const topicsJson = JSON.stringify(topics).replace(/"/g, '&quot;');
     const tasksJson = JSON.stringify(tasks).replace(/"/g, '&quot;');
     const dayOptions = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'].map(d => `<option value="${d}">${d}</option>`).join('');
-    const taskTypeOptions = `<option value="question">Soru</option><option value="exam">Deneme</option><option value="review">Tekrar</option><option value="reading">Okuma</option><option value="custom">Özel</option>`;
+    const taskTypeOptions = `<option value="question">Soru</option><option value="exam">Deneme</option><option value="review">Tekrar</option><option value="reading">Okuma</option><option value="homework">Ödev</option><option value="custom">Özel</option>`;
     document.body.insertAdjacentHTML('beforeend', `
         <div id="coachingPlanEditorModal" class="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto" role="dialog" aria-modal="true">
             <div class="app-modal max-w-3xl mx-auto my-4 sm:my-8">
@@ -307,7 +308,7 @@ export function showCoachingPlanEditor(studentId, existingPlan) {
                     </section>
 
                     <section>
-                        <div class="flex items-center justify-between mb-3"><h4 class="font-black text-sm">Haftalık Görevler</h4><button onclick="addCpTask()" class="btn-secondary min-h-[44px] px-3 text-xs font-bold"><i class="fas fa-plus mr-1"></i>Görev</button></div>
+                        <div class="flex items-center justify-between mb-3"><h4 class="font-black text-sm">Haftalık Görevler</h4><div class="flex items-center gap-2"><button onclick="openHomeworkPicker('${studentId}', '${escapeHtml((branches[0]?.subject || '').replace(/'/g, "\\'"))}')" class="btn-secondary min-h-[44px] px-3 text-xs font-bold"><i class="fas fa-tasks mr-1"></i>Verilen Ödevlerden Seç</button><button onclick="addCpTask()" class="btn-secondary min-h-[44px] px-3 text-xs font-bold"><i class="fas fa-plus mr-1"></i>Görev</button></div></div>
                         <div id="cpTaskRows" class="space-y-3"></div>
                     </section>
                 </div>
@@ -449,6 +450,103 @@ if (typeof window !== 'undefined') {
         renderCpTaskRows();
     };
     window.closeCoachingPlanEditor = function() { document.getElementById('coachingPlanEditorModal')?.remove(); };
+    window.openHomeworkPicker = function(studentId, planBranch) {
+        const students = loadStudentsData();
+        const student = students.find(s => s.id === studentId);
+        if (!student) return;
+        let odevler = getStudentOdevler(student);
+        if (!odevler || odevler.length === 0) {
+            alert('Bu öğrenci için henüz ödev bulunmuyor.');
+            return;
+        }
+        if (planBranch) {
+            const normalizedBranch = String(planBranch).trim().toLowerCase();
+            odevler = odevler.filter(hw => {
+                const hwBranch = String(hw.ders || hw.kaynakDers?.ders || '').trim().toLowerCase();
+                return hwBranch === normalizedBranch || hwBranch.includes(normalizedBranch) || normalizedBranch.includes(hwBranch);
+            });
+            if (odevler.length === 0) {
+                alert(`"${planBranch}" branşında henüz ödev bulunmuyor.`);
+                return;
+            }
+        }
+        document.getElementById('homeworkPickerModal')?.remove();
+        const dayOptions = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'].map(d => `<option value="${d}">${d}</option>`).join('');
+        const rowsHtml = odevler.map(hw => {
+            const title = escapeHtml(hw.calismaDetayi || hw.konu || 'Ödev');
+            const subject = escapeHtml(hw.ders || hw.kaynakDers?.ders || '');
+            const source = escapeHtml(hw.yayin || hw.tur || '');
+            const due = escapeHtml(hw.bitisTarihi || '');
+            const status = hw.durum === 'tamamlandi' ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Tamamlandı</span>' : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Bekliyor</span>';
+            return `
+                <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition">
+                    <input type="checkbox" class="hw-picker-cb mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-hw-id="${escapeHtml(hw.id)}" data-hw-title="${title}" data-hw-subject="${subject}" data-hw-source="${source}">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-xs text-gray-800 dark:text-gray-200 truncate">${title}</p>
+                        <div class="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] text-gray-500">
+                            ${subject ? `<span>${subject}</span>` : ''}
+                            ${source ? `<span>· ${source}</span>` : ''}
+                            ${due ? `<span>· Teslim: ${due}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="shrink-0">${status}</div>
+                </label>
+            `;
+        }).join('');
+        const modalHtml = `
+            <div id="homeworkPickerModal" class="fixed inset-0 z-[110] bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto" role="dialog" aria-modal="true">
+                <div class="app-modal max-w-lg mx-auto my-4 sm:my-8">
+                    <div class="app-modal-header flex items-start justify-between gap-4">
+                        <div><h3 class="text-xl font-black">Verilen Ödevlerden Seç</h3><p class="text-sm text-gray-500 mt-1">Planlamak istediğiniz ödevleri seçin ve güne atayın.</p></div>
+                        <button onclick="closeHomeworkPicker()" class="min-w-[44px] min-h-[44px] text-gray-500" aria-label="Kapat"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="app-modal-body space-y-3">
+                        <div class="space-y-2 max-h-[50vh] overflow-y-auto">${rowsHtml}</div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Gün Seçin</label>
+                            <select id="hwPickerDay" class="student-form-input min-h-[44px] w-full">${dayOptions}</select>
+                        </div>
+                    </div>
+                    <div class="app-modal-actions">
+                        <button onclick="closeHomeworkPicker()" class="btn-secondary min-h-[44px]">İptal</button>
+                        <button onclick="confirmHomeworkPicker('${studentId}')" class="btn-primary min-h-[44px]"><i class="fas fa-plus mr-1"></i>Planla</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+    window.closeHomeworkPicker = function() { document.getElementById('homeworkPickerModal')?.remove(); };
+    window.confirmHomeworkPicker = function(studentId) {
+        const day = document.getElementById('hwPickerDay')?.value;
+        if (!day) { alert('Lütfen bir gün seçin.'); return; }
+        const checked = document.querySelectorAll('.hw-picker-cb:checked');
+        if (!checked.length) { alert('Lütfen en az bir ödev seçin.'); return; }
+        const arr = JSON.parse(document.getElementById('cpTasksData')?.value || '[]');
+        const existingHwIds = new Set(arr.filter(t => t.taskType === 'homework' && t.dueDay === day).map(t => t.homeworkId));
+        let addedCount = 0;
+        checked.forEach(cb => {
+            const hwId = cb.dataset.hwId;
+            if (existingHwIds.has(hwId)) return;
+            existingHwIds.add(hwId);
+            arr.push({
+                id: _newCpId(),
+                taskType: 'homework',
+                homeworkId: hwId,
+                homeworkStudentId: studentId,
+                dueDay: day,
+                completed: false,
+                completedCount: 0
+            });
+            addedCount++;
+        });
+        document.getElementById('cpTasksData').value = JSON.stringify(arr);
+        renderCpTaskRows();
+        closeHomeworkPicker();
+        if (addedCount < checked.length) {
+            const skipped = checked.length - addedCount;
+            alert(`${addedCount} ödev planlandı. ${skipped} ödev zaten aynı günde mevcut, atlandı.`);
+        }
+    };
     window.saveCoachingPlanFromEditor = async function(studentId) {
         const val = (id) => { const v = document.getElementById(id)?.value?.trim(); return v === '' || v === null || v === undefined ? null : v; };
         const numVal = (id) => { const v = document.getElementById(id)?.value?.trim(); if (v === '' || v === null || v === undefined) return null; const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : null; };

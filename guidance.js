@@ -2116,32 +2116,50 @@ export function renderGuidanceStudentDetail(studentId) {
                                                 </div>
                                             `;
                                         } else if (typeof task === 'object' && task !== null) {
-                                            const title = task.title || task.konu || task.name || task.text || 'Çalışma Görevi';
+                                            const isHomework = task.taskType === 'homework';
+                                            let title = task.title || task.konu || task.name || task.text || 'Çalışma Görevi';
                                             const desc = task.description || task.aciklama || task.detail || '';
                                             const question = task.questionTarget || task.questionCount || task.soru || null;
-                                            const completedCount = task.completedCount || 0;
+                                            let completedCount = task.completedCount || 0;
                                             const duration = task.duration || task.durationMinutes || task.sure || null;
-                                            const resource = task.resource || task.kaynak || null;
-                                            const isDone = Boolean(task.completed || task.tamamlandi);
+                                            let resource = task.resource || task.kaynak || null;
+                                            let isDone = Boolean(task.completed || task.tamamlandi);
+                                            let hwStatus = null;
+                                            let hwOrphan = false;
+                                            if (isHomework && task.homeworkId) {
+                                                const hwStudents = loadStudentsData();
+                                                const hwStudent = hwStudents.find(s => s.id === task.homeworkStudentId);
+                                                const hwList = hwStudent ? getStudentOdevler(hwStudent) : [];
+                                                const hw = hwList.find(h => h.id === task.homeworkId);
+                                                if (hw) {
+                                                    title = hw.calismaDetayi || hw.konu || title;
+                                                    resource = hw.yayin || hw.tur || resource;
+                                                    hwStatus = hw.durum === 'tamamlandi' ? 'completed' : 'pending';
+                                                    isDone = hwStatus === 'completed';
+                                                } else {
+                                                    hwOrphan = true;
+                                                }
+                                            }
                                             const state = getTaskCompletionState(task);
                                             const stateColors = { completed: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', in_progress: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800', not_started: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' };
                                             const stateLabels = { completed: 'Tamamlandı', in_progress: 'Devam Ediyor', not_started: 'Başlanmadı' };
                                             const taskId = task.id || '';
                                             const editable = coachingPlan && taskId && !task._legacy;
                                             return `
-                                                <div class="p-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200/70 dark:border-gray-800 text-xs space-y-1.5" ${editable ? `data-task-id="${escapeHtml(taskId)}"` : ''}>
+                                                <div class="p-2.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border ${isHomework ? 'border-indigo-200/70 dark:border-indigo-800/50' : 'border-gray-200/70 dark:border-gray-800'} text-xs space-y-1.5" ${editable ? `data-task-id="${escapeHtml(taskId)}"` : ''}>
                                                     <div class="flex items-start justify-between gap-1.5">
-                                                        <p class="font-bold text-gray-800 dark:text-gray-200 leading-snug ${isDone ? 'line-through opacity-70' : ''}">${escapeHtml(title)}</p>
+                                                        <p class="font-bold text-gray-800 dark:text-gray-200 leading-snug ${isDone ? 'line-through opacity-70' : ''}">${isHomework ? '<i class="fas fa-book-open text-indigo-500 dark:text-indigo-400 mr-1 text-[10px]"></i>' : ''}${escapeHtml(title)}</p>
                                                         ${editable ? `
                                                             <label class="flex items-center gap-1 shrink-0 cursor-pointer" title="Görevi tamamlandı olarak işaretle">
-                                                                <input type="checkbox" class="cp-task-completed w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" data-task-id="${escapeHtml(taskId)}" ${isDone ? 'checked' : ''}>
+                                                                <input type="checkbox" class="cp-task-completed w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" data-task-id="${escapeHtml(taskId)}" ${isDone ? 'checked' : ''} ${isHomework ? 'disabled' : ''}>
                                                                 <span class="text-[10px] font-bold ${isDone ? 'text-emerald-600' : 'text-gray-400'}">${isDone ? 'Tamam' : ''}</span>
                                                             </label>
                                                         ` : `
-                                                            <span class="px-1.5 py-0.5 rounded text-[10px] font-black border shrink-0 ${stateColors[state]}">${stateLabels[state]}</span>
+                                                            <span class="px-1.5 py-0.5 rounded text-[10px] font-black border shrink-0 ${hwOrphan ? 'bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700' : isHomework ? (hwStatus === 'completed' ? stateColors.completed : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800') : stateColors[state]}">${hwOrphan ? 'Silinmiş' : isHomework ? (hwStatus === 'completed' ? 'Tamamlandı' : 'Bekliyor') : stateLabels[state]}</span>
                                                         `}
                                                     </div>
                                                     ${desc ? `<p class="text-[11px] text-gray-500">${escapeHtml(desc)}</p>` : ''}
+                                                    ${hwOrphan ? '<p class="text-[10px] text-amber-500 italic">Referans ödev silinmiş.</p>' : ''}
                                                     <div class="flex flex-wrap gap-1.5 pt-0.5 text-[10px] text-gray-500 font-semibold">
                                                         ${question && editable ? `
                                                             <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
