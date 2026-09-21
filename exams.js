@@ -172,9 +172,9 @@ export function renderDenemeAtaModal(preSelectedStudentId = null) {
         const dersKey = GENEL_DERSLER_KEY[i];
         const dersGorunum = GENEL_DERSLER_GORUNUM[i];
         genelDersHtml += `
-            <div class="mb-2 flex items-center gap-3">
-                <label class="w-48 text-sm font-semibold">${dersGorunum}</label>
-                <input type="number" min="0" value="${batchGenelDersSayilari[dersKey] || 0}" class="w-24 border-2 rounded-xl p-2 focus:ring-4 focus:ring-indigo-200 outline-none genelDersInput min-h-[44px]" data-ders="${dersKey}">
+            <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7rem] items-center gap-2">
+                <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">${dersGorunum}</label>
+                <input type="number" min="0" value="${batchGenelDersSayilari[dersKey] || 0}" class="student-form-input genelDersInput min-h-[44px]" data-ders="${dersKey}" aria-label="${dersGorunum} soru sayısı">
             </div>
         `;
     }
@@ -182,9 +182,9 @@ export function renderDenemeAtaModal(preSelectedStudentId = null) {
 
     const modalHtml = `
         <div id="denemeAtaModal" class="app-modal-backdrop" onclick="if(event.target===this) closeDenemeAtaModal()">
-            <div class="app-modal max-w-2xl" onclick="event.stopPropagation()">
+            <div class="app-modal max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="denemeAtaModalTitle" onclick="event.stopPropagation()">
                 <div class="app-modal-header">
-                    <div><h2 class="app-page-title text-xl">Deneme Ata</h2><p class="app-page-subtitle">Konu veya genel denemeyi birden fazla öğrenciye tek işlemde atayın.</p></div>
+                    <div><h2 id="denemeAtaModalTitle" class="app-page-title text-xl">Deneme Ata</h2><p class="app-page-subtitle">Konu veya genel denemeyi birden fazla öğrenciye tek işlemde atayın.</p></div>
                     <button onclick="closeDenemeAtaModal()" class="app-modal-close" aria-label="Pencereyi kapat"><i class="fas fa-times text-lg"></i></button>
                 </div>
                 <div class="app-modal-body">
@@ -192,17 +192,20 @@ export function renderDenemeAtaModal(preSelectedStudentId = null) {
                     <button id="tabBransBtn" class="${denemeAtaMode === 'branş' ? 'is-active' : ''}"><i class="fas fa-flask mr-1"></i> Konu Denemesi</button>
                     <button id="tabGenelBtn" class="${denemeAtaMode === 'genel' ? 'is-active' : ''}"><i class="fas fa-layer-group mr-1"></i> Genel Deneme</button>
                 </div>
-                <div class="mb-3">
+                <div class="mb-5">
                     <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Deneme Adı</label>
                     <input id="denemeAtaExamName" class="student-form-input min-h-[44px]" placeholder="Örn: Mart Denemesi">
                 </div>
                 ${bransHtml}
                 ${genelDersHtml}
-                <div class="mt-3">
+                <div class="mt-5">
                     <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Öğrencileri seç</label>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-auto border p-3 rounded-xl bg-gray-50 dark:bg-gray-900">${studentCheckboxes}</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-auto border border-gray-200 p-3 rounded-xl bg-gray-50 dark:bg-gray-900 dark:border-gray-700">${studentCheckboxes}</div>
                 </div>
-                <button id="saveDenemeAtaBtn" class="btn-primary mt-4 w-full py-3 min-h-[44px]"><i class="fas fa-check mr-1"></i> Seçilen Öğrencilere Ata</button>
+                </div>
+                <div class="app-modal-actions">
+                    <button type="button" onclick="closeDenemeAtaModal()" class="btn-secondary min-h-[44px] px-4">Vazgeç</button>
+                    <button id="saveDenemeAtaBtn" type="button" class="btn-primary min-h-[44px] px-4"><i class="fas fa-check mr-1"></i> Seçilen Öğrencilere Ata</button>
                 </div>
             </div>
         </div>
@@ -1837,32 +1840,36 @@ export function viewExam(studentId, examId) {
     if (!s) return;
     const ex = s.denemeler.find(e => e.id === examId);
     if (!ex) return;
-    let detay = '<div class="space-y-1.5 max-h-80 overflow-y-auto pr-1 text-sm">';
+    let detay = '<div class="space-y-2 max-h-80 overflow-y-auto pr-1 text-sm" aria-label="Soru dağılımı">';
     for (let soru of ex.sorular) {
-        const durumEmoji = soru.durum === 'dogru' ? '✅' : (soru.durum === 'yanlis' ? '❌' : '⬜');
+        const durum = soru.durum === 'dogru' ? 'Doğru' : (soru.durum === 'yanlis' ? 'Yanlış' : 'Boş');
+        const durumClass = soru.durum === 'dogru' ? 'status-pill-success' : (soru.durum === 'yanlis' ? 'status-pill-danger' : 'status-pill-warning');
         const hataStr = soru.hataKodu ? ` (${soru.hataKodu})` : '';
         const konuStr = soru.konuAdi ? ` (${soru.konuAdi})` : '';
-        detay += `<div class="border-b dark:border-gray-700 py-1.5 font-medium">${soru.soruNo}. Soru${konuStr}: ${durumEmoji} ${soru.durum}${hataStr}</div>`;
+        detay += `<div class="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2 dark:border-gray-700"><span class="min-w-0 font-medium text-gray-700 dark:text-gray-200">${soru.soruNo}. Soru${konuStr}${hataStr}</span><span class="status-pill ${durumClass} shrink-0">${durum}</span></div>`;
     }
     detay += '</div>';
 
     const modal = document.createElement('div');
-    modal.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4";
+    modal.id = 'examDetailModal';
+    modal.className = 'app-modal-backdrop';
     modal.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl border">
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-xl font-bold text-gray-805 dark:text-white">Deneme Detayı</h2>
-                <button onclick="this.closest('.fixed').remove()" class="text-gray-500"><i class="fas fa-times text-xl"></i></button>
+        <div class="app-modal max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="examDetailModalTitle">
+            <div class="app-modal-header">
+                <div><h2 id="examDetailModalTitle" class="app-page-title text-xl">Deneme Detayı</h2><p class="app-page-subtitle">Sonuçları ve soru bazındaki durumu inceleyin.</p></div>
+                <button type="button" onclick="document.getElementById('examDetailModal')?.remove()" class="app-modal-close" aria-label="Deneme detayını kapat"><i class="fas fa-times text-lg"></i></button>
             </div>
-            <div class="bg-gray-50 dark:bg-gray-900/30 p-4 rounded-xl mb-4 border text-sm">
-                <p class="font-bold text-base text-indigo-600 dark:text-indigo-400 mb-1">${escapeHtml(ex.denemeAdi)}</p>
-                <p class="font-medium text-gray-600 dark:text-gray-300">Tarih: ${ex.tarih} | Net: <span class="font-bold text-blue-600">${ex.toplamNet}</span> | D:${ex.toplamDogru} Y:${ex.toplamYanlis} B:${ex.toplamBos}</p>
+            <div class="app-modal-body">
+                <div class="app-metric mb-5 text-sm">
+                    <p class="font-bold text-base text-gray-900 dark:text-white mb-1">${escapeHtml(ex.denemeAdi)}</p>
+                    <p class="font-medium text-gray-600 dark:text-gray-300">Tarih: ${ex.tarih} <span aria-hidden="true">·</span> Net: <span class="font-bold text-blue-700 dark:text-blue-300">${ex.toplamNet}</span> <span aria-hidden="true">·</span> D:${ex.toplamDogru} Y:${ex.toplamYanlis} B:${ex.toplamBos}</p>
+                </div>
+                <h3 class="font-bold text-sm mb-2 text-gray-800 dark:text-gray-100">Soru Dağılımı</h3>
+                ${detay}
             </div>
-            <h3 class="font-bold text-sm mb-2 text-gray-750 dark:text-gray-250">Soru Dağılımı</h3>
-            ${detay}
-            <div class="mt-4 flex gap-2">
-                <button onclick="this.closest('.fixed').remove(); editExam('${studentId}','${examId}')" class="flex-grow bg-blue-650 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold transition shadow min-h-[44px]">Düzenle</button>
-                <button onclick="this.closest('.fixed').remove()" class="flex-grow border py-2.5 rounded-xl font-bold min-h-[44px]">Kapat</button>
+            <div class="app-modal-actions">
+                <button type="button" onclick="document.getElementById('examDetailModal')?.remove()" class="btn-secondary min-h-[44px] px-4">Kapat</button>
+                <button type="button" onclick="document.getElementById('examDetailModal')?.remove(); editExam('${studentId}','${examId}')" class="btn-primary min-h-[44px] px-4"><i class="fas fa-pen mr-1"></i> Düzenle</button>
             </div>
         </div>
     `;

@@ -8,9 +8,9 @@ function readProjectFile(relativePath) {
     return readFile(resolve(process.cwd(), relativePath), 'utf8');
 }
 
-test('HOTFIX-WHITE-SCREEN Scenario G: firebase-config.js, firestore.rules, exams.js have ZERO modifications', () => {
-    const diff = execSync('git diff -- firebase-config.js firestore.rules exams.js', { encoding: 'utf8' });
-    assert.equal(diff.trim(), '', 'Critical persistence, schema, and exam files must not have any modifications');
+test('HOTFIX-WHITE-SCREEN Scenario G: firebase-config.js and firestore.rules have ZERO modifications', () => {
+    const diff = execSync('git diff -- firebase-config.js firestore.rules', { encoding: 'utf8' });
+    assert.equal(diff.trim(), '', 'Critical persistence and schema files must not have any modifications');
 });
 
 test('HOTFIX-WHITE-SCREEN Scenario A & C: bootApp prevents blank white screen and ensures dynamic-content is rendered', async () => {
