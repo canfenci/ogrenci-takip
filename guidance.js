@@ -2360,7 +2360,7 @@ export function renderGuidanceStudentDetail(studentId) {
                     <i class="fas fa-compass"></i> Koçluk Merkezi
                 </button>
                 <span><i class="fas fa-chevron-right text-[10px] text-gray-400"></i></span>
-                <span class="text-gray-900 dark:text-white font-bold">${escapeHtml(detail.studentName)}</span>
+                <span class="text-gray-900 dark:text-white font-bold" aria-current="page">${escapeHtml(detail.studentName)}</span>
             </nav>
 
             <!-- Header -->

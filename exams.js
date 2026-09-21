@@ -1,7 +1,7 @@
 // ==================== EXAM ANALYSIS & MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, getKonuListesiBySinif, getKonuListesiBySinifAndDers, CURRICULUM_UNITS, GENEL_DERSLER_GORUNUM, GENEL_DERSLER_KEY, HATA_KODLARI, POPULER_LISELER, getErrorColor, calculateNet, escapeHtml, loadSchedule, loadDersKayitlari, getStudentOdevler, addStudentArrayRecord, updateStudentArrayRecord, deleteStudentArrayRecord, bulkAddStudentExam, OFFLINE_BLOCKED_ARRAY_MESSAGE } from './store.js';
+import { store, loadStudentsData, getKonuListesiBySinif, getKonuListesiBySinifAndDers, CURRICULUM_UNITS, GENEL_DERSLER_GORUNUM, GENEL_DERSLER_KEY, HATA_KODLARI, POPULER_LISELER, getErrorColor, calculateNet, escapeHtml, loadSchedule, loadDersKayitlari, getStudentOdevler, addStudentArrayRecord, updateStudentArrayRecord, deleteStudentArrayRecord, bulkAddStudentExam, OFFLINE_BLOCKED_ARRAY_MESSAGE, isActiveStudent } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { MANUAL_RESOURCE_VALUE, readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
 
@@ -125,7 +125,7 @@ export function showDenemeAtaModal(preSelectedStudentId = null) {
 }
 
 export function renderDenemeAtaModal(preSelectedStudentId = null) {
-    const students = loadStudentsData();
+    const students = loadStudentsData().filter(isActiveStudent);
     const studentCheckboxes = students.map(s => `
         <label class="flex items-center gap-2 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer transition">
             <input type="checkbox" value="${s.id}" data-grade="${escapeHtml(s.sinif || '')}" ${s.id === preSelectedStudentId ? 'checked' : ''} class="studentCheck rounded border-gray-300 dark:border-gray-650 text-blue-600">

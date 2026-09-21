@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const ui = fs.readFileSync('ui-helpers.js', 'utf8');
+const homework = fs.readFileSync('homework.js', 'utf8');
+const exams = fs.readFileSync('exams.js', 'utf8');
+const students = fs.readFileSync('students.js', 'utf8');
+test('F-09 A-E: canonical toast helper has feedback semantics', () => { assert.match(ui, /export function showToast\(message, options = \{\}\)/); assert.match(ui, /success.*info.*warning.*error/); assert.match(ui, /aria-live/); assert.match(ui, /dark:bg-/); });
+test('F-09 F: low-risk homework result alerts use canonical helper', () => { assert.match(homework, /showToast\([^;]+type: 'success'/s); assert.match(homework, /showToast\([^;]+type: 'error'/s); });
+test('F-09 G-H: destructive confirms remain present', () => { assert.match(exams, /confirm\("Bu denemeyi silmek istediğinize emin misiniz\?"\)/); assert.doesNotMatch(students, /prompt\(/); });
+test('F-09 I-J: persistence failures remain visible and no duplicate system exists', () => { assert.match(homework, /showToast\("Ödev sonucu kaydedilirken bir hata oluştu:/); assert.equal((ui.match(/export function showToast\(/g) || []).length, 1); });

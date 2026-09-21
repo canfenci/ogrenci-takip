@@ -574,7 +574,10 @@ export const PROFILE_SCALAR_FIELDS = [
     'hedefLise',
     'hedefNet',
     'dersUcreti',
-    'veliTel'
+    'veliTel',
+    'status',
+    'archivedAt',
+    'graduatedAt'
 ];
 
 export function sanitizeProfilePatch(patch) {
@@ -2246,8 +2249,12 @@ export function escapeHtml(str) {
 
 export function normalizeStudent(s) {
     if (!s) return null;
+    const status = ['active', 'archived', 'graduated'].includes(s.status) ? s.status : 'active';
     return {
         id: s.id || "stud_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+        status: ['active', 'archived', 'graduated'].includes(s.status) ? s.status : 'active',
+        archivedAt: status === 'archived' ? (s.archivedAt || null) : null,
+        graduatedAt: status === 'graduated' ? (s.graduatedAt || null) : null,
         adSoyad: s.adSoyad || "",
         okul: s.okul || "",
         sinif: s.sinif || "8",
@@ -2267,6 +2274,14 @@ export function normalizeStudent(s) {
         coachingPlan: s.coachingPlan || null,
         studyPlanHistory: Array.isArray(s.studyPlanHistory) ? s.studyPlanHistory : []
     };
+}
+
+export function getStudentLifecycleStatus(student) {
+    return ['active', 'archived', 'graduated'].includes(student?.status) ? student.status : 'active';
+}
+
+export function isActiveStudent(student) {
+    return getStudentLifecycleStatus(student) === 'active';
 }
 
 export function getStudentOdevler(student) {

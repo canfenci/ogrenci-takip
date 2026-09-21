@@ -2,6 +2,37 @@
 
 import { store } from './store.js';
 
+export function showToast(message, options = {}) {
+    if (typeof document === 'undefined') return;
+    const type = ['success', 'info', 'warning', 'error'].includes(options.type) ? options.type : 'info';
+    const live = type === 'error' ? 'assertive' : 'polite';
+    let container = document.getElementById('app-toast-region');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'app-toast-region';
+        container.className = 'fixed inset-x-3 top-4 z-[100] flex flex-col items-center gap-2 pointer-events-none sm:inset-x-auto sm:right-5 sm:w-96 sm:items-stretch';
+        container.setAttribute?.('aria-live', 'polite');
+        container.setAttribute?.('aria-atomic', 'true');
+        document.body.appendChild(container);
+    }
+    if (typeof container.appendChild !== 'function') return false;
+    container.setAttribute?.('aria-live', live);
+    const toast = document.createElement('div');
+    const palette = {
+        success: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-200',
+        info: 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/80 dark:text-blue-200',
+        warning: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/80 dark:text-amber-200',
+        error: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/80 dark:text-rose-200'
+    };
+    toast.className = `pointer-events-auto w-full rounded-xl border px-4 py-3 text-sm font-semibold shadow-lg ${palette[type]}`;
+    toast.setAttribute?.('role', type === 'error' ? 'alert' : 'status');
+    toast.textContent = String(message ?? '');
+    container.appendChild(toast);
+    const duration = Number.isFinite(options.duration) ? options.duration : 3500;
+    window.setTimeout(() => toast.remove?.(), Math.max(1000, duration));
+    return true;
+}
+
 export function showSyncStatus(msg, isError) {
     const el = document.getElementById('syncStatus');
     if (el) {
@@ -203,6 +234,7 @@ if (typeof window !== 'undefined') {
     });
 
     window.showSyncStatus = showSyncStatus;
+    window.showToast = showToast;
     window.showFirebaseWarningBanner = showFirebaseWarningBanner;
     window.showLocalDevelopmentBanner = showLocalDevelopmentBanner;
     window.handleFirebaseError = handleFirebaseError;

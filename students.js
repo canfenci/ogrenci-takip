@@ -1,7 +1,7 @@
 // ==================== STUDENTS MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, createStudentDocument, updateStudentProfile, loadSchedule, loadDersKayitlari, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM, localDataKey, SCHEDULE_KEY, DERS_KAYITLARI_KEY, GROUPS_KEY } from './store.js';
+import { store, loadStudentsData, saveStudentsData, createStudentDocument, updateStudentProfile, loadSchedule, loadDersKayitlari, getStudentOdevler, getKonuListesiBySinif, escapeHtml, POPULER_LISELER, HATA_KODLARI, getErrorColor, GENEL_DERSLER_KEY, GENEL_DERSLER_GORUNUM, localDataKey, SCHEDULE_KEY, DERS_KAYITLARI_KEY, GROUPS_KEY, getStudentLifecycleStatus } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { getBransOrtalamaNet, getGenelOrtalamaNet, getOrtalamaNet, getKonuBazliBasarilar, getBestWorstTopics, getMotivationMessage, getHataIstatistikleri, lgsPuanHesapla, isExamResultPending, isFenBranchExam, getGeneralExamFenQuestions, getGeneralExamFenQuestionIndexes } from './exams.js';
@@ -101,7 +101,9 @@ export function renderHomeScreen(view = 'students') {
     updateMobileNavActive('mobile-nav-home');
     const dynamicContent = document.getElementById("dynamic-content");
     if (dynamicContent) dynamicContent.removeAttribute("aria-busy");
-    const students = loadStudentsData();
+    const lifecycleFilter = store.studentLifecycleFilter || 'active';
+    const allStudents = loadStudentsData();
+    const students = allStudents.filter(s => getStudentLifecycleStatus(s) === lifecycleFilter);
     let filtered = students;
     if (store.activeFilter !== "all") {
         filtered = students.filter(s => s.sinif === store.activeFilter);
@@ -125,6 +127,8 @@ export function renderHomeScreen(view = 'students') {
     };
 
     const activeFilterLabel = store.activeFilter === 'all' ? 'Tüm sınıflar' : `${store.activeFilter}. Sınıf`;
+    const lifecycleTabs = ['active', 'archived', 'graduated'];
+    const lifecycleLabels = { active: 'Aktif', archived: 'Arşiv', graduated: 'Mezun' };
 
     const cardsHtml = sorted.length === 0
         ? (students.length === 0
@@ -170,6 +174,7 @@ export function renderHomeScreen(view = 'students') {
                                 <button onclick="event.stopPropagation(); editStudent('${s.id}')" class="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center transition" title="Düzenle" aria-label="Öğrenciyi düzenle">
                                     <i class="fas fa-pen text-sm"></i>
                                 </button>
+                                ${lifecycleFilter === 'active' ? `<button onclick="event.stopPropagation(); updateStudentLifecycle('${s.id}', 'archived')" class="text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-xl w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center transition" title="Arşivle" aria-label="Öğrenciyi arşivle"><i class="fas fa-box-archive text-sm"></i></button><button onclick="event.stopPropagation(); updateStudentLifecycle('${s.id}', 'graduated')" class="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-xl w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center transition" title="Mezun Et" aria-label="Öğrenciyi mezun et"><i class="fas fa-graduation-cap text-sm"></i></button>` : `<button onclick="event.stopPropagation(); updateStudentLifecycle('${s.id}', 'active')" class="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center transition" title="Aktife Al" aria-label="Öğrenciyi aktife al"><i class="fas fa-rotate-left text-sm"></i></button>`}
                                 <button onclick="event.stopPropagation(); deleteStudent('${s.id}')" class="text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center transition" title="Sil" aria-label="Öğrenciyi sil">
                                     <i class="fas fa-trash-alt text-sm"></i>
                                 </button>
@@ -279,6 +284,9 @@ export function renderHomeScreen(view = 'students') {
                 </div>
             </header>
             ${renderStudentsTabBarHtml('students')}
+            <div class="flex gap-2 overflow-x-auto border-b border-gray-200 dark:border-gray-800 pb-2" role="tablist" aria-label="Öğrenci yaşam döngüsü">
+                ${lifecycleTabs.map(tab => `<button type="button" role="tab" aria-selected="${lifecycleFilter === tab}" onclick="setStudentLifecycleFilter('${tab}')" class="min-h-[44px] whitespace-nowrap rounded-xl px-4 py-2 text-sm font-bold ${lifecycleFilter === tab ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}">${lifecycleLabels[tab]} (${allStudents.filter(s => getStudentLifecycleStatus(s) === tab).length})</button>`).join('')}
+            </div>
             ${accordionHtml}
         </div>
     `;
@@ -1727,6 +1735,22 @@ export function setSortOrder(order) {
     }
 }
 
+export function setStudentLifecycleFilter(filter) {
+    store.studentLifecycleFilter = ['active', 'archived', 'graduated'].includes(filter) ? filter : 'active';
+    store.activeFilter = 'all';
+    renderHomeScreen();
+}
+
+export async function updateStudentLifecycle(id, status) {
+    if (!['active', 'archived', 'graduated'].includes(status)) return;
+    const lifecyclePatch = { status };
+    if (status === 'archived') lifecyclePatch.archivedAt = new Date().toISOString();
+    if (status === 'graduated') lifecyclePatch.graduatedAt = new Date().toISOString();
+    if (status === 'active') { lifecyclePatch.archivedAt = null; lifecyclePatch.graduatedAt = null; }
+    const result = await updateStudentProfile(id, lifecyclePatch);
+    if (result?.ok) renderHomeScreen();
+}
+
 export function setFilter(sinif) {
     store.activeFilter = sinif;
     if (store.currentPage === "reminderHome") {
@@ -2730,6 +2754,7 @@ export async function renderStudentPanel(id, origin = store.studentPanelOrigin |
         
         const html = `
             <div class="app-page pb-28 sm:pb-8">
+                <nav class="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 overflow-x-auto" aria-label="Breadcrumb"><button onclick="${origin === 'guidance' ? 'renderGuidancePage()' : 'renderHomeScreen()'}" class="hover:text-blue-600 dark:hover:text-blue-400 transition whitespace-nowrap">${origin === 'guidance' ? 'Rehberlik' : 'Öğrenciler'}</button><span aria-hidden="true"><i class="fas fa-chevron-right text-[10px] text-gray-400"></i></span><span class="text-gray-900 dark:text-white font-bold truncate" aria-current="page">${escapeHtml(student.adSoyad)}</span></nav>
                 <header class="app-page-header">
                 <div><button onclick="${origin === 'guidance' ? 'renderGuidancePage()' : 'renderHomeScreen()'}" class="btn-secondary px-4 py-2.5 min-h-[44px] mb-3"><i class="fas fa-arrow-left mr-1"></i> ${origin === 'guidance' ? 'Rehberlik' : 'Öğrenci Listesi'}</button><h2 class="app-page-title">${escapeHtml(student.adSoyad)}</h2><p class="app-page-subtitle">Gelişim özeti, deneme analizi ve rehberlik planı</p></div>
                 <div class="flex gap-2">
@@ -4027,6 +4052,8 @@ export async function updateTeacherSchool() {
 // Global window mappings for compatibility
 window.onTargetSchoolChanged = onTargetSchoolChanged;
 window.renderHomeScreen = renderHomeScreen;
+window.setStudentLifecycleFilter = setStudentLifecycleFilter;
+window.updateStudentLifecycle = updateStudentLifecycle;
 window.setSortOrder = setSortOrder;
 window.setFilter = setFilter;
 window.deleteStudent = deleteStudent;

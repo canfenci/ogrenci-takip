@@ -1,6 +1,6 @@
 // ==================== WEEKLY LESSON SCHEDULE MODÜLÜ ====================
 
-import { store, loadStudentsData, loadSchedule, saveSchedule, escapeHtml } from './store.js';
+import { store, loadStudentsData, loadSchedule, saveSchedule, escapeHtml, isActiveStudent } from './store.js';
 import { updateMobileNavActive } from './auth.js';
 import { buildScheduleConflictMessage, findScheduleConflict } from './schedule-conflicts.js';
 import { renderDerslerTabBarHtml } from './finance.js';
@@ -76,7 +76,7 @@ export function getScheduleBranchShortLabel(branchName) {
 export function renderSchedulePage() {
     store.currentPage = "schedule";
     updateMobileNavActive('mobile-nav-lessons');
-    const students = loadStudentsData();
+    const students = loadStudentsData().filter(isActiveStudent);
     if (students.length === 0) { 
         document.getElementById("dynamic-content").innerHTML = `
             <div class="app-page">
@@ -369,7 +369,7 @@ export function setScheduleActiveDay(day) {
 
 export function showAddScheduleModal(studentId, defaultDay = "Pazartesi") {
     const gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
-    const students = loadStudentsData();
+    const students = loadStudentsData().filter(isActiveStudent);
     const activeStudentId = studentId || (students[0]?.id || "");
     const student = students.find(s => s.id === activeStudentId) || students[0];
     const is8thGrade = student && (String(student.sinif).trim() === "8" || (student.adSoyad && student.adSoyad.includes("(8)")));

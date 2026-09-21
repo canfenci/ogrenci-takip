@@ -1,8 +1,8 @@
 // ==================== HOMEWORK MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, getStudentOdevler, getKonuListesiBySinifAndDers, escapeHtml } from './store.js';
-import { showSyncStatus } from './ui-helpers.js';
+import { store, loadStudentsData, saveStudentsData, getStudentOdevler, getKonuListesiBySinifAndDers, escapeHtml, isActiveStudent } from './store.js';
+import { showSyncStatus, showToast } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
@@ -69,12 +69,15 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
 
             const studentName = student ? student.adSoyad : "Öğrenci";
             showSyncStatus("✅ Buluta kaydedildi", false);
-            alert(`✅ ${studentName} isimli öğrencinin ödev sonucu başarıyla kaydedildi!\nDoğru: ${dogru}, Yanlış: ${yanlis}`);
+            if (!showToast(`${studentName} isimli öğrencinin ödev sonucu başarıyla kaydedildi. Doğru: ${dogru}, Yanlış: ${yanlis}`, { type: 'success' })) {
+                alert(`${studentName} isimli öğrencinin ödev sonucu başarıyla kaydedildi. Doğru: ${dogru}, Yanlış: ${yanlis}`);
+            }
             window.location.href = window.location.origin + window.location.pathname + "?page=odevler";
         } catch (err) {
             console.error("importHwResult cloud save error:", err);
             showSyncStatus("⚠️ Buluta kaydedilemedi", true);
-            alert("Ödev sonucu kaydedilirken bir hata oluştu: " + (err.message || err));
+            const message = "Ödev sonucu kaydedilirken bir hata oluştu: " + (err.message || err);
+            if (!showToast("Ödev sonucu kaydedilirken bir hata oluştu: " + (err.message || err), { type: 'error' })) alert(message);
         }
         return;
     }
@@ -97,7 +100,9 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
     students[sIdx].odevler[hwIdx].dogru = dogru;
     students[sIdx].odevler[hwIdx].yanlis = yanlis;
     saveStudentsData(students);
-    alert(`✅ ${students[sIdx].adSoyad} isimli öğrencinin ödev sonucu başarıyla kaydedildi!\nDoğru: ${dogru}, Yanlış: ${yanlis}`);
+    if (!showToast(`${students[sIdx].adSoyad} isimli öğrencinin ödev sonucu başarıyla kaydedildi. Doğru: ${dogru}, Yanlış: ${yanlis}`, { type: 'success' })) {
+        alert(`${students[sIdx].adSoyad} isimli öğrencinin ödev sonucu başarıyla kaydedildi. Doğru: ${dogru}, Yanlış: ${yanlis}`);
+    }
     window.location.href = window.location.origin + window.location.pathname + "?page=odevler";
 }
 
@@ -1480,7 +1485,7 @@ export function onOdevGradeChanged(grade, preSelectedStudentIds = null) {
     onOdevSubjectChanged();
     
     const students = loadStudentsData();
-    const filtered = students.filter(s => s.sinif === grade);
+    const filtered = students.filter(s => isActiveStudent(s) && s.sinif === grade);
     const checklist = document.getElementById('odevOgrenciChecklist');
     if (filtered.length === 0) {
         checklist.innerHTML = `<span class="text-xs text-gray-500 col-span-2 text-center py-2">Bu sınıf seviyesinde öğrenci bulunmuyor.</span>`;
