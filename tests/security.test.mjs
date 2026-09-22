@@ -638,9 +638,11 @@ test('guidance study plans follow the teacher branches selected in settings', as
   assert.match(serviceWorker, /study-plan-engine\.js/);
 });
 
-test('printed study plans explain techniques and limit daily subject advice', async () => {
+test('printed study plans keep compact technique reminders and limit daily subject advice', async () => {
   const growth = await readProjectFile('growth.js');
-  assert.match(growth, /ÇALIŞMA TEKNİKLERİ NASIL UYGULANIR/);
+  assert.doesNotMatch(growth, /ÇALIŞMA TEKNİKLERİ NASIL UYGULANIR/);
+  assert.match(growth, /<h4>Pomodoro<\/h4>/);
+  assert.match(growth, /<h4>Feynman<\/h4>/);
   assert.match(growth, /Türkçe · Günlük Paragraf Rutini/);
   assert.match(growth, /Matematik · Yeni Nesil Soru Rutini/);
   assert.match(growth, /40 veya daha fazla/);
