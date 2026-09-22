@@ -10,6 +10,7 @@ import { buildHomeworkErrorTopics, HATA_NEDENLERI, normalizeHomeworkErrorAnalysi
 import { buildWorkPerformance } from './work-performance-insights.js';
 import { buildHomeworkDashboard, filterHomeworkDashboard, getHomeworkDueState } from './homework-dashboard-insights.js';
 import { buildHomeworkReportData, normalizeReportFilename, buildWhatsAppReportMessage, generateHomeworkPdf } from './homework-report-insights.js';
+import { calculateHomeworkSuccess, formatHomeworkSuccess } from './homework-success-insights.js';
 import {
     ANCHOR_START_DATE,
     getWeekInfoByNumber,
@@ -33,6 +34,21 @@ export function hideNavigationElements() {
 
 
 export async function importHwResult(studentId, hwId, dogru, yanlis) {
+    const importedStudents = loadStudentsData();
+    const importedStudent = importedStudents.find(s => s.id === studentId);
+    const importedHomework = (store.globalHomeworks || []).find(h => h.id === hwId)
+        || (importedStudent ? getStudentOdevler(importedStudent).find(h => h.id === hwId) : null);
+    const importedTotal = Number(importedHomework?.soruSayisi);
+    const importedCorrect = Number(dogru);
+    const importedWrong = Number(yanlis);
+    let importedBlank = null;
+    if (Number.isInteger(importedTotal) && importedTotal > 0) {
+        if (!Number.isInteger(importedCorrect) || importedCorrect < 0 || !Number.isInteger(importedWrong) || importedWrong < 0 || importedCorrect + importedWrong > importedTotal) {
+            showToast('İçe aktarılan doğru ve yanlış toplamı soru sayısını geçemez.', { type: 'warning' });
+            return;
+        }
+        importedBlank = importedTotal - importedCorrect - importedWrong;
+    }
     const isCloud = Boolean(store.useFirestore && (isFirebaseActive || window.isFirebaseActive) && (db || window.db) && !store.isGuestMode);
 
     if (isCloud) {
@@ -42,7 +58,8 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
             await firestoreDb.collection("homeworks").doc(hwId).update({
                 durum: "tamamlandi",
                 dogru: dogru,
-                yanlis: yanlis
+                yanlis: yanlis,
+                ...(importedBlank !== null ? { bos: importedBlank } : {})
             });
 
             // Update in-memory globalHomeworks if present
@@ -52,6 +69,7 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
                     globalHw.durum = "tamamlandi";
                     globalHw.dogru = dogru;
                     globalHw.yanlis = yanlis;
+                    if (importedBlank !== null) globalHw.bos = importedBlank;
                 }
             }
 
@@ -64,6 +82,7 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
                     hw.durum = "tamamlandi";
                     hw.dogru = dogru;
                     hw.yanlis = yanlis;
+                    if (importedBlank !== null) hw.bos = importedBlank;
                 }
             }
 
@@ -99,6 +118,7 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
     students[sIdx].odevler[hwIdx].durum = "tamamlandi";
     students[sIdx].odevler[hwIdx].dogru = dogru;
     students[sIdx].odevler[hwIdx].yanlis = yanlis;
+    if (importedBlank !== null) students[sIdx].odevler[hwIdx].bos = importedBlank;
     saveStudentsData(students);
     if (!showToast(`${students[sIdx].adSoyad} isimli öğrencinin ödev sonucu başarıyla kaydedildi. Doğru: ${dogru}, Yanlış: ${yanlis}`, { type: 'success' })) {
         alert(`${students[sIdx].adSoyad} isimli öğrencinin ödev sonucu başarıyla kaydedildi. Doğru: ${dogru}, Yanlış: ${yanlis}`);
@@ -420,8 +440,9 @@ export function renderStudentOdevDetay(studentId, performanceFilter = 'all') {
                 ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-200 animate-pulse">⚠️ Süresi Geçti</span>`
                 : `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">⏳ Bekliyor</span>`);
         
+        const successSummary = formatHomeworkSuccess(o);
         const resultText = isCompleted
-            ? `<div class="text-base text-gray-600 dark:text-gray-400 mt-1 font-semibold">Sonuç: <span class="text-green-600">${o.dogru} Doğru</span> / <span class="text-red-650">${o.yanlis} Yanlış</span>${o.tur === 'Konu Denemesi' ? ` / <span class="text-blue-600">${calculateTopicTestNet(o.dogru, o.yanlis).toFixed(2)} Net</span>` : ''}${(o.yanlisKonular || []).length ? `<div class="mt-1 text-xs text-amber-700 dark:text-amber-300">Yanlış konusu: ${(o.yanlisKonular || []).map(item => `${escapeHtml(item.konu)}${item.altKonu ? ` › ${escapeHtml(item.altKonu)}` : ''} (${item.adet})`).join(', ')}</div>` : ''}</div>`
+            ? `<div class="text-sm text-gray-600 dark:text-gray-400 mt-1 font-semibold">${successSummary ? `<span class="text-emerald-700 dark:text-emerald-300">${escapeHtml(successSummary)}</span>` : `<span class="text-green-600">${o.dogru ?? '—'} Doğru</span> / <span class="text-red-650">${o.yanlis ?? '—'} Yanlış</span>`}${o.tur === 'Konu Denemesi' && o.dogru != null ? ` / <span class="text-blue-600">${calculateTopicTestNet(o.dogru, o.yanlis).toFixed(2)} Net</span>` : ''}${(o.yanlisKonular || []).length ? `<div class="mt-1 text-xs text-amber-700 dark:text-amber-300">Yanlış konusu: ${(o.yanlisKonular || []).map(item => `${escapeHtml(item.konu)}${item.altKonu ? ` › ${escapeHtml(item.altKonu)}` : ''} (${item.adet})`).join(', ')}</div>` : ''}</div>`
             : '';
         
         const dateTextClass = isOverdue ? 'text-red-500 font-bold' : 'text-gray-400 dark:text-gray-500';
@@ -585,8 +606,11 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     const unitList = unitCatalog.map(u => u.unite);
 
     const isEditing = odev.durum === 'tamamlandi';
+    const initialQuestionCount = Number(odev.soruSayisi) > 0 ? Number(odev.soruSayisi) : '';
     const initialWrong = Number(odev.yanlis) || 0;
+    const initialBlank = Number(odev.bos) || 0;
     const initialCorrect = Number(odev.dogru) || 0;
+    const initialSuccess = calculateHomeworkSuccess({ soruSayisi: initialQuestionCount, yanlis: initialWrong, bos: initialBlank });
     const existingErrors = normalizeHomeworkErrorAnalysis(odev);
 
     const modal = document.createElement('div');
@@ -598,7 +622,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
         <div class="app-modal max-w-lg max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
             <div class="app-modal-header">
                 <div>
-                    <h2 class="app-page-title text-xl">${isEditing ? 'Ödev Sonucunu ve Yanlış Analizini Düzenle' : 'Ödev Sonucu Gir'}</h2>
+                    <h2 class="app-page-title text-xl">${isEditing ? 'Ödev Sonucunu Düzenle' : 'Ödev Sonucu Gir'}</h2>
                     <p class="app-page-subtitle">${escapeHtml(odev.konu)} · ${escapeHtml(odev.yayin)} (${escapeHtml(student.adSoyad || '')})</p>
                 </div>
                 <button onclick="this.closest('.app-modal-backdrop').remove()" class="app-modal-close" aria-label="Pencereyi kapat">
@@ -606,16 +630,17 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                 </button>
             </div>
             <div class="app-modal-body space-y-4">
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div><label for="homeworkQuestionCount" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Soru Sayısı</label><input type="number" inputmode="numeric" id="homeworkQuestionCount" min="1" value="${initialQuestionCount}" class="student-form-input min-h-[44px]"></div>
                     <div>
-                        <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Doğru Sayısı</label>
-                        <input type="number" id="manualCorrect" min="0" value="${initialCorrect}" class="student-form-input min-h-[44px]">
+                        <label for="computedCorrect" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Doğru</label><output id="computedCorrect" class="student-form-input min-h-[44px] flex items-center bg-gray-50 dark:bg-gray-900">${initialSuccess?.valid ? initialSuccess.correct : initialCorrect}</output>
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Yanlış Sayısı</label>
-                        <input type="number" id="manualWrong" min="0" value="${initialWrong}" class="student-form-input min-h-[44px]">
+                        <label for="manualWrong" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Yanlış</label><input type="number" inputmode="numeric" id="manualWrong" min="0" value="${initialWrong}" class="student-form-input min-h-[44px]">
                     </div>
+                    <div><label for="manualBlank" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Boş</label><input type="number" inputmode="numeric" id="manualBlank" min="0" value="${initialBlank}" class="student-form-input min-h-[44px]"></div>
                 </div>
+                <div id="homeworkSuccessPreview" class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20 px-3 py-2 text-sm font-bold text-emerald-800 dark:text-emerald-200">Başarı: ${initialQuestionCount ? `%${calculateHomeworkSuccess({ soruSayisi: initialQuestionCount, yanlis: initialWrong, bos: initialBlank })?.successRate ?? '—'}` : '—'}</div>
 
                 <div id="zeroWrongWarning" class="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-lg border border-amber-200 dark:border-amber-800 font-medium hidden">
                     <i class="fas fa-exclamation-triangle mr-1"></i> Yanlış sayısını 0 yaptığınız için kayıtlı yanlış analizi kaydedildiğinde kaldırılacaktır.
@@ -658,6 +683,12 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     document.body.appendChild(modal);
 
     const wrongInput = document.getElementById('manualWrong');
+    const questionInput = document.getElementById('homeworkQuestionCount');
+    const blankInput = document.getElementById('manualBlank');
+    const correctOutput = document.getElementById('computedCorrect');
+    const successPreview = document.getElementById('homeworkSuccessPreview');
+    const updateComputed = () => { const result = calculateHomeworkSuccess({ soruSayisi: questionInput?.value, yanlis: wrongInput?.value, bos: blankInput?.value }); if (result?.valid) { correctOutput.textContent = result.correct; successPreview.textContent = `Başarı: %${result.successRate}`; } else { correctOutput.textContent = questionInput?.value ? '—' : initialCorrect; successPreview.textContent = 'Başarı: —'; } };
+    [questionInput, wrongInput, blankInput].forEach(input => input?.addEventListener('input', updateComputed));
     const zeroWarning = document.getElementById('zeroWrongWarning');
     const analysisSection = document.getElementById('errorAnalysisSection');
     const rowsContainer = document.getElementById('errorRowsContainer');
@@ -875,8 +906,24 @@ export function showEnterOdevSonucModal(studentId, hwId) {
 }
 
 export function saveManualOdevResult(studentId, hwId) {
-    const correct = parseInt(document.getElementById('manualCorrect')?.value) || 0;
-    const wrong = parseInt(document.getElementById('manualWrong')?.value) || 0;
+    const readMetric = id => document.getElementById(id)?.value?.trim() ?? '';
+    const rawQuestionCount = readMetric('homeworkQuestionCount');
+    const rawWrong = readMetric('manualWrong');
+    const rawBlank = readMetric('manualBlank');
+    const questionCount = rawQuestionCount === '' ? 0 : Number(rawQuestionCount);
+    const wrong = rawWrong === '' ? 0 : Number(rawWrong);
+    const blank = rawBlank === '' ? 0 : Number(rawBlank);
+    const existingStudent = loadStudentsData().find(s => s.id === studentId);
+    const existingHomework = existingStudent ? getStudentOdevler(existingStudent).find(o => o.id === hwId) : null;
+    const calculated = calculateHomeworkSuccess({ soruSayisi: questionCount, yanlis: wrong, bos: blank });
+    if ((rawQuestionCount !== '' || rawWrong !== '' || rawBlank !== '') && (!calculated || !calculated.valid)) {
+        const message = calculated?.reason === 'metrics_must_be_non_negative_integers'
+            ? 'Soru, yanlış ve boş sayıları negatif olmayan tam sayı olmalıdır.'
+            : 'Yanlış ve boş toplamı soru sayısını geçemez.';
+        showToast(message, { type: 'warning' });
+        return;
+    }
+    const correct = calculated?.valid ? calculated.correct : (Number(existingHomework?.dogru) || 0);
 
     let errorTopics = [];
 
@@ -929,7 +976,7 @@ export function saveManualOdevResult(studentId, hwId) {
         });
 
         if (totalCount > wrong) {
-            alert(`Yanlış analizindeki toplam adet (${totalCount}), ödevdeki toplam yanlış sayısını (${wrong}) geçemez. Lütfen adetleri kontrol edin.`);
+            showToast(`Yanlış analizindeki toplam adet (${totalCount}), ödevdeki toplam yanlış sayısını (${wrong}) geçemez. Lütfen adetleri kontrol edin.`, { type: 'warning' });
             return;
         }
 
@@ -961,8 +1008,8 @@ export function saveManualOdevResult(studentId, hwId) {
     if (store.useFirestore && isFirebaseActive) {
         db.collection("homeworks").doc(hwId).update({
             durum: "tamamlandi",
-            dogru: correct,
-            yanlis: wrong,
+            ...(calculated?.valid ? { soruSayisi: questionCount, bos: blank } : {}),
+            dogru: correct, yanlis: wrong,
             yanlisKonular: errorTopics
         }).then(() => {
             document.getElementById('homeworkResultModal')?.remove();
@@ -975,6 +1022,7 @@ export function saveManualOdevResult(studentId, hwId) {
             const hwIdx = students[sIdx].odevler.findIndex(o => o.id === hwId);
             if (hwIdx !== -1) {
                 students[sIdx].odevler[hwIdx].durum = "tamamlandi";
+                if (calculated?.valid) { students[sIdx].odevler[hwIdx].soruSayisi = questionCount; students[sIdx].odevler[hwIdx].bos = blank; }
                 students[sIdx].odevler[hwIdx].dogru = correct;
                 students[sIdx].odevler[hwIdx].yanlis = wrong;
                 students[sIdx].odevler[hwIdx].yanlisKonular = errorTopics;
@@ -1407,6 +1455,7 @@ export function renderOdevAtaModal(preSelectedStudentIds = null, lessonContext =
                             <input type="text" id="odevCalismaDetayi" maxlength="120" placeholder="Örn: 1. Deneme, Test 24-25 veya Sayfa 40-45" class="student-form-input min-h-[44px]">
                             <p class="text-xs text-gray-400 mt-1">Kaynakta öğrencinin çözeceği bölümü belirtin.</p>
                         </div>
+                        <div><label for="odevSoruSayisi" class="block text-xs font-semibold text-gray-500 mb-1">Soru Sayısı <span class="font-normal">(opsiyonel)</span></label><input type="number" inputmode="numeric" min="1" id="odevSoruSayisi" placeholder="Örn: 20" class="student-form-input min-h-[44px]"></div>
                         <button onclick="addOdevToGeciciList()" class="btn-secondary w-full py-2.5 text-sm flex items-center justify-center gap-1 min-h-[44px]">
                             <i class="fas fa-plus"></i> Listeye Ödev Ekle
                         </button>
@@ -1525,7 +1574,7 @@ export function addOdevToGeciciList() {
     const yayin = readResourceSelection('odevYayinSelect', 'odevYayinInput');
     const calismaDetayi = document.getElementById('odevCalismaDetayi')?.value.trim() || '';
     if (!ders || !konu || !yayin || !calismaDetayi) {
-        alert("Lütfen ders, konu, kaynak ve çalışma detayı bilgilerini eksiksiz doldurun.");
+        showToast("Lütfen ders, konu, kaynak ve çalışma detayı bilgilerini eksiksiz doldurun.", { type: 'warning' });
         return;
     }
     const newHw = {
@@ -1540,6 +1589,7 @@ export function addOdevToGeciciList() {
         durum: "verildi",
         dogru: null,
         yanlis: null,
+        soruSayisi: parseInt(document.getElementById('odevSoruSayisi')?.value) || null,
         ...(window._odevDersContext ? { kaynakDers: { ...window._odevDersContext } } : {})
     };
     window._geciciOdevListesi.push(newHw);
