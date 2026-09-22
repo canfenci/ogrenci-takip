@@ -1,6 +1,7 @@
 import { loadStudentsData, saveStudentsData, escapeHtml, store, getStudentOdevler, addStudentArrayRecord, updateStudentArrayRecord, deleteStudentArrayRecord } from './store.js';
 import { getQuestionProgress, getTaskProgress, getExamProgress, getBranchProgress, getTopicProgress, getTaskCompletionState, getPlanProgressSummary } from './coaching-plan-progress.js';
 import { updateMobileNavActive } from './auth.js';
+import { showToast } from './ui-helpers.js';
 import { buildGuidanceCenterDashboard, getStudentInitials, formatActivityDate } from './guidance-center-insights.js';
 import { buildStudentGuidanceDetail, buildCoachingSummary, getLatestTeacherOpinion } from './guidance-student-insights.js';
 import {
@@ -2885,7 +2886,7 @@ export async function saveGuidanceRecordForm(studentId, recordId = null) {
     const note = document.getElementById('grFormNote')?.value || '';
 
     if (!issue.trim() || !action.trim()) {
-        alert('Lütfen Sorun/Gözlem ve Planlanan / Uygulanan Müdahale alanlarını doldurunuz.');
+        showToast('Lütfen Sorun/Gözlem ve Planlanan / Uygulanan Müdahale alanlarını doldurunuz.', { type: 'warning' });
         return;
     }
 
@@ -2900,7 +2901,7 @@ export async function saveGuidanceRecordForm(studentId, recordId = null) {
         });
         const res = await updateStudentArrayRecord(studentId, 'guidanceRecords', recordId, updatedRecord);
         if (res && !res.ok && res.blockedOffline) {
-            alert(res.message);
+            showToast(res.message, { type: 'error' });
             return;
         }
     } else {
@@ -2914,7 +2915,7 @@ export async function saveGuidanceRecordForm(studentId, recordId = null) {
         });
         const res = await addStudentArrayRecord(studentId, 'guidanceRecords', newRecord);
         if (res && !res.ok && res.blockedOffline) {
-            alert(res.message);
+            showToast(res.message, { type: 'error' });
             return;
         }
     }
@@ -3019,7 +3020,7 @@ export async function saveCompleteGuidanceRecordForm(studentId, recordId) {
 
     const res = await updateStudentArrayRecord(studentId, 'guidanceRecords', recordId, completedRecord);
     if (res && !res.ok && res.blockedOffline) {
-        alert(res.message);
+        showToast(res.message, { type: 'error' });
         return;
     }
 
@@ -3045,7 +3046,7 @@ export async function confirmDeleteGuidanceRecord(studentId, recordId) {
 
     const res = await deleteStudentArrayRecord(studentId, 'guidanceRecords', recordId);
     if (res && !res.ok && res.blockedOffline) {
-        alert(res.message);
+        showToast(res.message, { type: 'error' });
         return;
     }
 
@@ -3264,7 +3265,7 @@ export async function downloadGuidanceReportPdf(studentId) {
         doc.save(filename);
     } catch (err) {
         console.error("PDF oluşturma/yükleme hatası:", err);
-        alert("Rehberlik raporlama modülü yüklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin: " + (err.message || err));
+        showToast("Rehberlik raporlama modülü yüklenemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin: " + (err.message || err), { type: 'error' });
     }
 }
 
@@ -3510,7 +3511,7 @@ export async function previewGuidanceReportPdf(studentId) {
         }
         _activeGuidanceReportPreview = null;
         if (typeof alert === 'function') {
-            alert("Rapor önizlemesi oluşturulamadı. Lütfen tekrar deneyin: " + (err.message || err));
+            showToast("Rapor önizlemesi oluşturulamadı. Lütfen tekrar deneyin: " + (err.message || err), { type: 'error' });
         }
     }
 }

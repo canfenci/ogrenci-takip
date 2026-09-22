@@ -2,6 +2,7 @@
 
 import { store, loadStudentsData, loadSchedule, saveSchedule, escapeHtml, isActiveStudent } from './store.js';
 import { updateMobileNavActive } from './auth.js';
+import { showToast } from './ui-helpers.js';
 import { buildScheduleConflictMessage, findScheduleConflict } from './schedule-conflicts.js';
 import { renderDerslerTabBarHtml } from './finance.js';
 
@@ -447,7 +448,7 @@ export function addScheduleFromModal(explicitStudentId) {
     const saat = document.getElementById('modalScheduleTime')?.value;
     const dersAdi = document.getElementById('modalScheduleLessonName')?.value.trim();
     if (!dersAdi) {
-        alert("Ders adı giriniz");
+        showToast("Ders adı giriniz", { type: 'warning' });
         return;
     }
     const lessons = loadSchedule(studentId);
@@ -460,7 +461,7 @@ export function addScheduleFromModal(explicitStudentId) {
         schedulesByStudent: getAllSchedulesByStudent(students)
     });
     if (conflict) {
-        alert(buildScheduleConflictMessage(conflict, gun, saat));
+        showToast(buildScheduleConflictMessage(conflict, gun, saat), { type: 'warning' });
         return;
     }
     lessons.push({ gun, saat, dersAdi });
@@ -549,7 +550,7 @@ export function saveEditedScheduleLesson(studentId, idx) {
     const saat = document.getElementById('editModalScheduleTime')?.value;
     const dersAdi = document.getElementById('editModalScheduleLessonName')?.value.trim();
     if (!gun || !saat || !dersAdi) {
-        alert("Lütfen tüm alanları doldurun.");
+        showToast("Lütfen tüm alanları doldurun.", { type: 'warning' });
         return;
     }
     const students = loadStudentsData();
@@ -563,7 +564,7 @@ export function saveEditedScheduleLesson(studentId, idx) {
         ignoreLessonIndex: idx
     });
     if (conflict) {
-        alert(buildScheduleConflictMessage(conflict, gun, saat));
+        showToast(buildScheduleConflictMessage(conflict, gun, saat), { type: 'warning' });
         return;
     }
     lessons[idx] = { ...lessons[idx], gun, saat, dersAdi };

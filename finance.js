@@ -2,6 +2,7 @@
 
 import { store, loadStudentsData, loadDersKayitlari, saveDersKayitlari, getDersOzet, getKonuListesiBySinif, getKonuListesiBySinifAndDers, getStudentOdevler, escapeHtml } from './store.js';
 import { updateMobileNavActive } from './auth.js';
+import { showToast } from './ui-helpers.js';
 import { ATTENDANCE_LABELS, calculateLessonFinance, normalizeLessonStatus, updateLessonAttendanceState, updateLessonPaymentState } from './lesson-finance-insights.js';
 import { formatLessonDateForDisplay, formatLessonDateTyping, parseLessonDateInput } from './lesson-date-utils.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
@@ -751,7 +752,7 @@ export function addDersKayit(studentId) {
     const katilimDurumu = document.getElementById("kayitKatilim")?.value || 'yapildi';
     
     if (!tarih || !ders || !konu) {
-        alert("Lütfen tarihi GG/AA/YYYY biçiminde, ders ve konu alanlarını eksiksiz giriniz.");
+        showToast("Lütfen tarihi GG/AA/YYYY biçiminde, ders ve konu alanlarını eksiksiz giriniz.", { type: 'warning' });
         return;
     }
     
