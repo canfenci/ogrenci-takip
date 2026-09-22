@@ -15,6 +15,7 @@ import {
 } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { STUDY_TECHNIQUES, STUDY_TECHNIQUE_GUIDES, buildAdaptiveStudyPlan, calculateStudyProfile, getStudyBadge } from './study-plan-engine.js';
+import { getAutomaticPlanHomeworks, getHomeworkPlacementDay, calculateHomeworkWeeklySummary, calculateHomeworkSuccess } from './homework-success-insights.js';
 
 export async function addStudyTask(studentId, gun, taskText = null) {
     const input = document.getElementById(`taskInput_${gun}`);
@@ -573,6 +574,10 @@ export function exportStudyPlanToPdf(studentId) {
     if (!student) return;
     
     const planProfile = student.studyPlanProfile || {};
+    const activePlan = student.coachingPlan && (student.coachingPlan.status === 'active' || student.coachingPlan.status === 'draft') ? student.coachingPlan : null;
+    const reportBranch = activePlan?.branchTargets?.[0]?.subject || planProfile.subject || 'Genel Program';
+    const reportHomeworks = activePlan ? getAutomaticPlanHomeworks({ student, studentId, branch: reportBranch, weekStart: activePlan.weekStart, weekEnd: activePlan.weekEnd, getHomeworks: getStudentOdevler }) : [];
+    const reportSummary = calculateHomeworkWeeklySummary(reportHomeworks);
     const stage = planProfile.stage || 'beginner';
     const dailyQuestionCount = stage === 'advanced' ? '40 veya daha fazla' : stage === 'intermediate' ? '25' : '15';
     const stageLabel = stage === 'advanced' ? 'İleri' : stage === 'intermediate' ? 'Orta' : 'Başlangıç';
@@ -587,7 +592,8 @@ export function exportStudyPlanToPdf(studentId) {
     const gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
     const tableHeaders = gunler.map(gun => `<th>${gun}</th>`).join('');
     const tableCells = gunler.map(gun => {
-        const tasks = student.studyPlan && student.studyPlan[gun] ? student.studyPlan[gun] : [];
+        const tasks = student.studyPlan && student.studyPlan[gun] ? [...student.studyPlan[gun]] : [];
+        reportHomeworks.filter(hw => getHomeworkPlacementDay(hw, activePlan?.weekStart, activePlan?.weekEnd) === gun).forEach(hw => tasks.push({ title: `ÖDEV · ${hw.calismaDetayi || hw.konu || 'Ödev'}${hw.soruSayisi ? ` · ${hw.soruSayisi} Soru` : ''}`, taskType: 'homework' }));
         const tasksHtml = tasks.map(task => {
             const taskTitle = typeof task === 'string' ? task : (task?.title || task?.konu || task?.name || task?.text || 'Görev');
             return `<div class="task-item">${escapeHtml(taskTitle)}</div>`;
@@ -609,6 +615,7 @@ export function exportStudyPlanToPdf(studentId) {
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                     }
+                    .page-break { page-break-before: always; }
                     @page {
                         size: A4 landscape;
                         margin: 15mm;
@@ -788,6 +795,12 @@ export function exportStudyPlanToPdf(studentId) {
                     </tr>
                 </tbody>
             </table>
+
+            <div class="page-break"></div>
+            <div class="section-title">${escapeHtml(reportBranch)} — HAFTALIK ÖDEV PERFORMANSI</div>
+            <div class="student-info"><div><strong>Atanan Soru:</strong> ${reportSummary.assignedQuestions || '—'}<br><strong>Sonucu Girilen:</strong> ${reportSummary.completedQuestions || '—'}</div><div><strong>Doğru:</strong> ${reportSummary.completedQuestions ? reportSummary.correct : '—'} · <strong>Yanlış:</strong> ${reportSummary.completedQuestions ? reportSummary.wrong : '—'} · <strong>Boş:</strong> ${reportSummary.completedQuestions ? reportSummary.blank : '—'}<br><strong>Başarı:</strong> ${reportSummary.successRate == null ? '—' : `%${reportSummary.successRate}`}</div></div>
+            <table class="weekly-table"><thead><tr><th>Ödev</th><th>Soru</th><th>Doğru</th><th>Yanlış</th><th>Boş</th><th>Başarı</th></tr></thead><tbody>${reportHomeworks.map(hw => { const result = calculateHomeworkSuccess(hw); const completed = hw.durum === 'tamamlandi' && result?.valid; return `<tr><td>${escapeHtml(hw.calismaDetayi || hw.konu || 'Ödev')}<br><small>${escapeHtml(hw.yayin || hw.tur || '')}</small></td><td>${result?.questionCount || '—'}</td><td>${completed ? result.correct : '—'}</td><td>${completed ? result.wrong : '—'}</td><td>${completed ? result.blank : '—'}</td><td>${completed ? `%${result.successRate}` : 'Sonuç Bekleniyor'}</td></tr>`; }).join('')}</tbody></table>
+            <div class="advice-grid"><div class="advice-card medium"><h4>Pomodoro</h4><p>25 dk odaklan · 5 dk ara ver · Telefonu uzak tut.</p></div><div class="advice-card excellent"><h4>Feynman</h4><p>Konuyu kendi cümlelerinle anlat; anlatamadığın yeri tekrar öğren.</p></div></div>
             
             <div class="section-title">💡 DERS BAZLI GELİŞİM ÖNERİLERİ</div>
             <div class="advice-grid">

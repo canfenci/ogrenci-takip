@@ -38,6 +38,13 @@ import {
     getAvailableCoachingMonths,
     getDefaultCoachingMonth
 } from './guidance-coaching-dashboard.js';
+import {
+    getAutomaticPlanHomeworks,
+    getHomeworkPlacementDay,
+    calculateHomeworkWeeklySummary,
+    calculateHomeworkSuccess,
+    formatHomeworkSuccess
+} from './homework-success-insights.js';
 
 export function renderGuidancePage(options = {}) {
     store.currentPage = 'guidance';
@@ -1911,18 +1918,34 @@ export function renderGuidanceStudentDetail(studentId) {
         const studyStageNames = { beginner: 'Başlangıç', intermediate: 'Orta', advanced: 'İleri' };
         const studyIntensityNames = { light: 'Hafif', balanced: 'Dengeli', intensive: 'Yoğun' };
 
+        const planSubject = coachingPlan?.branchTargets?.[0]?.subject || planProfile?.subject || detail.activePlan?.subject || '';
+        const automaticHomeworks = coachingPlan
+            ? getAutomaticPlanHomeworks({ student, studentId, branch: planSubject, weekStart: coachingPlan.weekStart, weekEnd: coachingPlan.weekEnd, getHomeworks: getStudentOdevler })
+            : [];
+        const automaticHomeworkTasks = automaticHomeworks.map(hw => ({
+            taskType: 'homework', homeworkId: hw.id, homeworkStudentId: studentId,
+            dueDay: getHomeworkPlacementDay(hw, coachingPlan?.weekStart, coachingPlan?.weekEnd),
+            _automaticHomework: true
+        }));
+
         const getStudyTasksForDay = (dayName) => {
+            const manualTasks = [];
             if (coachingPlan && Array.isArray(coachingPlan.tasks)) {
-                return coachingPlan.tasks.filter(t => t && t.dueDay === dayName);
+                manualTasks.push(...coachingPlan.tasks.filter(t => t && t.dueDay === dayName));
+            } else {
+                if (!rawStudyPlan || typeof rawStudyPlan !== 'object') return automaticHomeworkTasks.filter(t => t.dueDay === dayName);
+                if (Array.isArray(rawStudyPlan[dayName])) manualTasks.push(...rawStudyPlan[dayName]);
+                else {
+                    const matchKey = Object.keys(rawStudyPlan).find(k => k.toLowerCase() === dayName.toLowerCase());
+                    if (matchKey && Array.isArray(rawStudyPlan[matchKey])) manualTasks.push(...rawStudyPlan[matchKey]);
+                }
             }
-            if (!rawStudyPlan || typeof rawStudyPlan !== 'object') return [];
-            if (Array.isArray(rawStudyPlan[dayName])) return rawStudyPlan[dayName];
-            const matchKey = Object.keys(rawStudyPlan).find(k => k.toLowerCase() === dayName.toLowerCase());
-            if (matchKey && Array.isArray(rawStudyPlan[matchKey])) return rawStudyPlan[matchKey];
-            return [];
+            const existingIds = new Set(manualTasks.filter(t => t?.taskType === "homework" && t.homeworkId).map(t => String(t.homeworkId)));
+            return [...manualTasks, ...automaticHomeworkTasks.filter(t => !existingIds.has(String(t.homeworkId)) && t.dueDay === dayName)];
         };
 
         const totalStudyTasksCount = CANONICAL_DAYS.reduce((sum, day) => sum + getStudyTasksForDay(day).length, 0);
+        const weeklyHomeworkSummary = calculateHomeworkWeeklySummary(automaticHomeworks);
         const hasPlanProfile = Boolean(planProfile || detail.activePlan || coachingPlan);
         const hasAnyStudyPlan = hasPlanProfile || totalStudyTasksCount > 0;
 
@@ -1949,7 +1972,7 @@ export function renderGuidanceStudentDetail(studentId) {
                 </article>
             `;
         } else {
-            const planSubject = coachingPlan?.branchTargets?.[0]?.subject || planProfile?.subject || detail.activePlan?.subject || 'Genel Program';
+            const displayPlanSubject = planSubject || 'Genel Program';
             const planBadge = planProfile?.badge || detail.activePlan?.badge || (coachingPlan ? 'Koçluk Planı' : 'Çalışma Planı');
             const planStage = studyStageNames[planProfile?.stage || detail.activePlan?.stage] || 'Başlangıç';
             const planIntensity = studyIntensityNames[planProfile?.intensity] || 'Dengeli';
@@ -1972,7 +1995,7 @@ export function renderGuidanceStudentDetail(studentId) {
                                         ${escapeHtml(planStatusText)}
                                     </span>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-0.5">${escapeHtml(planSubject)} · ${planDuration} haftalık program</p>
+                                <p class="text-xs text-gray-500 mt-0.5">${escapeHtml(displayPlanSubject)} · ${planDuration} haftalık program</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
@@ -2064,6 +2087,18 @@ export function renderGuidanceStudentDetail(studentId) {
             }
 
             let weeklyDaysContentHtml = '';
+            const weeklyHomeworkPerformanceHtml = coachingPlan && automaticHomeworks.length > 0 ? `
+                <section class="app-panel p-4 space-y-3" data-testid="weekly-homework-performance">
+                    <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                        <div><h3 class="font-black text-sm text-gray-900 dark:text-white">${escapeHtml(displayPlanSubject)} — Haftalık Ödev Performansı</h3><p class="text-[11px] text-gray-500">${escapeHtml(coachingPlan.weekStart || '')} – ${escapeHtml(coachingPlan.weekEnd || '')}</p></div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                        ${[['Atanan Soru', weeklyHomeworkSummary.assignedQuestions], ['Sonucu Girilen', weeklyHomeworkSummary.completedQuestions], ['Doğru', weeklyHomeworkSummary.correct], ['Yanlış', weeklyHomeworkSummary.wrong], ['Boş', weeklyHomeworkSummary.blank]].map(([label, value]) => `<div class="rounded-lg bg-gray-50 dark:bg-gray-900/50 p-2"><span class="text-gray-500 font-semibold">${label}</span><strong class="block mt-0.5 text-gray-900 dark:text-white">${value || '—'}</strong></div>`).join('')}
+                    </div>
+                    <div class="text-sm font-black text-indigo-700 dark:text-indigo-300">Başarı: ${weeklyHomeworkSummary.successRate == null ? '—' : `%${weeklyHomeworkSummary.successRate}`}</div>
+                    <div class="overflow-x-auto"><table class="w-full text-xs min-w-[620px]"><thead><tr class="text-left text-gray-500 border-b border-gray-100 dark:border-gray-800"><th class="py-2">Ödev</th><th>Soru</th><th>Doğru</th><th>Yanlış</th><th>Boş</th><th>Başarı</th></tr></thead><tbody>${automaticHomeworks.map(hw => { const result = calculateHomeworkSuccess(hw); return `<tr class="border-b border-gray-50 dark:border-gray-800/70"><td class="py-2 font-bold text-gray-800 dark:text-gray-200">${escapeHtml(hw.calismaDetayi || hw.konu || 'Ödev')}<span class="block text-[10px] text-gray-500">${escapeHtml(hw.yayin || hw.tur || '')}</span></td><td>${result?.valid ? result.questionCount : '—'}</td><td>${result?.valid && hw.durum === 'tamamlandi' ? result.correct : '—'}</td><td>${result?.valid && hw.durum === 'tamamlandi' ? result.wrong : '—'}</td><td>${result?.valid && hw.durum === 'tamamlandi' ? result.blank : '—'}</td><td>${result?.valid && hw.durum === 'tamamlandi' ? `%${result.successRate}` : 'Sonuç Bekleniyor'}</td></tr>`; }).join('')}</tbody></table></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1"><div class="rounded-lg border border-amber-200 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-900/50 p-2 text-[11px]"><h4 class="font-black text-amber-800 dark:text-amber-200">Pomodoro</h4><p class="text-gray-600 dark:text-gray-300">25 dk odaklan · 5 dk ara ver · Telefonu uzak tut.</p></div><div class="rounded-lg border border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/20 dark:border-indigo-900/50 p-2 text-[11px]"><h4 class="font-black text-indigo-800 dark:text-indigo-200">Feynman</h4><p class="text-gray-600 dark:text-gray-300">Konuyu kendi cümlelerinle anlat; anlatamadığın yeri tekrar öğren.</p></div></div>
+                </section>` : '';
 
             if (totalStudyTasksCount === 0) {
                 weeklyDaysContentHtml = `
@@ -2205,6 +2240,7 @@ export function renderGuidanceStudentDetail(studentId) {
                     ${activePlanSummaryCardHtml}
                     ${coachingPlanSummaryHtml}
                     ${weeklyDaysContentHtml}
+                    ${weeklyHomeworkPerformanceHtml}
                     ${coachingPlan ? `
                         <section class="app-panel p-4 space-y-3" id="cp-checkin-section">
                             <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
