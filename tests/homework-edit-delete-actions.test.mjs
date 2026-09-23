@@ -73,6 +73,20 @@ describe('UX-HOMEWORK-02: Edit and Delete Actions on Homework Dashboard', () => 
             assert.match(mobileSection[0], /editHomework/);
             assert.match(mobileSection[0], /fa-pen-to-square/);
         });
+
+        it('completed homework exposes canonical result edit action without hiding the card', () => {
+            const rowsFn = raw.substring(raw.indexOf('const rowsHtml = records.map'), raw.indexOf('const prevWeekNum'));
+            assert.match(rowsFn, /const hasResult = homework\.durum === 'tamamlandi'/);
+            assert.match(rowsFn, /const resultButtonLabel = hasResult \? 'Sonucu Düzenle' : 'Sonuç Gir'/);
+            assert.match(rowsFn, /due\.key === 'completed'\s*\? `[\s\S]*openHomeworkResultFromBoard\('\$\{student\.id\}', '\$\{homework\.id\}'\)[\s\S]*\$\{resultButtonLabel\}/);
+            assert.match(rowsFn, /openHomeworkDetailModal\('\$\{student\.id\}', '\$\{homework\.id\}'\)/);
+        });
+
+        it('student detail completed homework can reopen the canonical result modal', () => {
+            const detailFn = raw.substring(raw.indexOf('export function renderStudentOdevDetay'), raw.indexOf('export function deleteOdev'));
+            assert.match(detailFn, /isCompleted \? `[\s\S]*showEnterOdevSonucModal\('\$\{studentId\}', '\$\{o\.id\}'\)[\s\S]*Sonucu Düzenle/);
+            assert.match(detailFn, /showEnterOdevSonucModal\('\$\{studentId\}', '\$\{o\.id\}'\)[\s\S]*Sonuç Gir/);
+        });
     });
 
     describe('Dashboard renders Delete button', () => {

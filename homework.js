@@ -194,7 +194,10 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
         ['fa-triangle-exclamation', 'Geciken', metrics.overdue, metrics.overdue ? 'Müdahale gerekiyor' : 'Geciken ödev yok']
     ];
 
-    const rowsHtml = records.map(({ homework, student, due, weekInfo }) => `
+    const rowsHtml = records.map(({ homework, student, due, weekInfo }) => {
+        const hasResult = homework.durum === 'tamamlandi';
+        const resultButtonLabel = hasResult ? 'Sonucu Düzenle' : 'Sonuç Gir';
+        return `
         <article class="border-b border-gray-100 px-4 py-3 transition hover:bg-slate-50/70 dark:border-gray-700 dark:hover:bg-slate-800/40 last:border-0">
             <div class="hidden md:grid md:grid-cols-[minmax(160px,.8fr)_minmax(220px,1.3fr)_minmax(100px,.6fr)_minmax(110px,.6fr)_auto] md:items-center md:gap-3">
                 <div>
@@ -214,12 +217,15 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
                 </span>
                 <div class="flex justify-end gap-1.5">
                     ${due.key === 'completed' ? `
+                        <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs text-amber-700 dark:text-amber-300 font-bold">
+                            <i class="fas fa-pen-to-square mr-0.5"></i> ${resultButtonLabel}
+                        </button>
                         <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs text-blue-600 dark:text-blue-400 font-bold">
                             <i class="fas fa-file-pdf mr-0.5"></i> Detay
                         </button>
                     ` : `
                         <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs">
-                            <i class="fas fa-pen mr-0.5"></i> Sonuç Gir
+                            <i class="fas fa-pen mr-0.5"></i> ${resultButtonLabel}
                         </button>
                         <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-xs font-bold text-blue-600 dark:text-blue-400">
                             Detay
@@ -252,12 +258,15 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
                     <p class="text-xs text-gray-500" title="Teslim tarihi" aria-label="Teslim tarihi">${escapeHtml(renderDate(homework.bitisTarihi))}</p>
                     <div class="flex gap-1.5">
                         ${due.key === 'completed' ? `
+                            <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs text-amber-700 dark:text-amber-300 font-bold">
+                                ${resultButtonLabel}
+                            </button>
                             <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs text-blue-600 dark:text-blue-400 font-bold">
                                 <i class="fas fa-file-pdf mr-0.5"></i> Detay
                             </button>
                         ` : `
                             <button onclick="openHomeworkResultFromBoard('${student.id}', '${homework.id}')" class="btn-secondary min-h-[44px] px-2.5 py-1 text-xs">
-                                Sonuç Gir
+                                ${resultButtonLabel}
                             </button>
                             <button onclick="openHomeworkDetailModal('${student.id}', '${homework.id}')" class="min-h-[44px] px-2 text-xs font-bold text-blue-600 dark:text-blue-400">
                                 Detay
@@ -273,7 +282,8 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
                 </div>
             </div>
         </article>
-    `).join('');
+    `;
+    }).join('');
 
     const prevWeekNum = activeWeekNum ? Math.max(1, activeWeekNum - 1) : curWeekNum;
     const nextWeekNum = activeWeekNum ? activeWeekNum + 1 : curWeekNum;
@@ -461,6 +471,9 @@ export function renderStudentOdevDetay(studentId, performanceFilter = 'all') {
                 </div>
                 <div class="flex gap-2 flex-wrap items-center">
                     ${isCompleted ? `
+                        <button onclick="showEnterOdevSonucModal('${studentId}', '${o.id}')" class="text-amber-700 dark:text-amber-300 hover:text-amber-800 text-xs font-bold border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 flex items-center gap-1.5 min-h-[44px] bg-amber-50/50 dark:bg-amber-950/20 shadow-xs">
+                            <i class="fas fa-pen-to-square"></i> Sonucu Düzenle
+                        </button>
                         <button onclick="openHomeworkDetailModal('${studentId}', '${o.id}')" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 text-xs font-bold border border-blue-200 dark:border-blue-800 rounded-xl px-3 py-2.5 flex items-center gap-1.5 min-h-[44px] bg-blue-50/50 dark:bg-blue-950/20 shadow-xs">
                             <i class="fas fa-file-pdf"></i> Rapor / PDF
                         </button>
@@ -469,7 +482,7 @@ export function renderStudentOdevDetay(studentId, performanceFilter = 'all') {
                             <i class="fab fa-whatsapp"></i> Hatırlat
                         </button>
                         <button onclick="showEnterOdevSonucModal('${studentId}', '${o.id}')" class="text-green-500 hover:text-green-600 text-base font-semibold border rounded px-3 py-2.5 min-h-[44px]">
-                            D/Y Gir
+                            Sonuç Gir
                         </button>
                     `}
                     <button onclick="deleteOdev('${studentId}', '${o.id}')" class="text-red-500 hover:text-red-600 p-2 text-xl min-w-[44px] min-h-[44px] flex items-center justify-center">
@@ -1218,7 +1231,7 @@ export function openHomeworkDetailModal(studentId, homeworkId) {
                                     <i class="fab fa-whatsapp"></i> WhatsApp
                                 </button>
                                 <button onclick="window._homeworkDetailReturnId = '${homeworkId}'; closeHomeworkDetailModal(); showEnterOdevSonucModal('${studentId}', '${homeworkId}');" class="border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 bg-amber-50/50 dark:bg-amber-950/30 hover:bg-amber-100 py-2.5 px-2 rounded-xl font-bold text-xs min-h-[44px] flex items-center justify-center gap-1 transition" title="Sonuç ve yanlış analizini düzenle">
-                                    <i class="fas fa-pen-to-square"></i> Düzenle
+                                    <i class="fas fa-pen-to-square"></i> Sonucu Düzenle
                                 </button>
                             </div>
                             <p class="text-[11px] text-gray-500 dark:text-gray-400 text-center pt-1"><i class="fas fa-info-circle mr-1 text-blue-500"></i>WhatsApp mesajını açtıktan sonra indirdiğiniz PDF raporunu görüşmeye ekleyebilirsiniz.</p>
