@@ -1,12 +1,12 @@
 // ==================== HOMEWORK MANAGEMENT MODULE ====================
 
 import { db, auth, isFirebaseActive } from './firebase-config.js';
-import { store, loadStudentsData, saveStudentsData, getStudentOdevler, getKonuListesiBySinifAndDers, escapeHtml, isActiveStudent } from './store.js';
+import { store, loadStudentsData, saveStudentsData, getStudentOdevler, getKonuListesiBySinifAndDers, escapeHtml, isActiveStudent, STORAGE_KEY, localDataKey } from './store.js';
 import { showSyncStatus, showToast } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
-import { buildHomeworkErrorTopics, HATA_NEDENLERI, normalizeHomeworkErrorAnalysis, validateErrorAnalysisTotal, normalizeHataNedeniLabel, normalizeHataNedeniKey, getUnitsAndTopicsBySinifAndDers, getUnitListBySinifAndDers, getTopicsForUnit } from './homework-error-topics.js';
+import { buildHomeworkErrorTopics, normalizeHomeworkErrorAnalysis, getUnitsAndTopicsBySinifAndDers, getUnitListBySinifAndDers, getTopicsForUnit } from './homework-error-topics.js';
 import { buildWorkPerformance } from './work-performance-insights.js';
 import { buildHomeworkDashboard, filterHomeworkDashboard, getHomeworkDueState } from './homework-dashboard-insights.js';
 import { buildHomeworkReportData, normalizeReportFilename, buildWhatsAppReportMessage, generateHomeworkPdf } from './homework-report-insights.js';
@@ -20,6 +20,95 @@ import {
     resolveHomeworkWeek,
     filterHomeworksCombined
 } from './homework-weeks-insights.js';
+
+const LEGACY_HOMEWORK_ERROR_FIELDS = ['hataNedenleri', 'hataNedeni', 'hataTipi', 'hataKodu', 'errorCode', 'errorType', 'reason', 'neden', 'kategori'];
+let homeworkMigrationPromise = null;
+
+export function sanitizeHomeworkErrorAnalysis(items) {
+    if (!Array.isArray(items)) return [];
+    return items.filter(item => item && typeof item === 'object').map(item => {
+        const sanitized = { ...item };
+        LEGACY_HOMEWORK_ERROR_FIELDS.forEach(field => delete sanitized[field]);
+        return sanitized;
+    });
+}
+
+function sanitizeHomeworkLegacyFields(homework) {
+    if (!homework || typeof homework !== 'object') return homework;
+    const sanitized = { ...homework };
+    if (Array.isArray(sanitized.yanlisKonular)) sanitized.yanlisKonular = sanitizeHomeworkErrorAnalysis(sanitized.yanlisKonular);
+    if (Array.isArray(sanitized.yanlisAnalizi)) sanitized.yanlisAnalizi = sanitizeHomeworkErrorAnalysis(sanitized.yanlisAnalizi);
+    LEGACY_HOMEWORK_ERROR_FIELDS.forEach(field => delete sanitized[field]);
+    Object.keys(homework).forEach(field => delete homework[field]);
+    Object.assign(homework, sanitized);
+    return homework;
+}
+
+function hasDeprecatedHomeworkErrorFields(homework) {
+    if (!homework || typeof homework !== 'object') return false;
+    if (LEGACY_HOMEWORK_ERROR_FIELDS.some(field => Object.prototype.hasOwnProperty.call(homework, field))) return true;
+    return ['yanlisKonular', 'yanlisAnalizi'].some(key => Array.isArray(homework[key]) && homework[key].some(item =>
+        item && LEGACY_HOMEWORK_ERROR_FIELDS.some(field => Object.prototype.hasOwnProperty.call(item, field))
+    ));
+}
+
+function firestoreDeleteValue() {
+    return globalThis.firebase?.firestore?.FieldValue?.delete?.()
+        || globalThis.window?.firebase?.firestore?.FieldValue?.delete?.();
+}
+
+export async function migrateHomeworkErrorCodesOnce() {
+    const markerKey = `homework_error_code_cleanup_v1_${store.syncUserId || (store.isGuestMode ? 'guest' : 'local')}`;
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(markerKey) === 'done') {
+        return { skipped: true, scanned: 0, updated: 0 };
+    }
+
+    const isCloud = Boolean(store.useFirestore && (isFirebaseActive || window.isFirebaseActive) && (db || window.db) && !store.isGuestMode);
+    if (isCloud) {
+        const updates = [];
+        for (const homework of (store.globalHomeworks || [])) {
+            if (!hasDeprecatedHomeworkErrorFields(homework)) continue;
+            const cleaned = sanitizeHomeworkLegacyFields({ ...homework });
+            const payload = {};
+            ['yanlisKonular', 'yanlisAnalizi'].forEach(key => {
+                if (Array.isArray(homework[key])) payload[key] = cleaned[key];
+            });
+            for (const field of LEGACY_HOMEWORK_ERROR_FIELDS) {
+                if (Object.prototype.hasOwnProperty.call(homework, field)) {
+                    const deletion = firestoreDeleteValue();
+                    if (!deletion) throw new Error('Firestore FieldValue.delete is unavailable');
+                    payload[field] = deletion;
+                }
+            }
+            updates.push({ homework, payload });
+        }
+        const firestoreDb = db || window.db;
+        await Promise.all(updates.map(({ homework, payload }) => firestoreDb.collection('homeworks').doc(homework.id).update(payload)));
+        updates.forEach(({ homework }) => sanitizeHomeworkLegacyFields(homework));
+        if (typeof localStorage !== 'undefined') localStorage.setItem(markerKey, 'done');
+        return { skipped: false, scanned: (store.globalHomeworks || []).length, updated: updates.length };
+    }
+
+    if (typeof localStorage !== 'undefined') {
+        const rawLocalStudents = localStorage.getItem(localDataKey(STORAGE_KEY));
+        if (rawLocalStudents) {
+            try { JSON.parse(rawLocalStudents); } catch (error) { throw new Error(`Local Homework data could not be loaded: ${error.message}`); }
+        }
+    }
+    const students = loadStudentsData();
+    let updated = 0;
+    students.forEach(student => (student.odevler || []).forEach(homework => {
+        if (!hasDeprecatedHomeworkErrorFields(homework)) return;
+        sanitizeHomeworkLegacyFields(homework);
+        updated += 1;
+    }));
+    if (updated > 0) {
+        const saveResult = await saveStudentsData(students);
+        if (!saveResult?.ok) throw saveResult?.error || new Error('Local Homework data could not be persisted');
+    }
+    if (typeof localStorage !== 'undefined') localStorage.setItem(markerKey, 'done');
+    return { skipped: false, scanned: students.reduce((total, student) => total + (student.odevler || []).length, 0), updated };
+}
 
 export function hideNavigationElements() {
     const sidebar = document.querySelector('#app-root > div.hidden.md\\:flex');
@@ -59,6 +148,7 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
                 durum: "tamamlandi",
                 dogru: dogru,
                 yanlis: yanlis,
+                ...(importedHomework?.yanlisKonular ? { yanlisKonular: sanitizeHomeworkErrorAnalysis(importedHomework.yanlisKonular) } : {}),
                 ...(importedBlank !== null ? { bos: importedBlank } : {})
             });
 
@@ -66,6 +156,7 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
             if (Array.isArray(store.globalHomeworks)) {
                 const globalHw = store.globalHomeworks.find(h => h.id === hwId);
                 if (globalHw) {
+                    Object.assign(globalHw, sanitizeHomeworkLegacyFields(globalHw));
                     globalHw.durum = "tamamlandi";
                     globalHw.dogru = dogru;
                     globalHw.yanlis = yanlis;
@@ -79,6 +170,7 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
             if (student && Array.isArray(student.odevler)) {
                 const hw = student.odevler.find(h => h.id === hwId);
                 if (hw) {
+                    Object.assign(hw, sanitizeHomeworkLegacyFields(hw));
                     hw.durum = "tamamlandi";
                     hw.dogru = dogru;
                     hw.yanlis = yanlis;
@@ -116,6 +208,7 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
         return;
     }
     students[sIdx].odevler[hwIdx].durum = "tamamlandi";
+    Object.assign(students[sIdx].odevler[hwIdx], sanitizeHomeworkLegacyFields(students[sIdx].odevler[hwIdx]));
     students[sIdx].odevler[hwIdx].dogru = dogru;
     students[sIdx].odevler[hwIdx].yanlis = yanlis;
     if (importedBlank !== null) students[sIdx].odevler[hwIdx].bos = importedBlank;
@@ -132,6 +225,12 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
     updateMobileNavActive('mobile-nav-homework');
 
     const students = loadStudentsData();
+    if (!homeworkMigrationPromise && (!store.useFirestore || store.globalHomeworks.length > 0)) {
+        homeworkMigrationPromise = migrateHomeworkErrorCodesOnce().catch(error => {
+            homeworkMigrationPromise = null;
+            console.error('Homework error-code cleanup failed:', error);
+        });
+    }
     const currentDate = new Date();
     const curWeekNum = getCurrentWeekNumber(currentDate);
 
@@ -664,9 +763,9 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                     <div class="flex items-center justify-between">
                         <div>
                             <span class="text-xs font-black uppercase tracking-wider text-red-900 dark:text-red-200 flex items-center gap-1.5">
-                                <i class="fas fa-list-check text-red-600"></i> Yanlış Analizi (Ünite & Konu)
+                                <i class="fas fa-list-check text-red-600"></i> Yanlış Analizi (Konu & Alt Konu)
                             </span>
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Yanlış yapılan ünite, konu ve hata nedenlerini sınıflandırın.</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Yanlış yapılan konu ve alt konuları isteğe bağlı olarak ekleyin.</p>
                         </div>
                         <button type="button" id="addErrorRowBtn" class="border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 bg-white dark:bg-gray-800 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
                             <i class="fas fa-plus text-[10px]"></i> Alan Ekle
@@ -730,17 +829,13 @@ export function showEnterOdevSonucModal(studentId, hwId) {
         }
 
         const countVal = Number(data.adet) || 1;
-        const selectedReasonKeys = Array.isArray(data.hataNedenleriKeys) && data.hataNedenleriKeys.length > 0
-            ? data.hataNedenleriKeys
-            : (Array.isArray(data.hataNedenleri) ? data.hataNedenleri.map(normalizeHataNedeniKey) : []);
-
         const unitOptionsHtml = unitList.map(u => `<option value="${escapeHtml(u)}" ${u === defaultUnit ? 'selected' : ''}>${escapeHtml(u)}</option>`).join('') + `<option value="__custom__" ${defaultUnit && !unitList.includes(defaultUnit) ? 'selected' : ''}>✍️ Manuel Gir</option>`;
 
         rowDiv.innerHTML = `
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
                 <!-- Ünite Seçimi -->
                 <div class="sm:col-span-6">
-                    <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-0.5">Ünite / Yanlış Yapılan Ana Konu</label>
+                                <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-0.5">Konu</label>
                     <select class="error-unit-select student-form-input text-xs min-h-[38px] py-1.5 font-bold">
                         ${unitOptionsHtml}
                     </select>
@@ -749,7 +844,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
 
                 <!-- Konu Seçimi -->
                 <div class="sm:col-span-4">
-                    <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-0.5">Konu / Alt Konu</label>
+                    <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-0.5">Alt Konu</label>
                     <select class="error-topic-select student-form-input text-xs min-h-[38px] py-1.5">
                         <!-- Populated dynamically -->
                     </select>
@@ -768,21 +863,6 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                 </div>
             </div>
 
-            <!-- Hata Nedenleri (Çoklu Seçim) -->
-            <div>
-                <label class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Hata Nedeni <span class="text-xs font-normal text-gray-400">(çoklu seçim)</span></label>
-                <div class="flex flex-wrap gap-1.5 error-reasons-group">
-                    ${HATA_NEDENLERI.map(hn => {
-                        const isChecked = selectedReasonKeys.includes(hn.key);
-                        return `
-                            <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition border select-none min-h-[44px] ${isChecked ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200'}">
-                                <input type="checkbox" value="${escapeHtml(hn.key)}" class="hidden error-reason-cb" ${isChecked ? 'checked' : ''}>
-                                <span>${escapeHtml(hn.label)}</span>
-                            </label>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
         `;
 
         const unitSelect = rowDiv.querySelector('.error-unit-select');
@@ -837,18 +917,6 @@ export function showEnterOdevSonucModal(studentId, hwId) {
 
         // Initialize topic dropdown
         updateTopicsForSelectedUnit(defaultKonu);
-
-        // Wire checkbox toggle style
-        rowDiv.querySelectorAll('.error-reasons-group label').forEach(lbl => {
-            const cb = lbl.querySelector('input[type="checkbox"]');
-            cb.addEventListener('change', () => {
-                if (cb.checked) {
-                    lbl.className = 'cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition border select-none bg-blue-600 text-white border-blue-600 shadow-xs';
-                } else {
-                    lbl.className = 'cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition border select-none bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200';
-                }
-            });
-        });
 
         // Wire count input change for sum check
         const countInp = rowDiv.querySelector('.error-count-input');
@@ -971,19 +1039,12 @@ export function saveManualOdevResult(studentId, hwId) {
             const count = parseInt(row.querySelector('.error-count-input')?.value) || 1;
             totalCount += count;
 
-            const selectedReasons = [];
-            row.querySelectorAll('.error-reason-cb:checked').forEach(cb => {
-                const canonicalKey = normalizeHataNedeniKey(cb.value);
-                if (canonicalKey) selectedReasons.push(canonicalKey);
-            });
-
             if (unite || konu) {
                 entries.push({
                     unite: unite || konu,
                     konu: konu || unite,
                     altKonu: konu,
-                    adet: count,
-                    hataNedenleri: selectedReasons
+                    adet: count
                 });
             }
         });
@@ -1023,7 +1084,7 @@ export function saveManualOdevResult(studentId, hwId) {
             durum: "tamamlandi",
             ...(calculated?.valid ? { soruSayisi: questionCount, bos: blank } : {}),
             dogru: correct, yanlis: wrong,
-            yanlisKonular: errorTopics
+            yanlisKonular: sanitizeHomeworkErrorAnalysis(errorTopics)
         }).then(() => {
             document.getElementById('homeworkResultModal')?.remove();
             renderAfterSave();
@@ -1038,7 +1099,8 @@ export function saveManualOdevResult(studentId, hwId) {
                 if (calculated?.valid) { students[sIdx].odevler[hwIdx].soruSayisi = questionCount; students[sIdx].odevler[hwIdx].bos = blank; }
                 students[sIdx].odevler[hwIdx].dogru = correct;
                 students[sIdx].odevler[hwIdx].yanlis = wrong;
-                students[sIdx].odevler[hwIdx].yanlisKonular = errorTopics;
+                students[sIdx].odevler[hwIdx].yanlisKonular = sanitizeHomeworkErrorAnalysis(errorTopics);
+                Object.assign(students[sIdx].odevler[hwIdx], sanitizeHomeworkLegacyFields(students[sIdx].odevler[hwIdx]));
                 saveStudentsData(students);
             }
         }
@@ -1185,13 +1247,6 @@ export function openHomeworkDetailModal(studentId, homeworkId) {
                                                     <span>• ${escapeHtml(mainTitle)}${subTitle ? ` › <span class="text-gray-500 font-normal">${escapeHtml(subTitle)}</span>` : ''}</span>
                                                     <span class="px-2 py-0.5 rounded text-[11px] font-black bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">${item.adet} Yanlış</span>
                                                 </div>
-                                                ${item.hataNedenleri && item.hataNedenleri.length > 0 ? `
-                                                    <div class="flex flex-wrap gap-1 mt-1">
-                                                        ${item.hataNedenleri.map(reason => `
-                                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600">${escapeHtml(normalizeHataNedeniLabel(reason))}</span>
-                                                        `).join('')}
-                                                    </div>
-                                                ` : ''}
                                             </div>
                                         `;
                                     }).join('')}
@@ -1851,6 +1906,7 @@ window.normalizeReportFilename = normalizeReportFilename;
 window.buildWhatsAppReportMessage = buildWhatsAppReportMessage;
 window.showEnterOdevSonucModal = showEnterOdevSonucModal;
 window.saveManualOdevResult = saveManualOdevResult;
+window.migrateHomeworkErrorCodesOnce = migrateHomeworkErrorCodesOnce;
 window.shareHomeworkWhatsApp = shareHomeworkWhatsApp;
 window.showOdevAtaModal = showOdevAtaModal;
 window.renderOdevAtaModal = renderOdevAtaModal;

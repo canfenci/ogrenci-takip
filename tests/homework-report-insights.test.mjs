@@ -161,7 +161,7 @@ test('generateHomeworkPdf produces an A4 PDF document using mock jsPDF', () => {
     assert.equal(doc.options.orientation, 'portrait');
 });
 
-test('generateHomeworkPdf formats multiple error topics and reasons cleanly', () => {
+test('generateHomeworkPdf formats multiple homework topics without error-code reasons', () => {
     const reportData = {
         studentName: 'Zeynep Çelik',
         sinif: '8. Sınıf',
@@ -211,6 +211,7 @@ test('generateHomeworkPdf formats multiple error topics and reasons cleanly', ()
     assert.equal(doc.options.format, 'a4');
     const combined = renderedText.join(' ');
     assert.match(combined, /Katı Basıncı/);
-    assert.match(combined, /Bilgi Eksikliği/);
-    assert.match(combined, /Dikkatsizlik/);
+    assert.match(combined, /Piezometre/);
+    assert.match(combined, /U Borusu/);
+    assert.doesNotMatch(combined, /Bilgi Eksikliği|Dikkatsizlik|Yanlış Okuma/);
 });

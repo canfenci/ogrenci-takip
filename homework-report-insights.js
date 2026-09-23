@@ -2,7 +2,7 @@
 
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { registerTurkishFont } from './homework-report-font.js';
-import { normalizeHomeworkErrorAnalysis, normalizeHataNedeniLabel } from './homework-error-topics.js';
+import { normalizeHomeworkErrorAnalysis } from './homework-error-topics.js';
 
 export function normalizeReportFilename({ studentName = 'Ogrenci', homeworkTitle = 'Odev', date = '' }) {
     const trMap = {
@@ -342,7 +342,7 @@ export function generateHomeworkPdf(reportData, jsPDFInstance = null) {
         doc.setFontSize(8);
         doc.setFont(fontName, 'bold');
         doc.setTextColor(185, 28, 28);
-        doc.text(safeText('TEKRAR EDİLMESİ GEREKEN KONULAR & HATA ANALİZİ'), margin + 6, curY + 6);
+        doc.text(safeText('TEKRAR EDİLMESİ GEREKEN KONULAR'), margin + 6, curY + 6);
 
         const displayItems = reportData.yanlisKonular.slice(0, 4);
         const remainingCount = reportData.yanlisKonular.length - displayItems.length;
@@ -350,9 +350,7 @@ export function generateHomeworkPdf(reportData, jsPDFInstance = null) {
             const mainTitle = item.unite || item.konu || 'Genel';
             const subTitle = (item.konu && item.unite && item.konu !== item.unite) ? item.konu : (item.altKonu || '');
             const topicPart = `${safeText(mainTitle)}${subTitle ? ` · ${safeText(subTitle)}` : ''} (${item.adet} Yanlış)`;
-            const reasons = (item.hataNedenleri || []).map(normalizeHataNedeniLabel).filter(Boolean);
-            const reasonsPart = reasons.length > 0 ? ` [${reasons.map(safeText).join(' · ')}]` : '';
-            return `${topicPart}${reasonsPart}`;
+            return topicPart;
         }).join('  |  ');
         if (remainingCount > 0) {
             topicsTxt += ` (+${remainingCount} diğer alan)`;
