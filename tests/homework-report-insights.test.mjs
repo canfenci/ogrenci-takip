@@ -66,7 +66,7 @@ test('buildHomeworkReportData handles missing optional fields safely (Scenario B
     assert.equal(report.successRate, 90);
     assert.equal(report.evalStatus, 'Üstün Başarı');
     assert.equal(report.teacherNote, '');
-    assert.deepEqual(report.yanlisKonular, []);
+    assert.equal(Object.hasOwn(report, 'yanlisKonular'), false);
 });
 
 test('buildHomeworkReportData handles long fields without throwing (Scenario C)', () => {
@@ -88,7 +88,7 @@ test('buildHomeworkReportData handles long fields without throwing (Scenario C)'
     const report = buildHomeworkReportData({ student, homework });
     assert.equal(report.sinif, '8. Sınıf');
     assert.equal(report.evalStatus, 'Geliştirilmeli');
-    assert.equal(report.yanlisKonular.length, 1);
+    assert.equal(Object.hasOwn(report, 'yanlisKonular'), false);
 });
 
 test('buildWhatsAppReportMessage formats guardian friendly summary', () => {
@@ -210,8 +210,6 @@ test('generateHomeworkPdf formats multiple homework topics without error-code re
     const doc = generateHomeworkPdf(reportData, MockJsPDF);
     assert.equal(doc.options.format, 'a4');
     const combined = renderedText.join(' ');
-    assert.match(combined, /Katı Basıncı/);
-    assert.match(combined, /Piezometre/);
-    assert.match(combined, /U Borusu/);
+    assert.doesNotMatch(combined, /Katı Basıncı|Piezometre|U Borusu/);
     assert.doesNotMatch(combined, /Bilgi Eksikliği|Dikkatsizlik|Yanlış Okuma/);
 });

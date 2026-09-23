@@ -55,8 +55,7 @@ test('I-M: düzenleme mevcut durumu ve kimliği korur; yıkıcı migrasyon yoktu
     assert.doesNotMatch(homeworkSource, /localStorage\.clear\(|indexedDB\.deleteDatabase\(/);
     assert.match(homeworkSource, /soruSayisi/);
     assert.match(homeworkSource, /bos/);
-    assert.match(homeworkSource, /Yanlış analizindeki toplam adet/);
-    assert.match(homeworkSource, /totalCount > wrong/);
+    assert.doesNotMatch(homeworkSource, /Yanlış analizindeki toplam adet|totalCount > wrong/);
     assert.doesNotMatch(homeworkSource, /successRate\s*:/);
 });
 

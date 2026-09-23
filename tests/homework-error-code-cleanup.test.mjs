@@ -4,17 +4,20 @@ import test from 'node:test';
 
 const source = await readFile(new URL('../homework.js', import.meta.url), 'utf8');
 const reportSource = await readFile(new URL('../homework-report-insights.js', import.meta.url), 'utf8');
+const resultModalSource = source.slice(source.indexOf('export function showEnterOdevSonucModal'), source.indexOf('    document.body.appendChild(modal);'));
 
-test('HOMEWORK-ERROR-CODE-CLEANUP-01: result UI keeps only topic/subtopic detail fields', () => {
-    assert.match(source, />Konu<\/label>/);
-    assert.match(source, />Alt Konu<\/label>/);
+test('HOMEWORK-RESULT-SIMPLIFY-02: result UI contains metrics only', () => {
+    assert.match(resultModalSource, /Soru Sayısı/);
+    assert.match(resultModalSource, /manualWrong/);
+    assert.match(resultModalSource, /manualBlank/);
+    assert.doesNotMatch(resultModalSource, /errorAnalysisSection|Alan Ekle|Analiz Edilen|error-unit-select|error-topic-select/);
     assert.doesNotMatch(source, /HATA_NEDENLERI/);
     assert.doesNotMatch(source, /error-reasons-group|error-reason-cb|Hata Nedeni/);
     assert.doesNotMatch(source, /Dikkatsizlik|Bilgi Eksikliği|Yanlış Okuma|İşlem Hatası|Kavram Yanılgısı/);
     assert.doesNotMatch(reportSource, /HATA ANALİZİ|normalizeHataNedeniLabel|reasonsPart/);
 });
 
-test('HOMEWORK-ERROR-CODE-CLEANUP-01: cleanup preserves topic, subtopic, count and removes only legacy reason fields', async () => {
+test('HOMEWORK-RESULT-SIMPLIFY-02: compatibility sanitizer removes deprecated result fields', async () => {
     globalThis.window = globalThis;
     globalThis.window.addEventListener = () => {};
     globalThis.window.removeEventListener = () => {};
@@ -30,7 +33,8 @@ test('HOMEWORK-ERROR-CODE-CLEANUP-01: cleanup preserves topic, subtopic, count a
 
 test('HOMEWORK-ERROR-CODE-CLEANUP-01: result persistence sanitizes new and edited records without changing the homework id', () => {
     const saveFn = source.slice(source.indexOf('export function saveManualOdevResult'), source.indexOf('export function openHomeworkDetailModal'));
-    assert.match(saveFn, /yanlisKonular: sanitizeHomeworkErrorAnalysis\(errorTopics\)/);
+    assert.match(saveFn, /yanlisKonular: firestoreDeleteValue\(\)/);
+    assert.match(saveFn, /yanlisAnalizi: firestoreDeleteValue\(\)/);
     assert.match(saveFn, /students\[sIdx\]\.odevler\[hwIdx\]/);
     assert.doesNotMatch(saveFn, /error-reason-cb|hataNedenleri/);
     assert.doesNotMatch(saveFn, /odevler\.push|Date\.now\(\)|crypto\.randomUUID/);
@@ -39,7 +43,8 @@ test('HOMEWORK-ERROR-CODE-CLEANUP-01: result persistence sanitizes new and edite
 
 test('HOMEWORK-ERROR-CODE-CLEANUP-01: imported legacy homework is sanitized on the same cloud/local record', () => {
     const importFn = source.slice(source.indexOf('export async function importHwResult'), source.indexOf('export function renderOdevTakibi'));
-    assert.match(importFn, /doc\(hwId\)\.update\([\s\S]*yanlisKonular: sanitizeHomeworkErrorAnalysis/);
+    assert.match(importFn, /yanlisKonular: firestoreDeleteValue\(\)/);
+    assert.match(importFn, /yanlisAnalizi: firestoreDeleteValue\(\)/);
     assert.match(importFn, /Object\.assign\(globalHw, sanitizeHomeworkLegacyFields\(globalHw\)\)/);
     assert.match(importFn, /Object\.assign\(hw, sanitizeHomeworkLegacyFields\(hw\)\)/);
     assert.match(importFn, /Object\.assign\(students\[sIdx\]\.odevler\[hwIdx\], sanitizeHomeworkLegacyFields/);
@@ -75,7 +80,7 @@ test('HOMEWORK-ERROR-CODE-CLEANUP-01B: migration cleans every affected local hom
     storage.set(STORAGE_KEY, JSON.stringify([{ id: 'student-1', adSoyad: 'Test', odevler: [legacy, clean] }]));
 
     const first = await migrateHomeworkErrorCodesOnce();
-    assert.equal(first.updated, 1);
+    assert.equal(first.updated, 2);
     const migrated = JSON.parse(storage.get(STORAGE_KEY))[0].odevler;
     assert.equal(migrated[0].id, 'hw-legacy');
     assert.equal(migrated[0].studentId, 'student-1');
@@ -86,11 +91,11 @@ test('HOMEWORK-ERROR-CODE-CLEANUP-01B: migration cleans every affected local hom
     assert.equal(migrated[0].yanlis, 1);
     assert.equal(migrated[0].bos, 1);
     assert.equal(migrated[0].durum, 'tamamlandi');
-    assert.equal(migrated[0].yanlisKonular[0].id, 'row-1');
-    assert.equal(migrated[0].yanlisKonular[0].altKonu, 'Katı Basıncı');
+    assert.equal(Object.hasOwn(migrated[0], 'yanlisKonular'), false);
+    assert.equal(Object.hasOwn(migrated[0], 'yanlisAnalizi'), false);
     assert.equal(Object.hasOwn(migrated[0], 'hataTipi'), false);
     assert.equal(Object.hasOwn(migrated[0], 'hataKodu'), false);
-    assert.equal(Object.hasOwn(migrated[0].yanlisKonular[0], 'hataKodu'), false);
+    assert.equal(Object.hasOwn(migrated[1], 'yanlisKonular'), false);
     const second = await migrateHomeworkErrorCodesOnce();
     assert.equal(second.skipped, true);
     assert.equal(second.updated, 0);
@@ -120,7 +125,7 @@ test('HOMEWORK-ERROR-CODE-CLEANUP-01B: Firebase partial failure leaves completio
     const updated = [];
     globalThis.window.db = { collection: () => ({ doc: id => ({ update: async () => { updated.push(id); if (id === 'hw-2') throw new Error('simulated failure'); } }) }) };
     await assert.rejects(() => migrateHomeworkErrorCodesOnce(), /simulated failure/);
-    assert.equal(storage.has('homework_error_code_cleanup_v1_cloud-user'), false);
+    assert.equal(storage.has('homework_result_analysis_cleanup_v2_cloud-user'), false);
     assert.deepEqual(updated, ['hw-1', 'hw-2', 'hw-3']);
     store.useFirestore = false;
     store.globalHomeworks = [];

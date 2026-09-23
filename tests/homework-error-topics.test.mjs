@@ -286,7 +286,7 @@ test('UX-05.5 Scenario E: when wrong count becomes 0, error analysis is cleared'
   assert.deepEqual(cleared, []);
 });
 
-test('UX-05.5 Scenario F: PDF report generator reflects edited error topics and reasons', () => {
+test('UX-05.5 Scenario F: PDF report generator omits removed Homework result analysis', () => {
   const student = { id: 's1', adSoyad: 'Zeynep Kaya', sinif: '8' };
   const homework = {
     id: 'hw1',
@@ -307,10 +307,7 @@ test('UX-05.5 Scenario F: PDF report generator reflects edited error topics and 
     teacherProfile: { name: 'Murat Canbaş', school: 'CanFenci Akademi' }
   });
 
-  assert.equal(reportData.yanlisKonular.length, 2);
-  assert.equal(reportData.yanlisKonular[0].unite, 'Basınç');
-  assert.equal(reportData.yanlisKonular[0].konu, 'Katı Basıncı');
-  assert.deepEqual(reportData.yanlisKonular[0].hataNedenleri, ['Bilgi Eksikliği']);
+  assert.equal(Object.hasOwn(reportData, 'yanlisKonular'), false);
 });
 
 test('UX-05.5 Scenario G: Cockpit mostFrequentError recalculates dynamically after error topic edit', () => {

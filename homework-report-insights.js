@@ -2,7 +2,6 @@
 
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { registerTurkishFont } from './homework-report-font.js';
-import { normalizeHomeworkErrorAnalysis } from './homework-error-topics.js';
 
 export function normalizeReportFilename({ studentName = 'Ogrenci', homeworkTitle = 'Odev', date = '' }) {
     const trMap = {
@@ -91,7 +90,6 @@ export function buildHomeworkReportData({ student, homework }) {
         evalBadgeColor,
         evalMessage,
         teacherNote: homework.ogretmenNotu || homework.not || '',
-        yanlisKonular: normalizeHomeworkErrorAnalysis(homework),
         reportDate: formattedReportDate,
         reportDateIso: todayDate.toISOString().slice(0, 10)
     };
@@ -332,37 +330,7 @@ export function generateHomeworkPdf(reportData, jsPDFInstance = null) {
     const splitMsg = doc.splitTextToSize(safeText(reportData.evalMessage), contentWidth - 12);
     doc.text(splitMsg, margin + 6, curY + 20);
 
-    // 8. Wrong Topics / Error Breakdown (if present)
     curY = 197;
-    if (reportData.yanlisKonular && reportData.yanlisKonular.length > 0) {
-        doc.setFillColor(254, 242, 242);
-        doc.setDrawColor(254, 202, 202);
-        doc.roundedRect(margin, curY, contentWidth, 24, 3, 3, 'FD');
-
-        doc.setFontSize(8);
-        doc.setFont(fontName, 'bold');
-        doc.setTextColor(185, 28, 28);
-        doc.text(safeText('TEKRAR EDİLMESİ GEREKEN KONULAR'), margin + 6, curY + 6);
-
-        const displayItems = reportData.yanlisKonular.slice(0, 4);
-        const remainingCount = reportData.yanlisKonular.length - displayItems.length;
-        let topicsTxt = displayItems.map(item => {
-            const mainTitle = item.unite || item.konu || 'Genel';
-            const subTitle = (item.konu && item.unite && item.konu !== item.unite) ? item.konu : (item.altKonu || '');
-            const topicPart = `${safeText(mainTitle)}${subTitle ? ` · ${safeText(subTitle)}` : ''} (${item.adet} Yanlış)`;
-            return topicPart;
-        }).join('  |  ');
-        if (remainingCount > 0) {
-            topicsTxt += ` (+${remainingCount} diğer alan)`;
-        }
-
-        doc.setFontSize(8);
-        doc.setFont(fontName, 'normal');
-        doc.setTextColor(153, 27, 27);
-        const splitTopics = doc.splitTextToSize(topicsTxt, contentWidth - 12);
-        doc.text(splitTopics, margin + 6, curY + 13);
-        curY += 28;
-    }
 
     // 9. Teacher Note (if present)
     if (reportData.teacherNote) {

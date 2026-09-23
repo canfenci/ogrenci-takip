@@ -6,7 +6,7 @@ import { showSyncStatus, showToast } from './ui-helpers.js';
 import { updateMobileNavActive } from './auth.js';
 import { calculateTopicTestNet } from './topic-exam-insights.js';
 import { readResourceSelection, resourceOptionsHtml, toggleManualResource } from './resource-books.js';
-import { buildHomeworkErrorTopics, normalizeHomeworkErrorAnalysis, getUnitsAndTopicsBySinifAndDers, getUnitListBySinifAndDers, getTopicsForUnit } from './homework-error-topics.js';
+import { getUnitListBySinifAndDers, getTopicsForUnit } from './homework-error-topics.js';
 import { buildWorkPerformance } from './work-performance-insights.js';
 import { buildHomeworkDashboard, filterHomeworkDashboard, getHomeworkDueState } from './homework-dashboard-insights.js';
 import { buildHomeworkReportData, normalizeReportFilename, buildWhatsAppReportMessage, generateHomeworkPdf } from './homework-report-insights.js';
@@ -36,8 +36,8 @@ export function sanitizeHomeworkErrorAnalysis(items) {
 function sanitizeHomeworkLegacyFields(homework) {
     if (!homework || typeof homework !== 'object') return homework;
     const sanitized = { ...homework };
-    if (Array.isArray(sanitized.yanlisKonular)) sanitized.yanlisKonular = sanitizeHomeworkErrorAnalysis(sanitized.yanlisKonular);
-    if (Array.isArray(sanitized.yanlisAnalizi)) sanitized.yanlisAnalizi = sanitizeHomeworkErrorAnalysis(sanitized.yanlisAnalizi);
+    delete sanitized.yanlisKonular;
+    delete sanitized.yanlisAnalizi;
     LEGACY_HOMEWORK_ERROR_FIELDS.forEach(field => delete sanitized[field]);
     Object.keys(homework).forEach(field => delete homework[field]);
     Object.assign(homework, sanitized);
@@ -47,9 +47,7 @@ function sanitizeHomeworkLegacyFields(homework) {
 function hasDeprecatedHomeworkErrorFields(homework) {
     if (!homework || typeof homework !== 'object') return false;
     if (LEGACY_HOMEWORK_ERROR_FIELDS.some(field => Object.prototype.hasOwnProperty.call(homework, field))) return true;
-    return ['yanlisKonular', 'yanlisAnalizi'].some(key => Array.isArray(homework[key]) && homework[key].some(item =>
-        item && LEGACY_HOMEWORK_ERROR_FIELDS.some(field => Object.prototype.hasOwnProperty.call(item, field))
-    ));
+    return ['yanlisKonular', 'yanlisAnalizi'].some(key => Object.prototype.hasOwnProperty.call(homework, key));
 }
 
 function firestoreDeleteValue() {
@@ -58,7 +56,7 @@ function firestoreDeleteValue() {
 }
 
 export async function migrateHomeworkErrorCodesOnce() {
-    const markerKey = `homework_error_code_cleanup_v1_${store.syncUserId || (store.isGuestMode ? 'guest' : 'local')}`;
+    const markerKey = `homework_result_analysis_cleanup_v2_${store.syncUserId || (store.isGuestMode ? 'guest' : 'local')}`;
     if (typeof localStorage !== 'undefined' && localStorage.getItem(markerKey) === 'done') {
         return { skipped: true, scanned: 0, updated: 0 };
     }
@@ -71,7 +69,11 @@ export async function migrateHomeworkErrorCodesOnce() {
             const cleaned = sanitizeHomeworkLegacyFields({ ...homework });
             const payload = {};
             ['yanlisKonular', 'yanlisAnalizi'].forEach(key => {
-                if (Array.isArray(homework[key])) payload[key] = cleaned[key];
+                if (Object.prototype.hasOwnProperty.call(homework, key)) {
+                    const deletion = firestoreDeleteValue();
+                    if (!deletion) throw new Error('Firestore FieldValue.delete is unavailable');
+                    payload[key] = deletion;
+                }
             });
             for (const field of LEGACY_HOMEWORK_ERROR_FIELDS) {
                 if (Object.prototype.hasOwnProperty.call(homework, field)) {
@@ -148,7 +150,10 @@ export async function importHwResult(studentId, hwId, dogru, yanlis) {
                 durum: "tamamlandi",
                 dogru: dogru,
                 yanlis: yanlis,
-                ...(importedHomework?.yanlisKonular ? { yanlisKonular: sanitizeHomeworkErrorAnalysis(importedHomework.yanlisKonular) } : {}),
+                ...(['yanlisKonular', 'yanlisAnalizi'].some(key => Object.prototype.hasOwnProperty.call(importedHomework || {}, key)) ? {
+                    yanlisKonular: firestoreDeleteValue(),
+                    yanlisAnalizi: firestoreDeleteValue()
+                } : {}),
                 ...(importedBlank !== null ? { bos: importedBlank } : {})
             });
 
@@ -551,7 +556,7 @@ export function renderStudentOdevDetay(studentId, performanceFilter = 'all') {
         
         const successSummary = formatHomeworkSuccess(o);
         const resultText = isCompleted
-            ? `<div class="text-sm text-gray-600 dark:text-gray-400 mt-1 font-semibold">${successSummary ? `<span class="text-emerald-700 dark:text-emerald-300">${escapeHtml(successSummary)}</span>` : `<span class="text-green-600">${o.dogru ?? '—'} Doğru</span> / <span class="text-red-650">${o.yanlis ?? '—'} Yanlış</span>`}${o.tur === 'Konu Denemesi' && o.dogru != null ? ` / <span class="text-blue-600">${calculateTopicTestNet(o.dogru, o.yanlis).toFixed(2)} Net</span>` : ''}${(o.yanlisKonular || []).length ? `<div class="mt-1 text-xs text-amber-700 dark:text-amber-300">Yanlış konusu: ${(o.yanlisKonular || []).map(item => `${escapeHtml(item.konu)}${item.altKonu ? ` › ${escapeHtml(item.altKonu)}` : ''} (${item.adet})`).join(', ')}</div>` : ''}</div>`
+            ? `<div class="text-sm text-gray-600 dark:text-gray-400 mt-1 font-semibold">${successSummary ? `<span class="text-emerald-700 dark:text-emerald-300">${escapeHtml(successSummary)}</span>` : `<span class="text-green-600">${o.dogru ?? '—'} Doğru</span> / <span class="text-red-650">${o.yanlis ?? '—'} Yanlış</span>`}${o.tur === 'Konu Denemesi' && o.dogru != null ? ` / <span class="text-blue-600">${calculateTopicTestNet(o.dogru, o.yanlis).toFixed(2)} Net</span>` : ''}</div>`
             : '';
         
         const dateTextClass = isOverdue ? 'text-red-500 font-bold' : 'text-gray-400 dark:text-gray-500';
@@ -712,18 +717,12 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     const odev = getStudentOdevler(student).find(o => o.id === hwId);
     if (!odev) return;
 
-    const studentSinif = student.sinif || '8';
-    const homeworkDers = odev.ders || odev.kaynakDers?.ders || 'Fen Bilimleri';
-    const unitCatalog = getUnitsAndTopicsBySinifAndDers(studentSinif, homeworkDers);
-    const unitList = unitCatalog.map(u => u.unite);
-
     const isEditing = odev.durum === 'tamamlandi';
     const initialQuestionCount = Number(odev.soruSayisi) > 0 ? Number(odev.soruSayisi) : '';
     const initialWrong = Number(odev.yanlis) || 0;
     const initialBlank = Number(odev.bos) || 0;
     const initialCorrect = Number(odev.dogru) || 0;
     const initialSuccess = calculateHomeworkSuccess({ soruSayisi: initialQuestionCount, yanlis: initialWrong, bos: initialBlank });
-    const existingErrors = normalizeHomeworkErrorAnalysis(odev);
 
     const modal = document.createElement('div');
     modal.id = "homeworkResultModal";
@@ -754,34 +753,6 @@ export function showEnterOdevSonucModal(studentId, hwId) {
                 </div>
                 <div id="homeworkSuccessPreview" class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20 px-3 py-2 text-sm font-bold text-emerald-800 dark:text-emerald-200">Başarı: ${initialQuestionCount ? `%${calculateHomeworkSuccess({ soruSayisi: initialQuestionCount, yanlis: initialWrong, bos: initialBlank })?.successRate ?? '—'}` : '—'}</div>
 
-                <div id="zeroWrongWarning" class="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-lg border border-amber-200 dark:border-amber-800 font-medium hidden">
-                    <i class="fas fa-exclamation-triangle mr-1"></i> Yanlış sayısını 0 yaptığınız için kayıtlı yanlış analizi kaydedildiğinde kaldırılacaktır.
-                </div>
-
-                <!-- Error Analysis Section (Ünite + Konu Odaklı) -->
-                <div id="errorAnalysisSection" class="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10 p-3.5 space-y-3 ${initialWrong > 0 ? '' : 'hidden'}">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <span class="text-xs font-black uppercase tracking-wider text-red-900 dark:text-red-200 flex items-center gap-1.5">
-                                <i class="fas fa-list-check text-red-600"></i> Yanlış Analizi (Konu & Alt Konu)
-                            </span>
-                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Yanlış yapılan konu ve alt konuları isteğe bağlı olarak ekleyin.</p>
-                        </div>
-                        <button type="button" id="addErrorRowBtn" class="border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 bg-white dark:bg-gray-800 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
-                            <i class="fas fa-plus text-[10px]"></i> Alan Ekle
-                        </button>
-                    </div>
-
-                    <div id="errorRowsContainer" class="space-y-3">
-                        <!-- Dynamic rows will be inserted here -->
-                    </div>
-
-                    <div id="errorAllocationStatus" class="text-[11px] font-bold text-gray-600 dark:text-gray-400 flex items-center justify-between pt-1 border-t border-red-100 dark:border-red-900/40">
-                        <span id="errorAllocationSummary">Analiz Edilen: 0 / 0</span>
-                        <span id="errorAllocationWarning" class="text-red-600 font-bold hidden">⚠️ Yanlış toplamı aşıldı!</span>
-                    </div>
-                </div>
-
                 <div class="flex flex-col-reverse sm:flex-row gap-2 pt-2">
                     <button onclick="this.closest('.app-modal-backdrop').remove()" class="btn-secondary flex-1 py-2.5 min-h-[44px]">İptal</button>
                     <button onclick="saveManualOdevResult('${studentId}', '${hwId}')" class="btn-primary flex-1 py-2.5 min-h-[44px]">
@@ -801,14 +772,9 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     const successPreview = document.getElementById('homeworkSuccessPreview');
     const updateComputed = () => { const result = calculateHomeworkSuccess({ soruSayisi: questionInput?.value, yanlis: wrongInput?.value, bos: blankInput?.value }); if (result?.valid) { correctOutput.textContent = result.correct; successPreview.textContent = `Başarı: %${result.successRate}`; } else { correctOutput.textContent = questionInput?.value ? '—' : initialCorrect; successPreview.textContent = 'Başarı: —'; } };
     [questionInput, wrongInput, blankInput].forEach(input => input?.addEventListener('input', updateComputed));
-    const zeroWarning = document.getElementById('zeroWrongWarning');
-    const analysisSection = document.getElementById('errorAnalysisSection');
-    const rowsContainer = document.getElementById('errorRowsContainer');
-    const addRowBtn = document.getElementById('addErrorRowBtn');
-    const allocationSummary = document.getElementById('errorAllocationSummary');
-    const allocationWarning = document.getElementById('errorAllocationWarning');
-
-    function renderErrorRow(data = {}) {
+    /* Result analysis rows were intentionally removed; this modal stores metrics only. */
+    /* legacy implementation removed */
+    /*
         const rowDiv = document.createElement('div');
         rowDiv.className = 'error-row bg-white dark:bg-gray-800 rounded-xl p-3 border border-red-100 dark:border-red-900/40 space-y-2.5 shadow-xs relative';
 
@@ -940,7 +906,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
             sum += parseInt(inp.value) || 0;
         });
 
-        allocationSummary.textContent = `Analiz Edilen: ${sum} / ${wrongTotal} Yanlış`;
+        allocationSummary.textContent = `${sum} / ${wrongTotal}`;
         if (sum > wrongTotal && wrongTotal > 0) {
             allocationWarning.classList.remove('hidden');
             allocationWarning.textContent = `⚠️ Toplam ${wrongTotal} yanlışı aştı (${sum})!`;
@@ -984,6 +950,7 @@ export function showEnterOdevSonucModal(studentId, hwId) {
             renderErrorRow({ adet: initialWrong });
         }
     }
+    */
 }
 
 export function saveManualOdevResult(studentId, hwId) {
@@ -1006,64 +973,6 @@ export function saveManualOdevResult(studentId, hwId) {
     }
     const correct = calculated?.valid ? calculated.correct : (Number(existingHomework?.dogru) || 0);
 
-    let errorTopics = [];
-
-    if (wrong > 0) {
-        const rows = document.querySelectorAll('#errorRowsContainer .error-row');
-        const entries = [];
-        let totalCount = 0;
-
-        rows.forEach(row => {
-            let unite = '';
-            const unitSelect = row.querySelector('.error-unit-select');
-            if (unitSelect) {
-                if (unitSelect.value === '__custom__') {
-                    unite = row.querySelector('.error-unit-custom')?.value.trim() || '';
-                } else {
-                    unite = unitSelect.value.trim();
-                }
-            }
-
-            let konu = '';
-            const topicSelect = row.querySelector('.error-topic-select');
-            if (topicSelect && !topicSelect.classList.contains('hidden')) {
-                if (topicSelect.value === '__custom__') {
-                    konu = row.querySelector('.error-topic-custom')?.value.trim() || '';
-                } else {
-                    konu = topicSelect.value.trim();
-                }
-            } else {
-                konu = row.querySelector('.error-topic-custom')?.value.trim() || '';
-            }
-
-            const count = parseInt(row.querySelector('.error-count-input')?.value) || 1;
-            totalCount += count;
-
-            if (unite || konu) {
-                entries.push({
-                    unite: unite || konu,
-                    konu: konu || unite,
-                    altKonu: konu,
-                    adet: count
-                });
-            }
-        });
-
-        if (totalCount > wrong) {
-            showToast(`Yanlış analizindeki toplam adet (${totalCount}), ödevdeki toplam yanlış sayısını (${wrong}) geçemez. Lütfen adetleri kontrol edin.`, { type: 'warning' });
-            return;
-        }
-
-        if (entries.length > 0) {
-            errorTopics = buildHomeworkErrorTopics({ entries, wrong });
-        } else {
-            errorTopics = buildHomeworkErrorTopics({
-                assignedTopic: 'Genel',
-                wrong
-            });
-        }
-    }
-
     const returnToDashboard = window._homeworkDashboardReturn;
     const returnToDetailId = window._homeworkDetailReturnId;
 
@@ -1084,7 +993,8 @@ export function saveManualOdevResult(studentId, hwId) {
             durum: "tamamlandi",
             ...(calculated?.valid ? { soruSayisi: questionCount, bos: blank } : {}),
             dogru: correct, yanlis: wrong,
-            yanlisKonular: sanitizeHomeworkErrorAnalysis(errorTopics)
+            yanlisKonular: firestoreDeleteValue(),
+            yanlisAnalizi: firestoreDeleteValue(),
         }).then(() => {
             document.getElementById('homeworkResultModal')?.remove();
             renderAfterSave();
@@ -1099,7 +1009,8 @@ export function saveManualOdevResult(studentId, hwId) {
                 if (calculated?.valid) { students[sIdx].odevler[hwIdx].soruSayisi = questionCount; students[sIdx].odevler[hwIdx].bos = blank; }
                 students[sIdx].odevler[hwIdx].dogru = correct;
                 students[sIdx].odevler[hwIdx].yanlis = wrong;
-                students[sIdx].odevler[hwIdx].yanlisKonular = sanitizeHomeworkErrorAnalysis(errorTopics);
+                delete students[sIdx].odevler[hwIdx].yanlisKonular;
+                delete students[sIdx].odevler[hwIdx].yanlisAnalizi;
                 Object.assign(students[sIdx].odevler[hwIdx], sanitizeHomeworkLegacyFields(students[sIdx].odevler[hwIdx]));
                 saveStudentsData(students);
             }
@@ -1229,30 +1140,6 @@ export function openHomeworkDetailModal(studentId, homeworkId) {
                                 ${escapeHtml(reportData.evalMessage)}
                             </p>
                         </div>
-
-                        <!-- Error Topics if any -->
-                        ${reportData.yanlisKonular && reportData.yanlisKonular.length > 0 ? `
-                            <div class="p-3.5 bg-red-50/40 dark:bg-red-950/20 rounded-xl border border-red-200/60 dark:border-red-900/50">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <i class="fas fa-list-check text-red-600 dark:text-red-400 text-xs"></i>
-                                    <span class="text-xs font-black uppercase tracking-wider text-red-900 dark:text-red-200">Yanlış Analizi</span>
-                                </div>
-                                <div class="space-y-2">
-                                    ${reportData.yanlisKonular.map(item => {
-                                        const mainTitle = item.unite || item.konu || 'Genel';
-                                        const subTitle = (item.konu && item.unite && item.konu !== item.unite) ? item.konu : (item.altKonu || '');
-                                        return `
-                                            <div class="bg-white/90 dark:bg-gray-800/90 p-2.5 rounded-lg border border-red-100 dark:border-red-900/40 flex flex-col gap-1 shadow-2xs">
-                                                <div class="flex items-center justify-between text-xs font-bold text-gray-800 dark:text-gray-200">
-                                                    <span>• ${escapeHtml(mainTitle)}${subTitle ? ` › <span class="text-gray-500 font-normal">${escapeHtml(subTitle)}</span>` : ''}</span>
-                                                    <span class="px-2 py-0.5 rounded text-[11px] font-black bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">${item.adet} Yanlış</span>
-                                                </div>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
 
                         <!-- Teacher Note if any -->
                         ${reportData.teacherNote ? `
