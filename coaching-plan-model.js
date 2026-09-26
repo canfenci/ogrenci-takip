@@ -84,6 +84,9 @@ export function createEmptyCoachingPlan(overrides = {}) {
             readingTarget: null,
             reviewSessions: null
         },
+        weeklyQuestionTarget: null,
+        activeStudyDays: [...CANONICAL_DAYS],
+        selectedHomeworkIds: [],
         branchTargets: [],
         topicTargets: [],
         tasks: [],
@@ -112,6 +115,9 @@ export function normalizeCoachingPlan(raw) {
         weekStart,
         weekEnd,
         weeklyTargets: normalizeWeeklyTargets(raw.weeklyTargets),
+        weeklyQuestionTarget: normalizePositiveInteger(raw.weeklyQuestionTarget),
+        activeStudyDays: normalizeActiveStudyDays(raw.activeStudyDays),
+        selectedHomeworkIds: normalizeSelectedHomeworkIds(raw.selectedHomeworkIds),
         branchTargets: normalizeBranchTargets(raw.branchTargets),
         topicTargets: normalizeTopicTargets(raw.topicTargets),
         tasks: normalizeTasks(raw.tasks),
@@ -119,6 +125,20 @@ export function normalizeCoachingPlan(raw) {
         createdAt: safeString(raw.createdAt) || now,
         updatedAt: safeString(raw.updatedAt) || now
     };
+}
+
+function normalizePositiveInteger(value) {
+    const numeric = Number(value);
+    return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+}
+
+function normalizeActiveStudyDays(value) {
+    const valid = Array.isArray(value) ? value.filter(day => CANONICAL_DAYS.includes(day)) : [];
+    return [...new Set(valid)].length ? [...new Set(valid)] : [...CANONICAL_DAYS];
+}
+
+function normalizeSelectedHomeworkIds(value) {
+    return [...new Set((Array.isArray(value) ? value : []).filter(Boolean).map(String))];
 }
 
 function normalizeWeeklyTargets(raw) {
@@ -160,6 +180,8 @@ function normalizeTasks(raw) {
         id: safeString(t.id) || generateId(),
         title: safeString(t.title) || 'Görev',
         taskType: TASK_TYPES[t.taskType] ? t.taskType : 'custom',
+        homeworkId: t.homeworkId != null ? safeString(t.homeworkId) : null,
+        homeworkStudentId: t.homeworkStudentId != null ? safeString(t.homeworkStudentId) : null,
         subject: t.subject != null ? safeString(t.subject) : null,
         topic: t.topic != null ? safeString(t.topic) : null,
         resource: t.resource != null ? safeString(t.resource) : null,

@@ -17,15 +17,15 @@ test('B-C: compact Pomodoro and Feynman reminders remain', () => {
     assert.match(growthSource, /kendi cümlelerinle anlat/);
 });
 
-test('D-E: Page 2 performance remains and technique content is not duplicated', () => {
-    assert.match(growthSource, /HAFTALIK ÖDEV PERFORMANSI/);
-    assert.equal((growthSource.match(/<h4>Pomodoro<\/h4>/g) || []).length, 1);
-    assert.equal((growthSource.match(/<h4>Feynman<\/h4>/g) || []).length, 1);
-    assert.match(guidanceSource, /weekly-homework-performance/);
+test('D-E: study-plan output omits performance and technique content', () => {
+    const pdfSource = growthSource.slice(growthSource.indexOf('export function exportStudyPlanToPdf'), growthSource.indexOf('function legacyExportStudyPlanToPdf'));
+    assert.doesNotMatch(pdfSource, /HAFTALIK ÖDEV PERFORMANSI|Pomodoro|Feynman/);
+    assert.doesNotMatch(guidanceSource, /weekly-homework-performance/);
 });
 
-test('F: two-page print structure remains intact', () => {
-    assert.match(growthSource, /page-break-before: always/);
-    assert.match(growthSource, /weekly-table/);
-    assert.match(growthSource, /window\.print\(\)/);
+test('F: current print output is single-page and printable', () => {
+    const pdfSource = growthSource.slice(growthSource.indexOf('export function exportStudyPlanToPdf'), growthSource.indexOf('function legacyExportStudyPlanToPdf'));
+    assert.doesNotMatch(pdfSource, /page-break/);
+    assert.match(pdfSource, /VERİLEN ÖDEVLER/);
+    assert.match(pdfSource, /window\.print\(\)/);
 });

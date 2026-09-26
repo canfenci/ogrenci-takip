@@ -41,9 +41,9 @@ test('F-G, H-I, J-K: canonical records update live, manual day overrides, and or
     assert.equal(first.find(hw => hw.id === 'hw-fen').dogru, 16);
     assert.equal(getHomeworkPlacementDay({ id: 'hw-manual', dueDay: 'Pazartesi', bitisTarihi: '2026-09-25' }, range.weekStart, range.weekEnd), 'Pazartesi');
     assert.equal(getHomeworkPlacementDay({ bitisTarihi: '2026-09-24' }, range.weekStart, range.weekEnd), 'Perşembe');
-    assert.match(guidanceSource, /getAutomaticPlanHomeworks/);
+    assert.match(guidanceSource, /resolveSelectedPlanHomeworks/);
     assert.match(guidanceSource, /existingIds/);
-    assert.match(guidanceSource, /getHomeworkPlacementDay/);
+    assert.match(guidanceSource, /getPlanHomeworkPlacementDay/);
 });
 
 test('N-R: weekly summary aggregates totals and excludes pending results from success denominator', () => {
@@ -61,16 +61,11 @@ test('S-T: pending and legacy homework never fabricate zero metrics or percentag
     assert.equal(formatHomeworkSuccess({ dogru: 5, yanlis: 2 }), null);
 });
 
-test('U-W: current branch report and compact technique reminders are rendered in guidance', () => {
-    assert.match(guidanceSource, /weekly-homework-performance/);
-    assert.match(guidanceSource, /Haftalık Ödev Performansı/);
-    assert.match(guidanceSource, />Pomodoro</);
-    assert.match(guidanceSource, />Feynman</);
-    assert.match(guidanceSource, /min-w-\[620px\]/);
-    assert.match(growthSource, /page-break-before: always/);
-    assert.match(growthSource, /HAFTALIK ÖDEV PERFORMANSI/);
-    assert.match(growthSource, /Pomodoro/);
-    assert.match(growthSource, /Feynman/);
+test('U-W: plan view resolves selected Homework without performance report output', () => {
+    assert.match(guidanceSource, /selectedHomeworkQuestions/);
+    assert.match(guidanceSource, /dailyQuestionTargets/);
+    const pdfSource = growthSource.slice(growthSource.indexOf('export function exportStudyPlanToPdf'), growthSource.indexOf('function legacyExportStudyPlanToPdf'));
+    assert.doesNotMatch(pdfSource, /page-break|HAFTALIK ÖDEV PERFORMANSI|Pomodoro|Feynman|DERS BAZLI GELİŞİM ÖNERİLERİ/);
 });
 
 test('X-Y: automatic visibility does not depend on opening the legacy picker and deduplicates by homeworkId', () => {

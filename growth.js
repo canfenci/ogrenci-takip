@@ -15,7 +15,7 @@ import {
 } from './store.js';
 import { showSyncStatus } from './ui-helpers.js';
 import { STUDY_TECHNIQUES, buildAdaptiveStudyPlan, calculateStudyProfile, getStudyBadge } from './study-plan-engine.js';
-import { getAutomaticPlanHomeworks, getHomeworkPlacementDay, calculateHomeworkWeeklySummary, calculateHomeworkSuccess } from './homework-success-insights.js';
+import { PLAN_DAYS, calculateRemainingQuestionTarget, distributeWeeklyQuestionTarget, getEligiblePlanHomeworks, getPlanHomeworkPlacementDay, resolveSelectedPlanHomeworks, sumSelectedHomeworkQuestions } from './guidance-plan-homework.js';
 
 export async function addStudyTask(studentId, gun, taskText = null) {
     const input = document.getElementById(`taskInput_${gun}`);
@@ -263,7 +263,7 @@ export function showCoachingPlanEditor(studentId, existingPlan) {
     if (!student) return;
     document.getElementById('coachingPlanEditorModal')?.remove();
     const isEdit = Boolean(existingPlan && existingPlan.id);
-    const plan = existingPlan || createEmptyCoachingPlan();
+    const plan = normalizeCoachingPlan(existingPlan || createEmptyCoachingPlan());
     const wt = plan.weeklyTargets || {};
     const branches = Array.isArray(plan.branchTargets) ? plan.branchTargets : [];
     const topics = Array.isArray(plan.topicTargets) ? plan.topicTargets : [];
@@ -271,6 +271,8 @@ export function showCoachingPlanEditor(studentId, existingPlan) {
     const branchesJson = JSON.stringify(branches).replace(/"/g, '&quot;');
     const topicsJson = JSON.stringify(topics).replace(/"/g, '&quot;');
     const tasksJson = JSON.stringify(tasks).replace(/"/g, '&quot;');
+    const activeDaysJson = JSON.stringify(plan.activeStudyDays || PLAN_DAYS).replace(/"/g, '&quot;');
+    const selectedHomeworkIdsJson = JSON.stringify(plan.selectedHomeworkIds || []).replace(/"/g, '&quot;');
     const dayOptions = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'].map(d => `<option value="${d}">${d}</option>`).join('');
     const taskTypeOptions = `<option value="question">Soru</option><option value="exam">Deneme</option><option value="review">Tekrar</option><option value="reading">Okuma</option><option value="homework">Ödev</option><option value="custom">Özel</option>`;
     document.body.insertAdjacentHTML('beforeend', `
@@ -283,19 +285,30 @@ export function showCoachingPlanEditor(studentId, existingPlan) {
                 <div class="app-modal-body space-y-6">
                     <input type="hidden" id="cpEditId" value="${isEdit ? escapeHtml(plan.id) : ''}">
                     <input type="hidden" id="cpEditCreatedAt" value="${isEdit ? escapeHtml(plan.createdAt || '') : ''}">
+                    <input type="hidden" id="cpWeekStart" value="${escapeHtml(plan.weekStart || '')}">
+                    <input type="hidden" id="cpWeekEnd" value="${escapeHtml(plan.weekEnd || '')}">
                     <input type="hidden" id="cpBranchesData" value='${branchesJson}'>
                     <input type="hidden" id="cpTopicsData" value='${topicsJson}'>
                     <input type="hidden" id="cpTasksData" value='${tasksJson}'>
+                    <input type="hidden" id="cpActiveDaysData" value='${activeDaysJson}'>
+                    <input type="hidden" id="cpSelectedHomeworkIdsData" value='${selectedHomeworkIdsJson}'>
 
                     <section>
                         <h4 class="font-black text-sm mb-3">Genel Hedefler</h4>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <label class="text-xs font-bold">Haftalık Soru Hedefi<input type="number" id="cpWeeklyQuestionTarget" min="1" step="1" required value="${plan.weeklyQuestionTarget ?? ''}" class="student-form-input mt-1 min-h-[44px]" aria-describedby="cpWeeklyQuestionTargetHelp"></label>
                             <label class="text-xs font-bold">Haftalık Toplam Soru<input type="number" id="cpTotalQuestions" min="0" step="1" value="${wt.totalQuestions ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
                             <label class="text-xs font-bold">Genel Deneme Hedefi<input type="number" id="cpGeneralExams" min="0" step="1" value="${wt.generalExams ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
                             <label class="text-xs font-bold">Branş Deneme Hedefi<input type="number" id="cpBranchExams" min="0" step="1" value="${wt.branchExams ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
                             <label class="text-xs font-bold">Okuma Hedefi<input type="number" id="cpReadingTarget" min="0" step="1" value="${wt.readingTarget ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
                             <label class="text-xs font-bold">Tekrar Oturumu<input type="number" id="cpReviewSessions" min="0" step="1" value="${wt.reviewSessions ?? ''}" class="student-form-input mt-1 min-h-[44px]"></label>
                         </div>
+                    </section>
+
+                    <section>
+                        <h4 class="font-black text-sm mb-2">Çalışma Günleri</h4>
+                        <p id="cpWeeklyQuestionTargetHelp" class="text-xs text-gray-500 mb-3">Ek soru hedefi seçilen günlere eşit dağıtılır.</p>
+                        <div id="cpStudyDayControls" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
                     </section>
 
                     <section>
@@ -309,8 +322,14 @@ export function showCoachingPlanEditor(studentId, existingPlan) {
                     </section>
 
                     <section>
-                        <div class="flex items-center justify-between mb-3"><h4 class="font-black text-sm">Haftalık Görevler</h4><div class="flex items-center gap-2"><button onclick="openHomeworkPicker('${studentId}', '${escapeHtml((branches[0]?.subject || '').replace(/'/g, "\\'"))}')" class="btn-secondary min-h-[44px] px-3 text-xs font-bold"><i class="fas fa-tasks mr-1"></i>Verilen Ödevlerden Seç</button><button onclick="addCpTask()" class="btn-secondary min-h-[44px] px-3 text-xs font-bold"><i class="fas fa-plus mr-1"></i>Görev</button></div></div>
+                        <div class="flex items-center justify-between mb-3"><h4 class="font-black text-sm">Haftalık Görevler</h4><button onclick="addCpTask()" class="btn-secondary min-h-[44px] px-3 text-xs font-bold"><i class="fas fa-plus mr-1"></i>Görev</button></div>
                         <div id="cpTaskRows" class="space-y-3"></div>
+                    </section>
+
+                    <section>
+                        <div class="flex items-center justify-between gap-3 mb-2"><div><h4 class="font-black text-sm">Bu Haftanın Ödevleri</h4><p class="text-xs text-gray-500 mt-1">Yalnızca seçtiğiniz, tamamlanmamış ödevler programa eklenir.</p></div><button type="button" onclick="refreshCpHomeworkCandidates('${studentId}')" class="btn-secondary min-h-[44px] min-w-[44px] px-3" title="Ödevleri yenile" aria-label="Ödevleri yenile"><i class="fas fa-rotate"></i></button></div>
+                        <div id="cpHomeworkCandidates" class="space-y-2"></div>
+                        <p id="cpHomeworkTargetWarning" class="hidden mt-2 text-xs font-bold text-amber-700 dark:text-amber-300">Seçilen ödevlerin soru toplamı haftalık hedefi aşıyor.</p>
                     </section>
                 </div>
                 <div class="app-modal-actions">
@@ -323,6 +342,8 @@ export function showCoachingPlanEditor(studentId, existingPlan) {
     renderCpBranchRows();
     renderCpTopicRows();
     renderCpTaskRows(dayOptions, taskTypeOptions);
+    renderCpStudyDayControls();
+    window.refreshCpHomeworkCandidates(studentId);
 }
 
 function renderCpBranchRows() {
@@ -411,6 +432,64 @@ function renderCpTaskRows(dayOptions, taskTypeOptions) {
     });
 }
 
+function renderCpStudyDayControls() {
+    const container = document.getElementById('cpStudyDayControls');
+    if (!container) return;
+    const activeDays = new Set(parseEditorJson(document.getElementById('cpActiveDaysData')?.value));
+    container.innerHTML = PLAN_DAYS.map(day => `
+        <label class="min-h-[44px] flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 text-xs font-bold cursor-pointer bg-white dark:bg-gray-900">
+            <input type="checkbox" class="cp-study-day w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="${day}" ${activeDays.has(day) ? 'checked' : ''}>
+            <span>${day}</span>
+        </label>`).join('');
+    container.querySelectorAll('.cp-study-day').forEach(input => input.addEventListener('change', () => {
+        const selected = [...container.querySelectorAll('.cp-study-day:checked')].map(item => item.value);
+        document.getElementById('cpActiveDaysData').value = JSON.stringify(selected);
+    }));
+}
+
+function getEditorPlanBranch() {
+    const branches = parseEditorJson(document.getElementById('cpBranchesData')?.value);
+    return String(branches[0]?.subject || '').trim();
+}
+
+function renderCpHomeworkCandidates(studentId) {
+    const students = loadStudentsData();
+    const student = students.find(item => item.id === studentId);
+    const container = document.getElementById('cpHomeworkCandidates');
+    if (!student || !container) return;
+    const branch = getEditorPlanBranch();
+    if (!branch) {
+        container.innerHTML = '<p class="text-xs text-amber-700 dark:text-amber-300">Ödevleri görmek için önce ilk branş hedefini girin.</p>';
+        return;
+    }
+    const selectedIds = new Set(parseEditorJson(document.getElementById('cpSelectedHomeworkIdsData')?.value));
+    const candidates = getEligiblePlanHomeworks({ student, branch, weekStart: document.getElementById('cpWeekStart')?.value, weekEnd: document.getElementById('cpWeekEnd')?.value, getHomeworks: getStudentOdevler });
+    container.innerHTML = candidates.length ? candidates.map(homework => {
+        const title = escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev');
+        const questionCount = Number.isInteger(Number(homework.soruSayisi)) && Number(homework.soruSayisi) > 0 ? `${homework.soruSayisi} Soru` : 'Soru sayısı bilinmiyor';
+        return `<label class="min-h-[44px] flex items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-pointer bg-white dark:bg-gray-900"><input type="checkbox" class="cp-homework-choice mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="${escapeHtml(homework.id)}" ${selectedIds.has(String(homework.id)) ? 'checked' : ''}><span class="min-w-0 flex-1"><span class="block text-xs font-bold text-gray-900 dark:text-gray-100">${title}</span><span class="block text-[11px] text-gray-500 mt-0.5">${questionCount} · Son tarih: ${escapeHtml(homework.bitisTarihi || '—')}</span></span></label>`;
+    }).join('') : '<p class="text-xs text-gray-500 italic">Bu hafta için seçilebilir tamamlanmamış ödev bulunmuyor.</p>';
+    container.querySelectorAll('.cp-homework-choice').forEach(input => input.addEventListener('change', () => {
+        const ids = [...container.querySelectorAll('.cp-homework-choice:checked')].map(item => item.value);
+        document.getElementById('cpSelectedHomeworkIdsData').value = JSON.stringify(ids);
+        updateCpHomeworkTargetWarning(student, branch);
+    }));
+    updateCpHomeworkTargetWarning(student, branch);
+}
+
+function updateCpHomeworkTargetWarning(student, branch) {
+    const selectedIds = new Set(parseEditorJson(document.getElementById('cpSelectedHomeworkIdsData')?.value));
+    const candidates = getEligiblePlanHomeworks({ student, branch, getHomeworks: getStudentOdevler });
+    const selectedTotal = sumSelectedHomeworkQuestions(candidates.filter(homework => selectedIds.has(String(homework.id))));
+    const target = Number(document.getElementById('cpWeeklyQuestionTarget')?.value);
+    document.getElementById('cpHomeworkTargetWarning')?.classList.toggle('hidden', !(Number.isInteger(target) && target > 0 && selectedTotal > target));
+}
+
+function parseEditorJson(value) {
+    try { return JSON.parse(String(value || '[]').replace(/&quot;/g, '"')); }
+    catch { return []; }
+}
+
 function _newCpId() { return 'ct_' + Date.now() + '_' + (++_cpEditorCounter); }
 
 if (typeof window !== 'undefined') {
@@ -451,6 +530,7 @@ if (typeof window !== 'undefined') {
         renderCpTaskRows();
     };
     window.closeCoachingPlanEditor = function() { document.getElementById('coachingPlanEditorModal')?.remove(); };
+    window.refreshCpHomeworkCandidates = function(studentId) { renderCpHomeworkCandidates(studentId); };
     window.openHomeworkPicker = function(studentId, planBranch) {
         const students = loadStudentsData();
         const student = students.find(s => s.id === studentId);
@@ -551,12 +631,25 @@ if (typeof window !== 'undefined') {
     window.saveCoachingPlanFromEditor = async function(studentId) {
         const val = (id) => { const v = document.getElementById(id)?.value?.trim(); return v === '' || v === null || v === undefined ? null : v; };
         const numVal = (id) => { const v = document.getElementById(id)?.value?.trim(); if (v === '' || v === null || v === undefined) return null; const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : null; };
+        const weeklyQuestionTarget = Number(document.getElementById('cpWeeklyQuestionTarget')?.value);
+        const activeStudyDays = parseEditorJson(document.getElementById('cpActiveDaysData')?.value);
+        if (!Number.isInteger(weeklyQuestionTarget) || weeklyQuestionTarget <= 0) {
+            alert('Haftalık Soru Hedefi pozitif tam sayı olmalıdır.');
+            return;
+        }
+        if (!activeStudyDays.length) {
+            alert('En az bir çalışma günü seçin.');
+            return;
+        }
         const editId = val('cpEditId') || undefined;
         const createdAt = val('cpEditCreatedAt') || undefined;
         const planData = {
             id: editId || _newCpId(),
             createdAt: createdAt || new Date().toISOString(),
             status: 'draft',
+            weeklyQuestionTarget,
+            activeStudyDays,
+            selectedHomeworkIds: parseEditorJson(document.getElementById('cpSelectedHomeworkIdsData')?.value),
             weeklyTargets: { totalQuestions: numVal('cpTotalQuestions'), generalExams: numVal('cpGeneralExams'), branchExams: numVal('cpBranchExams'), readingTarget: numVal('cpReadingTarget'), reviewSessions: numVal('cpReviewSessions') },
             branchTargets: JSON.parse(document.getElementById('cpBranchesData')?.value || '[]'),
             topicTargets: JSON.parse(document.getElementById('cpTopicsData')?.value || '[]'),
@@ -569,6 +662,35 @@ if (typeof window !== 'undefined') {
 
 
 export function exportStudyPlanToPdf(studentId) {
+    const students = loadStudentsData();
+    const student = students.find(item => item.id === studentId);
+    const plan = student?.coachingPlan && ['active', 'draft'].includes(student.coachingPlan.status) ? normalizeCoachingPlan(student.coachingPlan) : null;
+    if (!student || !plan) return;
+    const branch = plan.branchTargets?.[0]?.subject || 'Genel Program';
+    const selectedHomeworks = resolveSelectedPlanHomeworks({ student, plan, branch, getHomeworks: getStudentOdevler });
+    const selectedHomeworkQuestions = sumSelectedHomeworkQuestions(selectedHomeworks);
+    const remainingQuestions = calculateRemainingQuestionTarget(plan.weeklyQuestionTarget, selectedHomeworkQuestions);
+    const allocations = distributeWeeklyQuestionTarget(remainingQuestions, plan.activeStudyDays);
+    const allocationByDay = new Map(allocations.map(item => [item.day, item.questionTarget]));
+    const normalTasks = Array.isArray(plan.tasks) ? plan.tasks.filter(task => task?.taskType !== 'homework') : [];
+    const daysHtml = plan.activeStudyDays.map(day => {
+        const dayTasks = normalTasks.filter(task => task.dueDay === day);
+        const dayHomeworks = selectedHomeworks.filter(homework => getPlanHomeworkPlacementDay(homework, plan) === day);
+        const tasksHtml = dayTasks.map(task => `<li>${escapeHtml(task.title || task.topic || 'Görev')}</li>`).join('');
+        const homeworkHtml = dayHomeworks.map(homework => `<li class="homework">Ödev: ${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')} — ${Number.isInteger(Number(homework.soruSayisi)) ? `${homework.soruSayisi} Soru` : '—'}</li>`).join('');
+        return `<article class="day"><h3>${day}</h3><strong>Ek Soru Hedefi: ${allocationByDay.get(day) || 0}</strong><ul>${tasksHtml}${homeworkHtml || ''}</ul></article>`;
+    }).join('');
+    const weeklyHomeworks = selectedHomeworks.filter(homework => !getPlanHomeworkPlacementDay(homework, plan));
+    const homeworkRows = selectedHomeworks.map(homework => `<tr><td>${escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')}</td><td>${Number.isInteger(Number(homework.soruSayisi)) ? homework.soruSayisi : '—'}</td><td>${escapeHtml(homework.bitisTarihi || '—')}</td></tr>`).join('') || '<tr><td colspan="3">Seçilmiş aktif ödev yok.</td></tr>';
+    const weeklyHomeworkNote = weeklyHomeworks.length ? `<p class="weekly-note">Haftalık Ödevler: ${weeklyHomeworks.map(homework => escapeHtml(homework.calismaDetayi || homework.konu || 'Ödev')).join(', ')}</p>` : '';
+    const overTargetWarning = selectedHomeworkQuestions > plan.weeklyQuestionTarget ? '<p class="warning">Seçilen ödevlerin soru toplamı haftalık hedefi aşıyor.</p>' : '';
+    const reportContent = `<!doctype html><html><head><title>${escapeHtml(student.adSoyad)} - Haftalık Çalışma Programı</title><style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial,sans-serif;color:#1f2937;font-size:10px;margin:0}.header{border-bottom:2px solid #4f46e5;padding-bottom:7px;margin-bottom:8px}.header h1{font-size:18px;margin:0;color:#312e81}.meta{display:flex;justify-content:space-between}.summary{display:flex;gap:8px;margin:8px 0}.summary span{background:#eef2ff;padding:5px 8px;border-radius:4px;font-weight:bold}.days{display:grid;grid-template-columns:repeat(${Math.min(plan.activeStudyDays.length, 4)},1fr);gap:6px}.day{border:1px solid #d1d5db;padding:6px;min-height:76px}.day h3{margin:0 0 4px;font-size:11px}.day ul{margin:5px 0 0;padding-left:14px}.day li{margin:2px 0}.homework{color:#3730a3;font-weight:bold}.homeworks{margin-top:8px}.homeworks h2{font-size:12px;margin:0 0 4px}.homeworks table{width:100%;border-collapse:collapse}.homeworks th,.homeworks td{border:1px solid #d1d5db;padding:4px;text-align:left}.homeworks th{background:#eef2ff}.warning{color:#b45309;font-weight:bold;margin:4px 0}.weekly-note{margin:5px 0;font-weight:bold}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><header class="header"><h1>${escapeHtml(branch)} — HAFTALIK ÇALIŞMA PROGRAMI</h1><div class="meta"><span>Öğrenci: ${escapeHtml(student.adSoyad)}</span><span>${escapeHtml(plan.weekStart)} – ${escapeHtml(plan.weekEnd)}</span></div></header><div class="summary"><span>Haftalık Hedef: ${plan.weeklyQuestionTarget} Soru</span><span>Seçilen Ödevler: ${selectedHomeworkQuestions} Soru</span><span>Ek Soru Çözümü: ${remainingQuestions} Soru</span></div>${overTargetWarning}<section class="days">${daysHtml}</section>${weeklyHomeworkNote}<section class="homeworks"><h2>VERİLEN ÖDEVLER</h2><table><thead><tr><th>Ödev</th><th>Soru</th><th>Son Tarih</th></tr></thead><tbody>${homeworkRows}</tbody></table></section><script>window.onload=()=>window.print();<\/script></body></html>`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) { printWindow.document.write(reportContent); printWindow.document.close(); }
+    else alert('Açılır pencere engellendi! Lütfen izin verin.');
+}
+
+function legacyExportStudyPlanToPdf(studentId) {
     const students = loadStudentsData();
     const student = students.find(s => s.id === studentId);
     if (!student) return;
