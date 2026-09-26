@@ -756,14 +756,14 @@ export function showEnterOdevSonucModal(studentId, hwId) {
             </div>
             <div class="app-modal-body space-y-4">
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div><label for="homeworkQuestionCount" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Soru Sayısı</label><input type="number" inputmode="numeric" id="homeworkQuestionCount" min="1" value="${initialQuestionCount}" class="student-form-input min-h-[44px]"></div>
+                    <div><label for="homeworkQuestionCount" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Soru Sayısı</label><input type="number" inputmode="numeric" id="homeworkQuestionCount" min="1" step="1" value="${initialQuestionCount}" class="student-form-input min-h-[44px]"></div>
                     <div>
                         <label for="computedCorrect" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Doğru</label><output id="computedCorrect" class="student-form-input min-h-[44px] flex items-center bg-gray-50 dark:bg-gray-900">${initialSuccess?.valid ? initialSuccess.correct : initialCorrect}</output>
                     </div>
                     <div>
-                        <label for="manualWrong" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Yanlış</label><input type="number" inputmode="numeric" id="manualWrong" min="0" value="${initialWrong}" class="student-form-input min-h-[44px]">
+                        <label for="manualWrong" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Yanlış</label><input type="number" inputmode="numeric" id="manualWrong" min="0" step="1" value="${initialWrong}" class="student-form-input min-h-[44px]">
                     </div>
-                    <div><label for="manualBlank" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Boş</label><input type="number" inputmode="numeric" id="manualBlank" min="0" value="${initialBlank}" class="student-form-input min-h-[44px]"></div>
+                    <div><label for="manualBlank" class="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Boş</label><input type="number" inputmode="numeric" id="manualBlank" min="0" step="1" value="${initialBlank}" class="student-form-input min-h-[44px]"></div>
                 </div>
                 <div id="homeworkSuccessPreview" class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20 px-3 py-2 text-sm font-bold text-emerald-800 dark:text-emerald-200">Başarı: ${initialQuestionCount ? `%${calculateHomeworkSuccess({ soruSayisi: initialQuestionCount, yanlis: initialWrong, bos: initialBlank })?.successRate ?? '—'}` : '—'}</div>
 
@@ -784,7 +784,18 @@ export function showEnterOdevSonucModal(studentId, hwId) {
     const blankInput = document.getElementById('manualBlank');
     const correctOutput = document.getElementById('computedCorrect');
     const successPreview = document.getElementById('homeworkSuccessPreview');
-    const updateComputed = () => { const result = calculateHomeworkSuccess({ soruSayisi: questionInput?.value, yanlis: wrongInput?.value, bos: blankInput?.value }); if (result?.valid) { correctOutput.textContent = result.correct; successPreview.textContent = `Başarı: %${result.successRate}`; } else { correctOutput.textContent = questionInput?.value ? '—' : initialCorrect; successPreview.textContent = 'Başarı: —'; } };
+    const updateComputed = () => {
+        const result = calculateHomeworkSuccess({ soruSayisi: questionInput?.value, yanlis: wrongInput?.value, bos: blankInput?.value });
+        const hasInput = [questionInput, wrongInput, blankInput].some(input => input?.value?.trim() !== '');
+        [questionInput, wrongInput, blankInput].forEach(input => input?.toggleAttribute('aria-invalid', hasInput && result?.valid === false));
+        if (result?.valid) {
+            correctOutput.textContent = result.correct;
+            successPreview.textContent = `Başarı: %${result.successRate}`;
+        } else {
+            correctOutput.textContent = questionInput?.value ? '—' : initialCorrect;
+            successPreview.textContent = hasInput ? 'Başarı: — (değerleri kontrol edin)' : 'Başarı: —';
+        }
+    };
     [questionInput, wrongInput, blankInput].forEach(input => input?.addEventListener('input', updateComputed));
     /* Result analysis rows were intentionally removed; this modal stores metrics only. */
     /* legacy implementation removed */
