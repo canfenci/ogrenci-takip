@@ -105,7 +105,7 @@ test('HOMEWORK-ERROR-CODE-CLEANUP-01B: migration cleans every affected local hom
 test('HOMEWORK-ERROR-CODE-CLEANUP-01B: migration is triggered once after Homework data is available, not per render', () => {
     assert.match(source, /let homeworkMigrationPromise = null/);
     assert.match(source, /homeworkMigrationPromise = migrateHomeworkErrorCodesOnce\(\)/);
-    assert.match(source, /!homeworkMigrationPromise && \(!store\.useFirestore \|\| store\.globalHomeworks\.length > 0\)/);
+    assert.match(source, /!homeworkMigrationPromise && \(!store\.useFirestore \|\| store\.homeworksLoaded === true \|\| store\.globalHomeworks\.length > 0\)/);
 });
 
 test('HOMEWORK-ERROR-CODE-CLEANUP-01B: Firebase partial failure leaves completion marker unset for retry', async () => {
@@ -118,6 +118,7 @@ test('HOMEWORK-ERROR-CODE-CLEANUP-01B: Firebase partial failure leaves completio
     store.useFirestore = true;
     store.isGuestMode = false;
     store.syncUserId = 'cloud-user';
+    store.homeworksLoaded = true;
     globalThis.window.isFirebaseActive = true;
     store.globalHomeworks = [1, 2, 3].map(index => ({
         id: `hw-${index}`, studentId: 'student-1', konu: 'Basınç', yanlisKonular: [{ konu: 'Basınç', altKonu: 'Katı Basıncı', adet: 1, hataKodu: 'D' }]

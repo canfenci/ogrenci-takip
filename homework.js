@@ -23,6 +23,7 @@ import {
 
 const LEGACY_HOMEWORK_ERROR_FIELDS = ['hataNedenleri', 'hataNedeni', 'hataTipi', 'hataKodu', 'errorCode', 'errorType', 'reason', 'neden', 'kategori'];
 let homeworkMigrationPromise = null;
+const HOMEWORK_CLEANUP_VERSION = 3;
 
 export function sanitizeHomeworkErrorAnalysis(items) {
     if (!Array.isArray(items)) return [];
@@ -56,17 +57,25 @@ function firestoreDeleteValue() {
 }
 
 export async function migrateHomeworkErrorCodesOnce() {
-    const markerKey = `homework_result_analysis_cleanup_v2_${store.syncUserId || (store.isGuestMode ? 'guest' : 'local')}`;
+    const scope = store.syncUserId || (store.isGuestMode ? 'guest' : 'local');
+    const markerKey = `homework_result_analysis_cleanup_v3_${scope}`;
+    const setStatus = status => {
+        const result = { version: HOMEWORK_CLEANUP_VERSION, ...status };
+        window.__homeworkMigrationStatus = result;
+        return result;
+    };
     if (typeof localStorage !== 'undefined' && localStorage.getItem(markerKey) === 'done') {
-        return { skipped: true, scanned: 0, updated: 0 };
+        return setStatus({ state: 'skipped', skipped: true, inspected: 0, affected: 0, updated: 0, failed: 0 });
     }
 
     const isCloud = Boolean(store.useFirestore && (isFirebaseActive || window.isFirebaseActive) && (db || window.db) && !store.isGuestMode);
+    if (isCloud && store.homeworksLoaded !== true && (store.globalHomeworks || []).length === 0) {
+        return setStatus({ state: 'waiting', skipped: false, inspected: 0, affected: 0, updated: 0, failed: 0 });
+    }
     if (isCloud) {
         const updates = [];
         for (const homework of (store.globalHomeworks || [])) {
             if (!hasDeprecatedHomeworkErrorFields(homework)) continue;
-            const cleaned = sanitizeHomeworkLegacyFields({ ...homework });
             const payload = {};
             ['yanlisKonular', 'yanlisAnalizi'].forEach(key => {
                 if (Object.prototype.hasOwnProperty.call(homework, key)) {
@@ -85,10 +94,15 @@ export async function migrateHomeworkErrorCodesOnce() {
             updates.push({ homework, payload });
         }
         const firestoreDb = db || window.db;
-        await Promise.all(updates.map(({ homework, payload }) => firestoreDb.collection('homeworks').doc(homework.id).update(payload)));
+        try {
+            await Promise.all(updates.map(({ homework, payload }) => firestoreDb.collection('homeworks').doc(homework.id).update(payload)));
+        } catch (error) {
+            setStatus({ state: 'failed', skipped: false, inspected: store.globalHomeworks.length, affected: updates.length, updated: 0, failed: 1 });
+            throw error;
+        }
         updates.forEach(({ homework }) => sanitizeHomeworkLegacyFields(homework));
         if (typeof localStorage !== 'undefined') localStorage.setItem(markerKey, 'done');
-        return { skipped: false, scanned: (store.globalHomeworks || []).length, updated: updates.length };
+        return setStatus({ state: 'completed', skipped: false, inspected: store.globalHomeworks.length, affected: updates.length, updated: updates.length, failed: 0 });
     }
 
     if (typeof localStorage !== 'undefined') {
@@ -109,7 +123,7 @@ export async function migrateHomeworkErrorCodesOnce() {
         if (!saveResult?.ok) throw saveResult?.error || new Error('Local Homework data could not be persisted');
     }
     if (typeof localStorage !== 'undefined') localStorage.setItem(markerKey, 'done');
-    return { skipped: false, scanned: students.reduce((total, student) => total + (student.odevler || []).length, 0), updated };
+    return setStatus({ state: 'completed', skipped: false, inspected: students.reduce((total, student) => total + (student.odevler || []).length, 0), affected: updated, updated, failed: 0 });
 }
 
 export function hideNavigationElements() {
@@ -230,7 +244,7 @@ export function renderOdevTakibi(studentId = null, filters = {}) {
     updateMobileNavActive('mobile-nav-homework');
 
     const students = loadStudentsData();
-    if (!homeworkMigrationPromise && (!store.useFirestore || store.globalHomeworks.length > 0)) {
+    if (!homeworkMigrationPromise && (!store.useFirestore || store.homeworksLoaded === true || store.globalHomeworks.length > 0)) {
         homeworkMigrationPromise = migrateHomeworkErrorCodesOnce().catch(error => {
             homeworkMigrationPromise = null;
             console.error('Homework error-code cleanup failed:', error);
